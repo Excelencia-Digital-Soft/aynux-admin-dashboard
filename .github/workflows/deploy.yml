@@ -23,12 +23,24 @@ jobs:
         timeout: 30m
         command_timeout: 30m
         script: |
-          # Update frontend code
+          # Create parent structure
+          mkdir -p ~/aynux
+
+          # Clone/update frontend only
+          if [ ! -d ~/aynux/vuejs ]; then
+            git clone https://github.com/Excelencia-Digital-Soft/aynux-admin-dashboard.git ~/aynux/vuejs
+          fi
           cd ~/aynux/vuejs
           git fetch origin main
           git reset --hard origin/main
 
-          # Rebuild only frontend container
+          # Check if backend is deployed
+          if [ ! -d ~/aynux/python ] || [ ! -f ~/aynux/python/docker-compose.yml ]; then
+            echo "ERROR: Backend not deployed yet. Deploy backend first."
+            exit 1
+          fi
+
+          # Rebuild ONLY frontend container
           cd ~/aynux/python
           docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --no-deps frontend
 
