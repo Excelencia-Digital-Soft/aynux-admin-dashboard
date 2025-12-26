@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles */
+:root {
+  --font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
+
+body {
+  font-family: var(--font-family);
+  margin: 0;
+  min-height: 100vh;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+/* PrimeVue overrides */
+.p-button {
+  @apply font-medium;
+}
+
+.p-datatable .p-datatable-thead > tr > th {
+  @apply bg-gray-50;
+}
+
+/* ============================================
+   PrimeVue Tabs - Global Spacing Fixes
+   ============================================ */
+
+/* Tab list - spacing between tabs */
+.p-tablist {
+  gap: 0.75rem;
+}
+
+/* Individual tab - internal padding and spacing */
+.p-tab {
+  padding: 0.75rem 1.25rem;
+}
+
+/* Tab content wrapper - ensure flex gap works for icon + text */
+.p-tab > * {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Override for Tailwind flex containers inside tabs */
+.p-tab .flex {
+  gap: 0.75rem !important;
+}
+
+/* Sidebar styles */
+.sidebar-menu .p-menuitem-link {
+  @apply rounded-lg transition-colors duration-200;
+}
+
+.sidebar-menu .p-menuitem-link:hover {
+  @apply bg-primary-50;
+}
+
+.sidebar-menu .p-menuitem-link.router-link-active {
+  @apply bg-primary-100 text-primary-700;
+}

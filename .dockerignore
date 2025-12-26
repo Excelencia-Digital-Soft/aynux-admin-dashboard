@@ -1,0 +1,39 @@
+# Dependencies (installed in container)
+node_modules/
+
+# Build output (built in container)
+dist/
+
+# Development files
+.git/
+.gitignore
+*.md
+.vscode/
+.idea/
+
+# Test files
+e2e/
+*.spec.ts
+vitest.config.ts
+playwright.config.ts
+playwright-report/
+test-results/
+
+# Environment files (use build args instead)
+.env
+.env.*
+
+# Logs and cache
+*.log
+npm-debug.log*
+.npm/
+.cache/
+
+# IDE and editor files
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

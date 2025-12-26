@@ -1,0 +1,38 @@
+name: Deploy Frontend to Production
+
+on:
+  push:
+    branches: [ "linux-production" ]
+
+jobs:
+  deploy:
+    name: Deploy Vue.js to Ubuntu Server
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Deploy via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: 160
+        timeout: 30m
+        command_timeout: 30m
+        script: |
+          cd ~/aynux
+
+          # Fetch and force reset frontend to avoid divergence
+          cd vuejs
+          git fetch origin main
+          git reset --hard origin/main
+          cd ..
+
+          # Rebuild only frontend container
+          docker compose -f docker-compose.prod.yml up -d --build --no-deps frontend
+
+          # Cleanup unused images
+          docker image prune -f
