@@ -314,12 +314,18 @@
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
+import { storeToRefs } from 'pinia'
 import * as monaco from 'monaco-editor'
 import { useYamlStore } from '@/stores/yaml.store'
 import { useAuthStore } from '@/stores/auth.store'
 import yaml from 'yaml'
 import YamlTestDialog from './components/YamlTestDialog.vue'
 import type { YamlPrompt, CreateYamlRequest } from '@/types/yaml.types'
+
+// Extended type for form data that includes optional key for editing
+interface FormData extends CreateYamlRequest {
+  key?: string
+}
 
 const router = useRouter()
 const route = useRoute()
@@ -337,8 +343,8 @@ const validating = ref(false)
 const saving = ref(false)
 const editorHeight = ref(600)
 
-// Store getters
-const { currentPrompt, validation, isPromptLocked, lockingUser } = yamlStore
+// Store state (use storeToRefs for reactivity)
+const { currentPrompt, validation, isPromptLocked, lockingUser } = storeToRefs(yamlStore)
 
 // Computed
 const isNew = computed(() => route.name === 'yaml-create')
@@ -354,18 +360,18 @@ const parsedTemplate = computed(() => {
 })
 
 const detectedVariables = computed(() => {
-  if (!validation.value || !validation.value.detected_variables) return []
+  if (!validation.value?.detected_variables) return []
   return validation.value.detected_variables
 })
 
 const canSave = computed(() => {
-  return yamlStore.editorContent && 
-         (isNew.value ? true : formData.value.key) && 
-         formData.value.name && 
+  return yamlStore.editorContent &&
+         (isNew.value ? true : formData.value.key) &&
+         formData.value.name &&
          formData.value.metadata.domain &&
          formData.value.metadata.model &&
          yamlStore.editorDirty &&
-         (!currentPrompt || !isPromptLocked(currentPrompt.key))
+         (!currentPrompt.value || !isPromptLocked.value(currentPrompt.value.key))
 })
 
 const canPreview = computed(() => {
@@ -373,7 +379,7 @@ const canPreview = computed(() => {
 })
 
 // Form data
-const formData = ref<CreateYamlRequest>({
+const formData = ref<FormData>({
   name: '',
   description: '',
   version: '1.0.0',
@@ -587,19 +593,19 @@ function insertQuickTemplate(template: any) {
 
 async function validateCurrentTemplate() {
   if (!yamlStore.editorContent) return
-  
+
   validating.value = true
-  
+
   try {
     await yamlStore.validateTemplate(yamlStore.editorContent)
-    
+
     // Update form metadata if validation succeeded
-    if (yamlStore.validation?.detected_variables) {
+    if (validation.value?.detected_variables) {
       formData.value.metadata.variables = {
-        required: yamlStore.validation.value.detected_variables
+        required: validation.value.detected_variables
           .filter((v: any) => v.required)
           .map((v: any) => v.name),
-        optional: yamlStore.validation.value.detected_variables
+        optional: validation.value.detected_variables
           .filter((v: any) => !v.required)
           .map((v: any) => v.name)
       }
@@ -613,9 +619,9 @@ async function validateCurrentTemplate() {
 
 async function saveTemplate() {
   if (!canSave.value) return
-  
+
   saving.value = true
-  
+
   try {
     if (isNew.value) {
       const newPromptData = {
@@ -630,7 +636,7 @@ async function saveTemplate() {
         life: 3000
       })
     } else {
-      await yamlStore.updatePrompt(currentPrompt!.key, formData.value)
+      await yamlStore.updatePrompt(currentPrompt.value!.key, formData.value)
       toast.add({
         severity: 'success',
         summary: 'Template actualizado',
@@ -638,12 +644,12 @@ async function saveTemplate() {
         life: 3000
       })
     }
-    
+
     // Unlock if we had it locked
-    if (currentPrompt && isPromptLocked(currentPrompt.key)) {
-      await yamlStore.unlockPrompt(currentPrompt.key)
+    if (currentPrompt.value && isPromptLocked.value(currentPrompt.value.key)) {
+      await yamlStore.unlockPrompt(currentPrompt.value.key)
     }
-    
+
     goBack()
   } catch (error: any) {
     toast.add({
@@ -664,23 +670,23 @@ onMounted(async () => {
     router.push('/unauthorized')
     return
   }
-  
+
   // Load existing prompt if editing
   if (!isNew.value && promptKey.value) {
     await yamlStore.fetchPromptByKey(promptKey.value)
-    
-    if (currentPrompt) {
+
+    if (currentPrompt.value) {
       // Lock prompt for editing
       await yamlStore.lockPrompt(promptKey.value)
-      
+
       // Update form data
       formData.value = {
-        ...currentPrompt,
-        source: currentPrompt.source
+        ...currentPrompt.value,
+        source: currentPrompt.value.source
       }
     }
   }
-  
+
   // Initialize editor
   await nextTick()
   initializeEditor()
@@ -688,29 +694,15 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   // Unlock if we had it locked
-  if (currentPrompt && isPromptLocked(currentPrompt.key)) {
-    yamlStore.unlockPrompt(currentPrompt.key)
-  }
-  
-  // Cleanup editor
-  if (editor) {
-    editor.dispose()
-  }
-  
-  clearTimeout(validationTimeout)
-})
-
-onBeforeUnmount(() => {
-  // Unlock if we had it locked
-  if (currentPrompt.value && isPromptLocked(currentPrompt.value.key)) {
+  if (currentPrompt.value && isPromptLocked.value(currentPrompt.value.key)) {
     yamlStore.unlockPrompt(currentPrompt.value.key)
   }
-  
+
   // Cleanup editor
   if (editor) {
     editor.dispose()
   }
-  
+
   clearTimeout(validationTimeout)
 })
 </script>

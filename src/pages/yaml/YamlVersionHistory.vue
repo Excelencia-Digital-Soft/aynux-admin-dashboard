@@ -296,6 +296,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
+import { storeToRefs } from 'pinia'
 import { useYamlStore } from '@/stores/yaml.store'
 import { useAuthStore } from '@/stores/auth.store'
 import type { PromptVersion } from '@/types/yaml.types'
@@ -320,15 +321,17 @@ const showCreateVersion = ref(false)
 const newVersionDescription = ref('')
 const creatingVersion = ref(false)
 
-// Store getters
-const { currentPrompt, versions, loading } = yamlStore
+// Store state (use storeToRefs for reactivity)
+const { currentPrompt, versions, loading } = storeToRefs(yamlStore)
 
 // Computed
 const promptKey = computed(() => route.params.key as string)
 
 const getCurrentVersionSeverity = (version: string) => {
-  if (version === currentPrompt.value?.version) return 'success'
-  if (version > currentPrompt.value?.version) return 'warning'
+  const currentVersion = currentPrompt.value?.version
+  if (!currentVersion) return 'secondary'
+  if (version === currentVersion) return 'success'
+  if (version > currentVersion) return 'warning'
   return 'secondary'
 }
 
