@@ -28,7 +28,7 @@ jobs:
           git fetch origin main
           git reset --hard origin/main
 
-          # Rebuild only frontend container (docker-compose is in python/)
+          # Rebuild only frontend container
           cd ~/aynux/python
           docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --no-deps frontend
 
