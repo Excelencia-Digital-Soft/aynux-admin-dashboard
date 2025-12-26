@@ -266,12 +266,12 @@
           <Column header="Acciones" style="min-width: 200px">
             <template #body="{data}">
               <div class="flex space-x-1">
-                <Button 
-                  @click="editPrompt(data.key)" 
-                  icon="pi pi-pencil" 
+                <Button
+                  @click="editPrompt(data.key)"
+                  icon="pi pi-pencil"
                   size="small"
                   severity="secondary"
-                  :disabled="isPromptLocked(data.key)"
+                  :disabled="!!isPromptLocked(data.key)"
                   v-tooltip="'Editar'"
                 />
                 <Button 
@@ -373,6 +373,7 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
+import { storeToRefs } from 'pinia'
 import { useYamlStore } from '@/stores/yaml.store'
 import { useAuthStore } from '@/stores/auth.store'
 import YamlTestDialog from './components/YamlTestDialog.vue'
@@ -390,26 +391,26 @@ const fileInput = ref<HTMLInputElement>()
 const showTestDialog = ref(false)
 const testPromptKey = ref('')
 
-// Store getters
-const { 
-  prompts, 
-  paginatedPrompts, 
-  domains, 
-  loading, 
-  analytics, 
-  filters, 
+// Store state (use storeToRefs for reactivity)
+const {
+  prompts,
+  paginatedPrompts,
+  domains,
+  loading,
+  analytics,
+  filters,
   pagination,
   isPromptLocked,
   lockingUser
-} = yamlStore
+} = storeToRefs(yamlStore)
 
 // Computed
-const lockedCount = computed(() => 
-  prompts.value.filter(p => isPromptLocked(p.key)).length
+const lockedCount = computed(() =>
+  prompts.value.filter(p => isPromptLocked.value(p.key)).length
 )
 
 const domainOptions = computed(() => [
-  ...domains.value.map(domain => ({
+  ...domains.value.map((domain: string) => ({
     value: domain,
     label: getDomainDisplayName(domain)
   }))
@@ -507,7 +508,7 @@ async function fetchAnalytics() {
   await yamlStore.fetchAnalytics()
 }
 
-async async function togglePrompt(key: string, active: boolean) {
+async function togglePrompt(key: string, active: boolean) {
   try {
     await yamlStore.togglePromptActive(key, active)
     toast.add({
@@ -555,7 +556,7 @@ function onPageChange(event: any) {
 
 // Bulk operations
 async function bulkToggle(active: boolean) {
-  const keys = selectedPrompts.map((p: YamlPrompt) => p.key)
+  const keys = selectedPrompts.value.map((p: YamlPrompt) => p.key)
   
   try {
     // Call bulk API (implementation needed)
@@ -579,7 +580,7 @@ async function bulkToggle(active: boolean) {
 }
 
 async function bulkDelete() {
-  const keys = selectedPrompts.map((p: YamlPrompt) => p.key)
+  const keys = selectedPrompts.value.map((p: YamlPrompt) => p.key)
   
   // Confirmation dialog would be better here
   if (!confirm(`¿Está seguro de eliminar ${keys.length} templates?`)) {

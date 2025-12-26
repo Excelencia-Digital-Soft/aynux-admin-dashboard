@@ -136,14 +136,16 @@ async function handleEdit(doc: Document | AgentKnowledge) {
   if ('agent_key' in doc && doc.agent_key) {
     try {
       const fullDoc = await agentKnowledgeApi.getById(doc.agent_key, doc.id)
-      startEditing(doc.id, fullDoc)
+      // Ensure content is always a string for the editor
+      startEditing(doc.id, { ...fullDoc, content: fullDoc.content ?? '' } as Document)
     } catch (err) {
       console.error('Error fetching full document:', err)
       // Fallback to using content_preview if fetch fails
-      startEditing(doc.id, { ...doc, content: doc.content_preview ?? doc.content ?? '' })
+      startEditing(doc.id, { ...doc, content: doc.content_preview ?? doc.content ?? '' } as Document)
     }
   } else {
-    startEditing(doc.id, doc)
+    // For regular documents, ensure content is always defined
+    startEditing(doc.id, { ...doc, content: doc.content ?? '' } as Document)
   }
 }
 
