@@ -28,6 +28,11 @@ coverage
 /playwright-report/
 /playwright/.cache/
 
-# Environment
+# Environment (secrets)
+.env
 .env.local
 .env.*.local
+
+# Allow example and production config (no secrets)
+!.env.example
+!.env.production
