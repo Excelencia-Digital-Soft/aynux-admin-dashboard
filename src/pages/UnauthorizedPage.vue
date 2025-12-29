@@ -40,6 +40,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
+import Button from 'primevue/button'
 
 const router = useRouter()
 const authStore = useAuthStore()

@@ -54,7 +54,7 @@ export const useYamlStore = defineStore('yaml', () => {
 
   // Getters
   const filteredPrompts = computed(() => {
-    let filtered = [...prompts.value]
+    let filtered = [...(prompts.value || [])]
     
     if (filters.value.domain) {
       filtered = filtered.filter(p => p.metadata.domain === filters.value.domain)
@@ -94,13 +94,13 @@ export const useYamlStore = defineStore('yaml', () => {
   
   const domains = computed(() => {
     const domainSet = new Set<string>()
-    prompts.value.forEach(p => domainSet.add(p.metadata.domain))
-    return Array.from(domainSet).sort()
+    ;(prompts.value || []).forEach(p => domainSet.add(p.metadata?.domain))
+    return Array.from(domainSet).filter(Boolean).sort()
   })
-  
+
   const availableTags = computed(() => {
     const tagSet = new Set<string>()
-    prompts.value.forEach(p => p.metadata.tags.forEach(tag => tagSet.add(tag)))
+    ;(prompts.value || []).forEach(p => (p.metadata?.tags || []).forEach(tag => tagSet.add(tag)))
     return Array.from(tagSet).sort()
   })
   
@@ -131,10 +131,10 @@ export const useYamlStore = defineStore('yaml', () => {
       }
       
       const response: PaginatedYamlResponse = await yamlApi.list(queryParams)
-      
-      prompts.value = response.items
-      pagination.value.total = response.total
-      pagination.value.page = response.page
+
+      prompts.value = response?.items || []
+      pagination.value.total = response?.total || 0
+      pagination.value.page = response?.page || 1
     } catch (err: any) {
       error.value = err.message || 'Error fetching prompts'
       console.error('Error fetching prompts:', err)

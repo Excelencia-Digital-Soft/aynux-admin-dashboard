@@ -128,6 +128,22 @@ const router = createRouter({
           meta: { title: 'Pruebas Farmacia', icon: 'pi-heart' }
         },
 
+        // Pharmacy Config (Page 12b) - Admin CRUD
+        {
+          path: 'pharmacy',
+          name: 'Pharmacy',
+          component: () => import('@/pages/pharmacy/PharmacyPage.vue'),
+          meta: { title: 'Farmacias', icon: 'pi-shop' }
+        },
+
+        // Pharmacy Detail (Page 12c) - History View
+        {
+          path: 'pharmacy/:id',
+          name: 'PharmacyDetail',
+          component: () => import('@/pages/pharmacy/PharmacyDetailPage.vue'),
+          meta: { title: 'Detalle Farmacia', icon: 'pi-shop', hideFromMenu: true }
+        },
+
         // RAG Dashboard (Page 13)
         {
           path: 'rag-dashboard',
@@ -178,10 +194,35 @@ const router = createRouter({
           path: 'yaml-management/versions/:key',
           name: 'YamlVersions',
           component: () => import('@/pages/yaml/YamlVersionHistory.vue'),
-          meta: { 
-            title: 'Versiones YAML', 
+          meta: {
+            title: 'Versiones YAML',
             requiresAdmin: true,
             hideFromMenu: true
+          }
+        },
+
+        // Bypass Rules (Page 18)
+        {
+          path: 'bypass-rules',
+          name: 'BypassRules',
+          component: () => import('@/pages/bypass/BypassRulesPage.vue'),
+          meta: {
+            title: 'Reglas de Bypass',
+            icon: 'pi-directions',
+            requiresOrg: true,
+            requiresAdmin: true
+          }
+        },
+
+        // AI Models Admin (Page 19)
+        {
+          path: 'ai-models',
+          name: 'AIModels',
+          component: () => import('@/pages/admin/AIModelsPage.vue'),
+          meta: {
+            title: 'Modelos AI',
+            icon: 'pi-microchip-ai',
+            requiresAdmin: true
           }
         }
       ]

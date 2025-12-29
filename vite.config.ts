@@ -13,7 +13,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:8001',
+        target: 'http://localhost:8080',
         changeOrigin: true
       }
     }
@@ -53,8 +53,12 @@ export default defineConfig({
       'primevue/breadcrumb',
       'primevue/splitbutton',
       'primevue/inputnumber',
-      'primevue/calendar',
-      'primevue/dropdown',
+      'primevue/datepicker',
+      'primevue/select',
+      'primevue/toggleswitch',
+      'primevue/autocomplete',
+      'primevue/popover',
+      'primevue/drawer',
       'primevue/multiselect',
       // Third-party libraries
       'marked',

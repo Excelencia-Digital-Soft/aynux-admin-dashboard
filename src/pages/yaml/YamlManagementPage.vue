@@ -42,10 +42,10 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div class="field">
             <label for="domain" class="block text-sm font-medium mb-2">Dominio</label>
-            <Dropdown 
+            <Select
               id="domain"
-              v-model="filters.domain" 
-              :options="domainOptions" 
+              v-model="filters.domain"
+              :options="domainOptions"
               optionLabel="label"
               optionValue="value"
               placeholder="Todos los dominios"
@@ -53,13 +53,13 @@
               showClear
             />
           </div>
-          
+
           <div class="field">
             <label for="source" class="block text-sm font-medium mb-2">Origen</label>
-            <Dropdown 
+            <Select
               id="source"
-              v-model="filters.source" 
-              :options="sourceOptions" 
+              v-model="filters.source"
+              :options="sourceOptions"
               optionLabel="label"
               optionValue="value"
               placeholder="Todos los orígenes"
@@ -67,13 +67,13 @@
               showClear
             />
           </div>
-          
+
           <div class="field">
             <label for="active" class="block text-sm font-medium mb-2">Estado</label>
-            <Dropdown 
+            <Select
               id="active"
-              v-model="filters.active" 
-              :options="statusOptions" 
+              v-model="filters.active"
+              :options="statusOptions"
               optionLabel="label"
               optionValue="value"
               placeholder="Todos los estados"
@@ -181,13 +181,14 @@
       </template>
       
       <template #content>
-        <DataTable 
-          :value="paginatedPrompts" 
-          :loading="loading" 
+        <DataTable
+          :value="prompts"
+          :loading="loading"
           responsiveLayout="scroll"
           :paginator="true"
           :rows="pagination.pageSize"
           :totalRecords="pagination.total"
+          :first="(pagination.page - 1) * pagination.pageSize"
           @page="onPageChange"
           :lazy="true"
           dataKey="key"
@@ -380,6 +381,16 @@ import YamlTestDialog from './components/YamlTestDialog.vue'
 import type { YamlPrompt } from '@/types/yaml.types'
 import dayjs from 'dayjs'
 
+// PrimeVue components
+import Button from 'primevue/button'
+import Card from 'primevue/card'
+import Select from 'primevue/select'
+import InputText from 'primevue/inputtext'
+import DataTable from 'primevue/datatable'
+import Column from 'primevue/column'
+import Tag from 'primevue/tag'
+import Dialog from 'primevue/dialog'
+
 const router = useRouter()
 const toast = useToast()
 const yamlStore = useYamlStore()
@@ -394,7 +405,6 @@ const testPromptKey = ref('')
 // Store state (use storeToRefs for reactivity)
 const {
   prompts,
-  paginatedPrompts,
   domains,
   loading,
   analytics,
@@ -406,11 +416,11 @@ const {
 
 // Computed
 const lockedCount = computed(() =>
-  prompts.value.filter(p => isPromptLocked.value(p.key)).length
+  (prompts.value || []).filter(p => isPromptLocked.value(p.key)).length
 )
 
 const domainOptions = computed(() => [
-  ...domains.value.map((domain: string) => ({
+  ...(domains.value || []).map((domain: string) => ({
     value: domain,
     label: getDomainDisplayName(domain)
   }))
@@ -473,8 +483,10 @@ function getDomainDisplayName(domain: string): string {
 }
 
 // Date formatting
-function formatDate(dateString: string): string {
-  return dayjs(dateString).format('DD/MM/YYYY HH:mm')
+function formatDate(dateString: string | null | undefined): string {
+  if (!dateString) return '-'
+  const formatted = dayjs(dateString).format('DD/MM/YYYY HH:mm')
+  return formatted === 'Invalid Date' ? '-' : formatted
 }
 
 // Navigation functions

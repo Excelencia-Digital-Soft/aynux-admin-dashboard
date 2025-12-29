@@ -21,7 +21,16 @@ export const useAuthStore = defineStore(
       organizations.value.find((org) => org.id === currentOrgId.value)
     )
 
-    const isAdminOrOwner = computed(() => ['admin', 'owner'].includes(currentRole.value || ''))
+    const isAdminOrOwner = computed(() => {
+      // Check role string (case-insensitive)
+      const role = (currentRole.value || '').toLowerCase()
+      if (['admin', 'owner'].includes(role)) {
+        return true
+      }
+      // Also check is_admin flag from current organization
+      const currentOrg = organizations.value.find((org) => org.id === currentOrgId.value)
+      return currentOrg?.is_admin === true
+    })
 
     const username = computed(() => user.value?.username || user.value?.email || '')
 
