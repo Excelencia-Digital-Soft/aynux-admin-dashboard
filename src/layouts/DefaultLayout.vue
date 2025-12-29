@@ -9,7 +9,7 @@ import Avatar from 'primevue/avatar'
 import type { MenuItem } from 'primevue/menuitem'
 
 const route = useRoute()
-const { currentUser, currentOrganization, organizations, logout, switchOrganization, username } = useAuth()
+const { currentUser, currentOrganization, organizations, logout, switchOrganization, username, isAdminOrOwner } = useAuth()
 
 const sidebarCollapsed = ref(false)
 const userMenuRef = ref()
@@ -83,6 +83,37 @@ const multiTenantMenuItems = computed<MenuItem[]>(() => [
     disabled: !currentOrganization.value
   }
 ])
+
+const configMenuItems = computed<MenuItem[]>(() => {
+  const items: MenuItem[] = [
+    {
+      label: 'Farmacias',
+      icon: 'pi pi-shop',
+      route: '/pharmacy'
+    },
+    {
+      label: 'Reglas de Bypass',
+      icon: 'pi pi-directions',
+      route: '/bypass-rules'
+    },
+    {
+      label: 'Gestion YAML',
+      icon: 'pi pi-code',
+      route: '/yaml-management'
+    }
+  ]
+
+  // Admin-only items
+  if (isAdminOrOwner.value) {
+    items.push({
+      label: 'Modelos AI',
+      icon: 'pi pi-microchip-ai',
+      route: '/ai-models'
+    })
+  }
+
+  return items
+})
 
 const testingMenuItems = computed<MenuItem[]>(() => [
   {
@@ -227,13 +258,39 @@ function handleOrgChange(orgId: string) {
           </ul>
         </div>
 
-        <!-- Testing -->
+        <!-- Configuracion -->
+        <div class="px-3 mb-4">
+          <span
+            v-if="!sidebarCollapsed"
+            class="text-xs font-semibold text-gray-400 uppercase tracking-wider"
+          >
+            Configuracion
+          </span>
+          <ul class="mt-2 space-y-1">
+            <li v-for="item in configMenuItems" :key="item.route">
+              <RouterLink
+                :to="item.route!"
+                :class="[
+                  'flex items-center px-3 py-2 rounded-lg transition-colors',
+                  isActive(item.route!)
+                    ? 'bg-primary-100 text-primary-700'
+                    : 'text-gray-600 hover:bg-gray-100'
+                ]"
+              >
+                <i :class="[item.icon, 'text-lg']" />
+                <span v-if="!sidebarCollapsed" class="ml-3">{{ item.label }}</span>
+              </RouterLink>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Pruebas -->
         <div class="px-3">
           <span
             v-if="!sidebarCollapsed"
             class="text-xs font-semibold text-gray-400 uppercase tracking-wider"
           >
-            Testing
+            Pruebas
           </span>
           <ul class="mt-2 space-y-1">
             <li v-for="item in testingMenuItems" :key="item.route">

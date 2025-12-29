@@ -109,9 +109,9 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="field">
               <label for="model">Modelo para test</label>
-              <Dropdown 
+              <Select
                 id="model"
-                v-model="testConfig.model" 
+                v-model="testConfig.model"
                 :options="modelOptions"
                 optionLabel="label"
                 optionValue="value"
@@ -282,6 +282,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { useYamlStore } from '@/stores/yaml.store'
+import { useAIModels } from '@/composables/useAIModels'
 import type { PromptVersion, TestResult } from '@/types/yaml.types'
 
 interface Props {
@@ -296,6 +297,9 @@ const emit = defineEmits<{
 
 const toast = useToast()
 const yamlStore = useYamlStore()
+
+// AI Models from database (replaces hardcoded list)
+const { simpleOptions: modelOptions, defaultModel } = useAIModels()
 
 // Store getters
 const { currentPrompt, versions, testResult } = yamlStore
@@ -321,15 +325,7 @@ const testConfig = ref({
   timeout: 30
 })
 
-// Options
-const modelOptions = [
-  { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
-  { value: 'gpt-4', label: 'GPT-4' },
-  { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
-  { value: 'claude-3-haiku', label: 'Claude 3 Haiku' },
-  { value: 'claude-3-sonnet', label: 'Claude 3 Sonnet' },
-  { value: 'claude-3-opus', label: 'Claude 3 Opus' }
-]
+// modelOptions is now provided by useAIModels() composable above
 
 // Computed
 const canTest = computed(() => {

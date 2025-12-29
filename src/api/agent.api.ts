@@ -8,13 +8,14 @@ import type {
   SoftwareModuleUpdateRequest,
   ModuleFilters
 } from '@/types/agent.types'
+import { adaptModules, adaptModule } from '@/adapters/moduleAdapter'
 
 // Agent Configuration API
 export const agentApi = {
   // Get agent configuration
   async getConfig(): Promise<AgentConfig | null> {
     try {
-      const response = await api.get('/api/v1/admin/agents/config')
+      const response = await api.get('/admin/agents/config')
       return response.data
     } catch (error) {
       console.error('Failed to fetch agent config:', error)
@@ -28,7 +29,7 @@ export const agentApi = {
     createBackup = true
   ): Promise<AgentConfig | null> {
     try {
-      const response = await api.patch('/api/v1/admin/agents/modules', modules, {
+      const response = await api.patch('/admin/agents/modules', modules, {
         params: { create_backup: createBackup }
       })
       return response.data
@@ -41,7 +42,7 @@ export const agentApi = {
   // Update agent settings
   async updateSettings(settings: AgentSettingsUpdateRequest): Promise<AgentConfig | null> {
     try {
-      const response = await api.patch('/api/v1/admin/agents/settings', settings)
+      const response = await api.patch('/admin/agents/settings', settings)
       return response.data
     } catch (error) {
       console.error('Failed to update agent settings:', error)
@@ -52,7 +53,7 @@ export const agentApi = {
   // Get agent status
   async getStatus(): Promise<Record<string, unknown> | null> {
     try {
-      const response = await api.get('/api/v1/admin/agents/status')
+      const response = await api.get('/admin/agents/status')
       return response.data
     } catch (error) {
       console.error('Failed to fetch agent status:', error)
@@ -63,7 +64,7 @@ export const agentApi = {
   // Get enabled agents
   async getEnabledAgents(): Promise<string[]> {
     try {
-      const response = await api.get('/api/v1/admin/agents/enabled')
+      const response = await api.get('/admin/agents/enabled')
       return response.data
     } catch (error) {
       console.error('Failed to fetch enabled agents:', error)
@@ -82,8 +83,8 @@ export const catalogApi = {
       if (filters?.status) params.status = filters.status
       if (filters?.search) params.search = filters.search
 
-      const response = await api.get('/api/v1/admin/modules', { params })
-      return response.data
+      const response = await api.get('/admin/modules', { params })
+      return adaptModules(response.data)
     } catch (error) {
       console.error('Failed to fetch modules:', error)
       return []
@@ -93,8 +94,8 @@ export const catalogApi = {
   // Get single module
   async getModule(moduleId: string): Promise<SoftwareModule | null> {
     try {
-      const response = await api.get(`/api/v1/admin/modules/${moduleId}`)
-      return response.data
+      const response = await api.get(`/admin/modules/${moduleId}`)
+      return adaptModule(response.data)
     } catch (error) {
       console.error('Failed to fetch module:', error)
       return null
@@ -104,7 +105,7 @@ export const catalogApi = {
   // Create module
   async createModule(data: SoftwareModuleCreateRequest): Promise<SoftwareModule | null> {
     try {
-      const response = await api.post('/api/v1/admin/modules', data)
+      const response = await api.post('/admin/modules', data)
       return response.data
     } catch (error) {
       console.error('Failed to create module:', error)
@@ -118,7 +119,7 @@ export const catalogApi = {
     data: SoftwareModuleUpdateRequest
   ): Promise<SoftwareModule | null> {
     try {
-      const response = await api.patch(`/api/v1/admin/modules/${moduleId}`, data)
+      const response = await api.patch(`/admin/modules/${moduleId}`, data)
       return response.data
     } catch (error) {
       console.error('Failed to update module:', error)
@@ -129,7 +130,7 @@ export const catalogApi = {
   // Delete module (soft or hard)
   async deleteModule(moduleId: string, hardDelete = false): Promise<boolean> {
     try {
-      await api.delete(`/api/v1/admin/modules/${moduleId}`, {
+      await api.delete(`/admin/modules/${moduleId}`, {
         params: { hard_delete: hardDelete }
       })
       return true

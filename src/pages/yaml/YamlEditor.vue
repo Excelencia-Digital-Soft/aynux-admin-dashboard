@@ -89,7 +89,7 @@
             ></div>
             
             <!-- Validation Errors -->
-            <div v-if="validation && !validation.valid" class="validation-errors mt-3">
+            <div v-if="validation && !validation.valid && validation.errors?.length > 0" class="validation-errors mt-3">
               <Message 
                 v-for="error in validation.errors" 
                 :key="`${error.line}-${error.path}`"
@@ -104,7 +104,7 @@
             </div>
             
             <!-- Validation Warnings -->
-            <div v-if="validation && validation.warnings.length > 0" class="validation-warnings mt-3">
+            <div v-if="validation?.warnings?.length > 0" class="validation-warnings mt-3">
               <Message 
                 v-for="warning in validation.warnings" 
                 :key="`${warning.line}-${warning.path}`"
@@ -169,9 +169,9 @@
               
               <div class="field">
                 <label for="domain">Dominio *</label>
-                <Dropdown 
+                <Select
                   id="domain"
-                  v-model="formData.metadata.domain" 
+                  v-model="formData.metadata.domain"
                   :options="domainOptions"
                   optionLabel="label"
                   optionValue="value"
@@ -179,12 +179,12 @@
                   class="w-full"
                 />
               </div>
-              
+
               <div class="field">
                 <label for="model">Modelo *</label>
-                <Dropdown 
+                <Select
                   id="model"
-                  v-model="formData.metadata.model" 
+                  v-model="formData.metadata.model"
                   :options="modelOptions"
                   optionLabel="label"
                   optionValue="value"
@@ -220,11 +220,13 @@
               
               <div class="field">
                 <label for="tags">Tags</label>
-                <Chips 
+                <AutoComplete
                   id="tags"
-                  v-model="formData.metadata.tags" 
+                  v-model="formData.metadata.tags"
                   placeholder="Agregar tags"
                   class="w-full"
+                  multiple
+                  :typeahead="false"
                 />
               </div>
               
@@ -242,26 +244,114 @@
           </template>
         </Card>
 
-        <!-- Detected Variables -->
-        <Card v-if="detectedVariables.length > 0" class="mb-4">
+        <!-- Detected Variables Card - Always Visible -->
+        <Card class="mb-4 variables-card">
           <template #title>
-            <i class="pi pi-list"></i>
-            Variables Detectadas
-          </template>
-          
-          <template #content>
-            <div class="variables-list">
-              <div 
-                v-for="variable in detectedVariables" 
-                :key="variable.name"
-                class="variable-item"
-              >
-                <Tag 
-                  :value="variable.name" 
-                  :severity="variable.required ? 'danger' : 'info'"
-                  class="mr-2"
+            <div class="flex justify-between items-center">
+              <span class="flex items-center gap-2">
+                <i class="pi pi-code"></i>
+                Variables
+                <Tag
+                  v-if="detectedVariables.length > 0"
+                  :value="detectedVariables.length.toString()"
+                  severity="info"
+                  rounded
+                  class="variable-count-badge"
                 />
-                <span class="text-sm text-muted">{{ variable.type }}</span>
+              </span>
+              <Button
+                @click="scanForVariables"
+                icon="pi pi-sync"
+                size="small"
+                severity="secondary"
+                text
+                rounded
+                v-tooltip="'Escanear variables'"
+                :loading="validating"
+              />
+            </div>
+          </template>
+
+          <template #content>
+            <!-- Empty State -->
+            <div v-if="detectedVariables.length === 0" class="variables-empty-state">
+              <i class="pi pi-inbox text-4xl text-gray-300 mb-3"></i>
+              <p class="text-sm text-muted mb-2">No se detectaron variables</p>
+              <p class="text-xs text-gray-400">
+                Usa <code class="variable-syntax">{nombre}</code> en el template para crear variables
+              </p>
+            </div>
+
+            <!-- Variables List -->
+            <div v-else class="variables-list-enhanced">
+              <!-- Required Variables Section -->
+              <div v-if="requiredVariables.length > 0" class="variable-section">
+                <div class="variable-section-header">
+                  <i class="pi pi-exclamation-circle text-red-500"></i>
+                  <span class="text-sm font-medium">Requeridas</span>
+                  <span class="text-xs text-gray-400">({{ requiredVariables.length }})</span>
+                </div>
+                <div class="variable-items">
+                  <div
+                    v-for="variable in requiredVariables"
+                    :key="variable.name"
+                    class="variable-item-enhanced required"
+                  >
+                    <div class="variable-info">
+                      <code class="variable-name">{{ variable.name }}</code>
+                    </div>
+                    <Button
+                      @click="toggleVariableRequired(variable.name, false)"
+                      icon="pi pi-arrow-right"
+                      size="small"
+                      severity="secondary"
+                      text
+                      rounded
+                      v-tooltip="'Marcar como opcional'"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Optional Variables Section -->
+              <div v-if="optionalVariables.length > 0" class="variable-section">
+                <div class="variable-section-header">
+                  <i class="pi pi-info-circle text-blue-500"></i>
+                  <span class="text-sm font-medium">Opcionales</span>
+                  <span class="text-xs text-gray-400">({{ optionalVariables.length }})</span>
+                </div>
+                <div class="variable-items">
+                  <div
+                    v-for="variable in optionalVariables"
+                    :key="variable.name"
+                    class="variable-item-enhanced optional"
+                  >
+                    <div class="variable-info">
+                      <code class="variable-name">{{ variable.name }}</code>
+                    </div>
+                    <Button
+                      @click="toggleVariableRequired(variable.name, true)"
+                      icon="pi pi-arrow-left"
+                      size="small"
+                      severity="secondary"
+                      text
+                      rounded
+                      v-tooltip="'Marcar como requerida'"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Variables Summary -->
+            <div v-if="detectedVariables.length > 0" class="variables-summary mt-3 pt-3 border-t border-gray-200">
+              <div class="flex justify-between text-xs text-gray-500">
+                <span>Total: {{ detectedVariables.length }}</span>
+                <span>
+                  <span class="text-red-500">{{ requiredVariables.length }} req</span>
+                  <span class="mx-1">·</span>
+                  <span class="text-blue-500">{{ optionalVariables.length }} opt</span>
+                </span>
               </div>
             </div>
           </template>
@@ -320,7 +410,21 @@ import { useYamlStore } from '@/stores/yaml.store'
 import { useAuthStore } from '@/stores/auth.store'
 import yaml from 'yaml'
 import YamlTestDialog from './components/YamlTestDialog.vue'
+import { useAIModels } from '@/composables/useAIModels'
 import type { YamlPrompt, CreateYamlRequest } from '@/types/yaml.types'
+
+// PrimeVue Components
+import Button from 'primevue/button'
+import Card from 'primevue/card'
+import Tag from 'primevue/tag'
+import Message from 'primevue/message'
+import InputText from 'primevue/inputtext'
+import Textarea from 'primevue/textarea'
+import Select from 'primevue/select'
+import InputNumber from 'primevue/inputnumber'
+import AutoComplete from 'primevue/autocomplete'
+import Checkbox from 'primevue/checkbox'
+import Dialog from 'primevue/dialog'
 
 // Extended type for form data that includes optional key for editing
 interface FormData extends CreateYamlRequest {
@@ -332,6 +436,9 @@ const route = useRoute()
 const toast = useToast()
 const yamlStore = useYamlStore()
 const authStore = useAuthStore()
+
+// AI Models from database (replaces hardcoded list)
+const { simpleOptions: modelOptions, loading: modelsLoading, defaultModel } = useAIModels()
 
 // Editor state
 const editorContainer = ref<HTMLElement>()
@@ -362,6 +469,14 @@ const parsedTemplate = computed(() => {
 const detectedVariables = computed(() => {
   if (!validation.value?.detected_variables) return []
   return validation.value.detected_variables
+})
+
+const requiredVariables = computed(() => {
+  return detectedVariables.value.filter((v: any) => v.required)
+})
+
+const optionalVariables = computed(() => {
+  return detectedVariables.value.filter((v: any) => !v.required)
 })
 
 const canSave = computed(() => {
@@ -405,6 +520,7 @@ const testVariables = ref<Record<string, any>>({})
 const domainOptions = [
   { value: 'core', label: 'Core' },
   { value: 'agents', label: 'Agentes' },
+  { value: 'bypass-rules', label: 'Reglas de Bypass' },
   { value: 'healthcare', label: 'Salud' },
   { value: 'ecommerce', label: 'E-commerce' },
   { value: 'excelencia', label: 'Excelencia' },
@@ -414,14 +530,7 @@ const domainOptions = [
   { value: 'tools', label: 'Herramientas' }
 ]
 
-const modelOptions = [
-  { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
-  { value: 'gpt-4', label: 'GPT-4' },
-  { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
-  { value: 'claude-3-haiku', label: 'Claude 3 Haiku' },
-  { value: 'claude-3-sonnet', label: 'Claude 3 Sonnet' },
-  { value: 'claude-3-opus', label: 'Claude 3 Opus' }
-]
+// modelOptions is now provided by useAIModels() composable above
 
 const quickTemplates = [
   {
@@ -597,24 +706,135 @@ async function validateCurrentTemplate() {
   validating.value = true
 
   try {
-    await yamlStore.validateTemplate(yamlStore.editorContent)
+    // Extract variables from template (pattern: {variable_name})
+    const variablePattern = /\{(\w+)\}/g
+    const matches = yamlStore.editorContent.matchAll(variablePattern)
+    const detectedVars = [...new Set([...matches].map(m => m[1]))]
 
-    // Update form metadata if validation succeeded
-    if (validation.value?.detected_variables) {
-      formData.value.metadata.variables = {
-        required: validation.value.detected_variables
-          .filter((v: any) => v.required)
-          .map((v: any) => v.name),
-        optional: validation.value.detected_variables
-          .filter((v: any) => !v.required)
-          .map((v: any) => v.name)
-      }
+    // Preserve existing required/optional status from formData
+    const existingRequired = new Set(formData.value.metadata.variables?.required || [])
+    const existingOptional = new Set(formData.value.metadata.variables?.optional || [])
+
+    // Update validation state locally
+    yamlStore.validation = {
+      valid: true,
+      errors: [],
+      detected_variables: detectedVars.map(name => ({
+        name,
+        required: existingRequired.has(name) || !existingOptional.has(name)
+      }))
     }
+
+    // Update form metadata with detected variables
+    formData.value.metadata.variables = {
+      required: detectedVars.filter(v => existingRequired.has(v) || !existingOptional.has(v)),
+      optional: detectedVars.filter(v => existingOptional.has(v))
+    }
+
+    toast.add({
+      severity: 'success',
+      summary: 'Validación exitosa',
+      detail: `Template válido. ${detectedVars.length} variable(s) detectada(s)`,
+      life: 3000
+    })
   } catch (error: any) {
-    console.error('Validation error:', error)
+    // Unexpected error
+    yamlStore.validation = {
+      valid: false,
+      errors: [{
+        message: error.message,
+        line: null
+      }]
+    }
+
+    toast.add({
+      severity: 'error',
+      summary: 'Error inesperado',
+      detail: error.message,
+      life: 5000
+    })
   } finally {
     validating.value = false
   }
+}
+
+// Scan for variables without full validation
+function scanForVariables() {
+  if (!yamlStore.editorContent) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Sin contenido',
+      detail: 'Escribe algo en el editor primero',
+      life: 3000
+    })
+    return
+  }
+
+  // Extract variables from template
+  const variablePattern = /\{(\w+)\}/g
+  const matches = yamlStore.editorContent.matchAll(variablePattern)
+  const detectedVars = [...new Set([...matches].map(m => m[1]))]
+
+  // Preserve existing required/optional status from formData
+  const existingRequired = new Set(formData.value.metadata.variables?.required || [])
+  const existingOptional = new Set(formData.value.metadata.variables?.optional || [])
+
+  // Update validation state with preserved status
+  yamlStore.validation = {
+    valid: true,
+    errors: [],
+    detected_variables: detectedVars.map(name => ({
+      name,
+      required: existingRequired.has(name) || !existingOptional.has(name)
+    }))
+  }
+
+  // Update form metadata
+  formData.value.metadata.variables = {
+    required: detectedVars.filter(v => existingRequired.has(v) || !existingOptional.has(v)),
+    optional: detectedVars.filter(v => existingOptional.has(v))
+  }
+
+  toast.add({
+    severity: 'info',
+    summary: 'Variables escaneadas',
+    detail: `Se encontraron ${detectedVars.length} variable(s)`,
+    life: 2000
+  })
+}
+
+// Toggle variable between required and optional
+function toggleVariableRequired(variableName: string, makeRequired: boolean) {
+  const required = new Set(formData.value.metadata.variables?.required || [])
+  const optional = new Set(formData.value.metadata.variables?.optional || [])
+
+  if (makeRequired) {
+    required.add(variableName)
+    optional.delete(variableName)
+  } else {
+    optional.add(variableName)
+    required.delete(variableName)
+  }
+
+  // Update formData
+  formData.value.metadata.variables = {
+    required: [...required],
+    optional: [...optional]
+  }
+
+  // Update validation state
+  if (yamlStore.validation?.detected_variables) {
+    yamlStore.validation = {
+      ...yamlStore.validation,
+      detected_variables: yamlStore.validation.detected_variables.map((v: any) => ({
+        ...v,
+        required: v.name === variableName ? makeRequired : v.required
+      }))
+    }
+  }
+
+  // Mark as dirty
+  yamlStore.editorDirty = true
 }
 
 async function saveTemplate() {
@@ -679,10 +899,22 @@ onMounted(async () => {
       // Lock prompt for editing
       await yamlStore.lockPrompt(promptKey.value)
 
-      // Update form data
+      // Update form data with explicit mapping to ensure metadata fields are set
       formData.value = {
-        ...currentPrompt.value,
-        source: currentPrompt.value.source
+        name: currentPrompt.value.name || '',
+        description: currentPrompt.value.description || '',
+        version: currentPrompt.value.version || '1.0.0',
+        template: currentPrompt.value.template || '',
+        metadata: {
+          temperature: currentPrompt.value.metadata?.temperature ?? 0.7,
+          max_tokens: currentPrompt.value.metadata?.max_tokens ?? 1000,
+          model: currentPrompt.value.metadata?.model || 'default',
+          tags: currentPrompt.value.metadata?.tags || [],
+          variables: currentPrompt.value.metadata?.variables || { required: [], optional: [] },
+          domain: currentPrompt.value.metadata?.domain || 'core'
+        },
+        active: currentPrompt.value.active ?? true,
+        source: currentPrompt.value.source || 'database'
       }
     }
   }
@@ -779,16 +1011,107 @@ onBeforeUnmount(() => {
   color: var(--text-color);
 }
 
-.variables-list {
+/* Variables Card Styles */
+.variables-card {
+  border: 1px solid var(--surface-border);
+  transition: box-shadow 0.2s ease;
+}
+
+.variables-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.variable-count-badge {
+  font-size: 0.7rem;
+  min-width: 1.5rem;
+  height: 1.5rem;
+}
+
+.variables-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+  text-align: center;
+}
+
+.variable-syntax {
+  background: var(--surface-100);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: var(--primary-color);
+  font-family: monospace;
+}
+
+.variables-list-enhanced {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.variable-section {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.variable-item {
+.variable-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px dashed var(--surface-200);
+}
+
+.variable-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.variable-item-enhanced {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.variable-item-enhanced.required {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(239, 68, 68, 0.04) 100%);
+  border-left: 3px solid #ef4444;
+}
+
+.variable-item-enhanced.optional {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(59, 130, 246, 0.04) 100%);
+  border-left: 3px solid #3b82f6;
+}
+
+.variable-item-enhanced:hover {
+  transform: translateX(2px);
+}
+
+.variable-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.variable-name {
+  font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-color);
+  background: var(--surface-100);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.variables-summary {
+  border-color: var(--surface-200) !important;
 }
 
 .quick-templates {
