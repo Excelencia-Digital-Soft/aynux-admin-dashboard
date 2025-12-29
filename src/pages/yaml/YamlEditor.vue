@@ -104,9 +104,9 @@
             </div>
             
             <!-- Validation Warnings -->
-            <div v-if="validation?.warnings?.length > 0" class="validation-warnings mt-3">
-              <Message 
-                v-for="warning in validation.warnings" 
+            <div v-if="(validation?.warnings?.length ?? 0) > 0" class="validation-warnings mt-3">
+              <Message
+                v-for="warning in validation?.warnings ?? []"
                 :key="`${warning.line}-${warning.path}`"
                 severity="warn" 
                 :closable="false"
@@ -719,9 +719,11 @@ async function validateCurrentTemplate() {
     yamlStore.validation = {
       valid: true,
       errors: [],
+      warnings: [],
       detected_variables: detectedVars.map(name => ({
         name,
-        required: existingRequired.has(name) || !existingOptional.has(name)
+        required: existingRequired.has(name) || !existingOptional.has(name),
+        type: 'string'
       }))
     }
 
@@ -743,8 +745,11 @@ async function validateCurrentTemplate() {
       valid: false,
       errors: [{
         message: error.message,
-        line: null
-      }]
+        line: 0,
+        path: '',
+        severity: 'error'
+      }],
+      warnings: []
     }
 
     toast.add({
@@ -783,9 +788,11 @@ function scanForVariables() {
   yamlStore.validation = {
     valid: true,
     errors: [],
+    warnings: [],
     detected_variables: detectedVars.map(name => ({
       name,
-      required: existingRequired.has(name) || !existingOptional.has(name)
+      required: existingRequired.has(name) || !existingOptional.has(name),
+      type: 'string'
     }))
   }
 

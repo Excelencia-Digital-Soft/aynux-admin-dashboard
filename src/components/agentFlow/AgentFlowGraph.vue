@@ -479,7 +479,7 @@ watch(
     <BypassRuleDetailPanel
       v-model:visible="showDetailPanel"
       :rule="selectedRule"
-      :target-agent-name="selectedRule ? store.agents.find(a => a.agent_key === selectedRule.target_agent)?.display_name : undefined"
+      :target-agent-name="selectedRule ? store.agents.find(a => a.agent_key === selectedRule?.target_agent)?.display_name : undefined"
       @edit="(ruleId) => emit('ruleSelect', ruleId)"
     />
 
