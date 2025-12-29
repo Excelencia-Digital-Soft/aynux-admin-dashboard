@@ -172,7 +172,7 @@ async function saveModel() {
   try {
     const updated = await aiModelsApi.update(editingModel.value.id, {
       display_name: editingModel.value.display_name,
-      description: editingModel.value.description,
+      description: editingModel.value.description ?? undefined,
       sort_order: editingModel.value.sort_order,
       is_default: editingModel.value.is_default
     })

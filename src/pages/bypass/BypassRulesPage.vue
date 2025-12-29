@@ -91,7 +91,7 @@ function cancelDelete() {
             <TabPanel value="1">
               <div class="visualization-container">
                 <AgentFlowGraph
-                  :organization-id="authStore.currentOrgId"
+                  :organization-id="authStore.currentOrgId ?? undefined"
                   height="600px"
                   :show-minimap="true"
                   :show-controls="true"
