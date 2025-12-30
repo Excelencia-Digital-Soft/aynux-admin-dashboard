@@ -41,6 +41,12 @@ export interface PharmacyTestResponse {
   metadata?: Record<string, unknown>
 }
 
+export interface PharmacyWebhookConfig {
+  enabled: boolean
+  phoneNumber: string
+  userName: string
+}
+
 export const pharmacyApi = {
   // Get available pharmacies for testing
   async getPharmacies(): Promise<Pharmacy[]> {

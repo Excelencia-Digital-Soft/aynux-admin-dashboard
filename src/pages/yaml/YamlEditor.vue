@@ -411,6 +411,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import yaml from 'yaml'
 import YamlTestDialog from './components/YamlTestDialog.vue'
 import { useAIModels } from '@/composables/useAIModels'
+import { useConfirm } from '@/composables/useConfirm'
 import type { YamlPrompt, CreateYamlRequest } from '@/types/yaml.types'
 
 // PrimeVue Components
@@ -436,6 +437,7 @@ const route = useRoute()
 const toast = useToast()
 const yamlStore = useYamlStore()
 const authStore = useAuthStore()
+const { confirmDiscard } = useConfirm()
 
 // AI Models from database (replaces hardcoded list)
 const { simpleOptions: modelOptions, loading: modelsLoading, defaultModel } = useAIModels()
@@ -657,11 +659,12 @@ function debounceValidation() {
 }
 
 // Actions
-function goBack() {
+async function goBack() {
   if (yamlStore.editorDirty) {
-    if (!confirm('Tienes cambios sin guardar. ¿Estás seguro de que quieres salir?')) {
-      return
-    }
+    const confirmed = await confirmDiscard(
+      'Tienes cambios sin guardar. ¿Estás seguro de que quieres salir?'
+    )
+    if (!confirmed) return
   }
   router.push('/yaml-management')
 }

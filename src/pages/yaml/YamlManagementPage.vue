@@ -380,6 +380,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import YamlTestDialog from './components/YamlTestDialog.vue'
 import type { YamlPrompt } from '@/types/yaml.types'
 import dayjs from 'dayjs'
+import { useConfirm } from '@/composables/useConfirm'
 
 // PrimeVue components
 import Button from 'primevue/button'
@@ -395,6 +396,7 @@ const router = useRouter()
 const toast = useToast()
 const yamlStore = useYamlStore()
 const authStore = useAuthStore()
+const { confirmDelete } = useConfirm()
 
 // Local state
 const selectedPrompts = ref<YamlPrompt[]>([])
@@ -593,12 +595,12 @@ async function bulkToggle(active: boolean) {
 
 async function bulkDelete() {
   const keys = selectedPrompts.value.map((p: YamlPrompt) => p.key)
-  
-  // Confirmation dialog would be better here
-  if (!confirm(`¿Está seguro de eliminar ${keys.length} templates?`)) {
-    return
-  }
-  
+
+  const confirmed = await confirmDelete(
+    `¿Está seguro de eliminar ${keys.length} templates?`
+  )
+  if (!confirmed) return
+
   try {
     // Call bulk API (implementation needed)
     toast.add({
