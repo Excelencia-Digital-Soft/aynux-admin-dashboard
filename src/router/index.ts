@@ -224,6 +224,18 @@ const router = createRouter({
             icon: 'pi-microchip-ai',
             requiresAdmin: true
           }
+        },
+
+        // Chattigo Credentials (Page 20)
+        {
+          path: 'chattigo-credentials',
+          name: 'ChattigoCredentials',
+          component: () => import('@/pages/chattigo/ChattigoCredentialsPage.vue'),
+          meta: {
+            title: 'Credenciales Chattigo',
+            icon: 'pi-whatsapp',
+            requiresAdmin: true
+          }
         }
       ]
     },
