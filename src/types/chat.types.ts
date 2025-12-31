@@ -140,3 +140,43 @@ export interface StreamChunk {
   tool_call?: ToolCall
   error?: string
 }
+
+// Webhook simulation types
+export type BusinessDomain = 'excelencia' | 'ecommerce' | 'healthcare' | 'credit'
+
+export interface WebhookSimulationConfig {
+  enabled: boolean
+  phoneNumber: string
+  userName: string
+  businessDomain: BusinessDomain
+}
+
+export interface WebhookSimulationRequest {
+  message: string
+  phone_number: string
+  user_name: string
+  business_domain: BusinessDomain
+  session_id?: string
+  debug: boolean
+}
+
+export interface WebhookSimulationResponse {
+  session_id: string
+  response: string
+  agent_used: string
+  execution_steps?: ExecutionStep[]
+  debug_info?: {
+    response_time_ms: number
+    requires_human: boolean
+    is_complete: boolean
+    webhook_simulation: boolean
+    channel: string
+    business_domain: string
+  }
+  metadata?: {
+    phone_number: string
+    user_name: string
+    processing_time_ms: number
+    flow: string
+  }
+}

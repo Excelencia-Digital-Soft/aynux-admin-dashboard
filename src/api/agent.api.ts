@@ -119,7 +119,7 @@ export const catalogApi = {
     data: SoftwareModuleUpdateRequest
   ): Promise<SoftwareModule | null> {
     try {
-      const response = await api.patch(`/admin/modules/${moduleId}`, data)
+      const response = await api.put(`/admin/modules/${moduleId}`, data)
       return response.data
     } catch (error) {
       console.error('Failed to update module:', error)

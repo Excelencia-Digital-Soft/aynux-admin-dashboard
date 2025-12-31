@@ -7,7 +7,8 @@ import GraphVisualization from '@/components/chat/GraphVisualization.vue'
 import ConversationHistory from '@/components/chat/ConversationHistory.vue'
 import ReasoningDisplay from '@/components/chat/ReasoningDisplay.vue'
 import MetricsPanel from '@/components/chat/MetricsPanel.vue'
-import type { ConversationMessage, ExecutionStep } from '@/types/chat.types'
+import WebhookSimulationPanel from '@/components/chat/WebhookSimulationPanel.vue'
+import type { ConversationMessage } from '@/types/chat.types'
 
 import Card from 'primevue/card'
 import Button from 'primevue/button'
@@ -21,6 +22,7 @@ import SplitterPanel from 'primevue/splitterpanel'
 import Dialog from 'primevue/dialog'
 import Checkbox from 'primevue/checkbox'
 import Message from 'primevue/message'
+import Tag from 'primevue/tag'
 
 const store = useChatStore()
 const toast = useToast()
@@ -52,7 +54,30 @@ async function handleSendMessage(message: string) {
     }
     store.addMessage(userMessage)
 
-    if (useStreaming.value) {
+    // Check if webhook simulation mode is enabled
+    if (store.webhookSimulation.enabled) {
+      // Use webhook simulation endpoint (process_webhook_message flow)
+      const result = await chatApi.testWebhookSimulation({
+        message,
+        phone_number: store.webhookSimulation.phoneNumber,
+        user_name: store.webhookSimulation.userName,
+        business_domain: store.webhookSimulation.businessDomain,
+        session_id: threadId,
+        debug: debugMode.value
+      })
+
+      const assistantMessage: ConversationMessage = {
+        id: result.session_id || crypto.randomUUID(),
+        role: 'assistant',
+        content: result.response,
+        timestamp: new Date().toISOString()
+      }
+      store.addMessage(assistantMessage)
+
+      if (result.execution_steps) {
+        store.setExecutionSteps(result.execution_steps)
+      }
+    } else if (useStreaming.value) {
       // Streaming mode
       store.startStreaming()
 
@@ -239,6 +264,17 @@ onUnmounted(() => {
                   <i class="pi pi-chart-bar mr-2" />
                   Metricas
                 </Tab>
+                <Tab value="3">
+                  <i class="pi pi-bolt mr-2" />
+                  Webhook
+                  <Tag
+                    v-if="store.webhookSimulation.enabled"
+                    value="ON"
+                    severity="success"
+                    class="ml-2 text-xs"
+                    style="font-size: 0.65rem; padding: 0.1rem 0.3rem;"
+                  />
+                </Tab>
               </TabList>
               <TabPanels class="tab-panels-container">
                 <TabPanel value="0">
@@ -254,6 +290,9 @@ onUnmounted(() => {
                 </TabPanel>
                 <TabPanel value="2">
                   <MetricsPanel />
+                </TabPanel>
+                <TabPanel value="3">
+                  <WebhookSimulationPanel />
                 </TabPanel>
               </TabPanels>
             </Tabs>

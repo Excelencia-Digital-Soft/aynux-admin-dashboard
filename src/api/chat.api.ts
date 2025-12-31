@@ -4,7 +4,9 @@ import type {
   ChatResponse,
   ConversationThread,
   ExecutionStep,
-  ChatMetrics
+  ChatMetrics,
+  WebhookSimulationRequest,
+  WebhookSimulationResponse
 } from '@/types/chat.types'
 
 // Chat endpoints - use /chat for message processing (existing backend routes)
@@ -211,6 +213,23 @@ export const chatApi = {
     system_prompt?: string
   }> {
     const { data } = await apiClient.get(`${ADMIN_CHAT_URL}/config`)
+    return data
+  },
+
+  /**
+   * Test webhook simulation - uses process_webhook_message flow
+   *
+   * This endpoint simulates the exact WhatsApp webhook processing flow
+   * with configurable test data from the Chat Visualizer UI.
+   */
+  async testWebhookSimulation(
+    request: WebhookSimulationRequest
+  ): Promise<WebhookSimulationResponse> {
+    const { data } = await apiClient.post<WebhookSimulationResponse>(
+      `${ADMIN_CHAT_URL}/test-webhook`,
+      request,
+      { timeout: 180000 } // 3 minutes for complex processing
+    )
     return data
   }
 }

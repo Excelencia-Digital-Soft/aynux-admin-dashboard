@@ -6,7 +6,8 @@ import type {
   AgentState,
   GraphNode,
   GraphEdge,
-  ChatMetrics
+  ChatMetrics,
+  WebhookSimulationConfig
 } from '@/types/chat.types'
 
 interface ChatState {
@@ -31,6 +32,9 @@ interface ChatState {
   // Metrics
   sessionMetrics: ChatMetrics | null
   graphInitialized: boolean
+
+  // Webhook simulation config (persisted to localStorage)
+  webhookSimulation: WebhookSimulationConfig
 }
 
 export const useChatStore = defineStore('chat', {
@@ -48,7 +52,14 @@ export const useChatStore = defineStore('chat', {
     streamingContent: '',
     error: null,
     sessionMetrics: null,
-    graphInitialized: false
+    graphInitialized: false,
+    // Webhook simulation defaults - persisted to localStorage
+    webhookSimulation: {
+      enabled: false,
+      phoneNumber: 'web_5491100001234',
+      userName: 'Web Tester',
+      businessDomain: 'excelencia'
+    }
   }),
 
   getters: {
@@ -316,6 +327,21 @@ export const useChatStore = defineStore('chat', {
       this.threads.set(threadId, thread)
       this.setActiveThread(threadId)
       return threadId
+    },
+
+    // Webhook simulation
+    updateWebhookSimulation(config: Partial<WebhookSimulationConfig>) {
+      this.webhookSimulation = { ...this.webhookSimulation, ...config }
+    },
+
+    toggleWebhookSimulation() {
+      this.webhookSimulation.enabled = !this.webhookSimulation.enabled
     }
+  },
+
+  // Persist webhookSimulation config to localStorage
+  persist: {
+    key: 'chat-store',
+    paths: ['webhookSimulation']
   }
 })

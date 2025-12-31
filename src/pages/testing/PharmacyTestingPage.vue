@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { pharmacyApi } from '@/api/pharmacy.api'
-import type { Pharmacy, PharmacyTestMessage } from '@/api/pharmacy.api'
+import type { Pharmacy, PharmacyTestMessage, PharmacyWebhookConfig } from '@/api/pharmacy.api'
 import { useToast } from '@/composables/useToast'
+import PharmacyWebhookPanel from '@/components/pharmacy/PharmacyWebhookPanel.vue'
 
 import Card from 'primevue/card'
 import Button from 'primevue/button'
@@ -29,7 +30,11 @@ const selectedPharmacy = ref<Pharmacy | null>(null)
 const sessionId = ref<string | null>(null)
 const messages = ref<PharmacyTestMessage[]>([])
 const inputMessage = ref('')
-const phoneNumber = ref('2645631000')
+const webhookConfig = ref<PharmacyWebhookConfig>({
+  enabled: false,
+  phoneNumber: '2645631000',
+  userName: 'Pharmacy Tester'
+})
 const executionSteps = ref<unknown[]>([])
 const graphState = ref<unknown | null>(null)
 const chatContainer = ref<HTMLElement | null>(null)
@@ -69,7 +74,7 @@ async function sendMessage() {
       pharmacy_id: selectedPharmacy.value.id,
       message: messageText,
       session_id: sessionId.value || undefined,
-      phone_number: phoneNumber.value
+      phone_number: webhookConfig.value.phoneNumber
     })
 
     if (response) {
@@ -136,8 +141,22 @@ function handleKeyPress(event: KeyboardEvent) {
 }
 
 onMounted(() => {
+  // Load webhook config from localStorage
+  const saved = localStorage.getItem('pharmacy-webhook-config')
+  if (saved) {
+    try {
+      webhookConfig.value = JSON.parse(saved)
+    } catch (e) {
+      console.warn('Failed to parse pharmacy webhook config')
+    }
+  }
   fetchPharmacies()
 })
+
+// Persist webhook config to localStorage
+watch(webhookConfig, (val) => {
+  localStorage.setItem('pharmacy-webhook-config', JSON.stringify(val))
+}, { deep: true })
 </script>
 
 <template>
@@ -298,6 +317,19 @@ onMounted(() => {
                     <span>Estado</span>
                   </div>
                 </Tab>
+                <Tab value="3">
+                  <div class="flex items-center gap-2 text-sm">
+                    <i class="pi pi-bolt" />
+                    <span>Webhook</span>
+                    <Tag
+                      v-if="webhookConfig.enabled"
+                      value="ON"
+                      severity="success"
+                      class="ml-1"
+                      style="font-size: 0.65rem; padding: 0.1rem 0.3rem;"
+                    />
+                  </div>
+                </Tab>
               </TabList>
 
               <TabPanels>
@@ -311,7 +343,7 @@ onMounted(() => {
 
                     <div>
                       <label class="block text-sm font-medium text-gray-500">Telefono</label>
-                      <InputText v-model="phoneNumber" class="w-full" :disabled="hasSession" />
+                      <code class="text-xs break-all">{{ webhookConfig.phoneNumber }}</code>
                     </div>
 
                     <div>
@@ -356,6 +388,15 @@ onMounted(() => {
                       JSON.stringify(graphState, null, 2)
                     }}</pre>
                   </div>
+                </TabPanel>
+
+                <!-- Webhook Config -->
+                <TabPanel value="3">
+                  <PharmacyWebhookPanel
+                    :config="webhookConfig"
+                    :has-session="hasSession"
+                    @update="(c) => webhookConfig = { ...webhookConfig, ...c }"
+                  />
                 </TabPanel>
               </TabPanels>
             </Tabs>

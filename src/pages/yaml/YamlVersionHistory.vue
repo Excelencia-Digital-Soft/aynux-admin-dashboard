@@ -307,11 +307,14 @@ import 'dayjs/locale/es'
 dayjs.extend(relativeTime)
 dayjs.locale('es')
 
+import { useConfirm } from '@/composables/useConfirm'
+
 const router = useRouter()
 const route = useRoute()
 const toast = useToast()
 const yamlStore = useYamlStore()
 const authStore = useAuthStore()
+const { confirmRollback } = useConfirm()
 
 // Component state
 const selectedVersion = ref<PromptVersion | null>(null)
@@ -378,11 +381,12 @@ function compareVersion(version: PromptVersion) {
 
 async function rollbackToVersion(version: PromptVersion) {
   if (!promptKey.value || !currentPrompt) return
-  
+
   const confirmMessage = `¿Está seguro de que desea hacer rollback a la versión ${version.version}?\n\nEsto revertirá todos los cambios realizados desde esa versión.`
-  
-  if (!confirm(confirmMessage)) return
-  
+
+  const confirmed = await confirmRollback(confirmMessage)
+  if (!confirmed) return
+
   try {
     await yamlStore.rollbackPrompt(promptKey.value, version.id)
     

@@ -100,6 +100,11 @@ const configMenuItems = computed<MenuItem[]>(() => {
       label: 'Gestion YAML',
       icon: 'pi pi-code',
       route: '/yaml-management'
+    },
+    {
+      label: 'Chattigo',
+      icon: 'pi pi-whatsapp',
+      route: '/chattigo-credentials'
     }
   ]
 

@@ -9,12 +9,12 @@ import type { SoftwareModule, ModuleCategory, ModuleStatus, PricingTier } from '
 
 // Valid values for enums
 const VALID_CATEGORIES: ModuleCategory[] = [
-  'salud',
-  'hotelería',
-  'financiero',
-  'gremios',
-  'productos',
-  'servicios públicos',
+  'healthcare',
+  'hospitality',
+  'finance',
+  'guilds',
+  'products',
+  'public_services',
   'general'
 ]
 
@@ -94,6 +94,8 @@ export function adaptModule(data: unknown): SoftwareModule {
     status: normalizeStatus(raw.status),
     features: normalizeFeatures(raw.features),
     pricing_tier: normalizePricingTier(raw.pricing_tier),
+    active: Boolean(raw.active ?? true),
+    knowledge_synced: Boolean(raw.knowledge_synced ?? false),
     created_at: normalizeDate(raw.created_at) || now,
     updated_at: normalizeDate(raw.updated_at) || now
   }

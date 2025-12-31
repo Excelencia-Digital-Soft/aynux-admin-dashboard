@@ -40,12 +40,12 @@ export interface AgentSettingsUpdateRequest {
 
 // Software catalog types (Excelencia)
 export type ModuleCategory =
-  | 'salud'
-  | 'hotelería'
-  | 'financiero'
-  | 'gremios'
-  | 'productos'
-  | 'servicios públicos'
+  | 'healthcare'
+  | 'hospitality'
+  | 'finance'
+  | 'guilds'
+  | 'products'
+  | 'public_services'
   | 'general'
 
 export type ModuleStatus = 'active' | 'beta' | 'coming_soon' | 'deprecated'
@@ -61,6 +61,8 @@ export interface SoftwareModule {
   status: ModuleStatus
   features: string[]
   pricing_tier: PricingTier
+  active: boolean
+  knowledge_synced: boolean
   created_at: string
   updated_at: string
 }
@@ -92,12 +94,12 @@ export interface ModuleFilters {
 
 // Helper functions
 export const categoryOptions: { value: ModuleCategory; label: string }[] = [
-  { value: 'salud', label: 'Salud' },
-  { value: 'hotelería', label: 'Hotelería' },
-  { value: 'financiero', label: 'Financiero' },
-  { value: 'gremios', label: 'Gremios' },
-  { value: 'productos', label: 'Productos' },
-  { value: 'servicios públicos', label: 'Servicios Públicos' },
+  { value: 'healthcare', label: 'Salud' },
+  { value: 'hospitality', label: 'Hotelería' },
+  { value: 'finance', label: 'Financiero' },
+  { value: 'guilds', label: 'Gremios' },
+  { value: 'products', label: 'Productos' },
+  { value: 'public_services', label: 'Servicios Públicos' },
   { value: 'general', label: 'General' }
 ]
 
