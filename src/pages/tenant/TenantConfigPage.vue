@@ -20,6 +20,7 @@ import Divider from 'primevue/divider'
 import Message from 'primevue/message'
 import Dialog from 'primevue/dialog'
 import ProgressSpinner from 'primevue/progressspinner'
+import TenantAgentSelection from '@/components/tenant/TenantAgentSelection.vue'
 
 const authStore = useAuthStore()
 const {
@@ -260,6 +261,16 @@ onMounted(() => {
                   <p class="text-xs text-gray-400 mt-1">
                     Estas instrucciones se añaden al prompt del sistema
                   </p>
+                </div>
+
+                <Divider />
+
+                <div class="mt-6">
+                  <h3 class="text-lg font-medium text-gray-800 mb-4">Agentes Habilitados</h3>
+                  <p class="text-sm text-gray-500 mb-4">
+                    Configura que agentes estan disponibles para esta organizacion
+                  </p>
+                  <TenantAgentSelection :org-id="currentOrgId!" />
                 </div>
               </div>
             </TabPanel>
