@@ -51,6 +51,20 @@ const typeOptions = getTypeOptions('global')
 
 function handleUploadComplete(doc: unknown) {
   toast.success('Documento subido correctamente')
+  redirectToKnowledgeBase()
+}
+
+function redirectToKnowledgeBase() {
+  const query: Record<string, string> = {}
+  if (destination.value === 'agent' && agentKey.value) {
+    query.source = 'agent'
+    query.agent = agentKey.value
+  } else if (destination.value === 'tenant') {
+    query.source = 'tenant'
+  } else {
+    query.source = 'global'
+  }
+  router.push({ path: '/knowledge-base', query })
 }
 
 function handleCancel() {
@@ -114,6 +128,7 @@ async function handleMarkdownSubmit() {
     if (doc) {
       resetMarkdownForm()
       toast.success('Documento creado correctamente')
+      redirectToKnowledgeBase()
     }
   } catch (err) {
     console.error('Create document error:', err)

@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useKnowledge } from '@/composables/useKnowledge'
 import { useAuthStore } from '@/stores/auth.store'
 import { agentKnowledgeApi } from '@/api/agentKnowledge.api'
 import { KNOWLEDGE_SOURCE_OPTIONS } from '@/utils/constants'
 import DocumentBrowser from '@/components/documents/DocumentBrowser.vue'
 import AdvancedSearch from '@/components/documents/AdvancedSearch.vue'
+import AgentKnowledgeDashboard from '@/components/documents/AgentKnowledgeDashboard.vue'
 
 import Tabs from 'primevue/tabs'
 import TabList from 'primevue/tablist'
@@ -19,16 +20,25 @@ import Select from 'primevue/select'
 import ProgressSpinner from 'primevue/progressspinner'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const { fetchDocuments } = useKnowledge()
 
 const activeTab = ref('0')
 
-// Source filtering
-const selectedSource = ref('all')
-const selectedAgentKey = ref('')
+// Source filtering - Initialize from URL query params
+const selectedSource = ref((route.query.source as string) || 'all')
+const selectedAgentKey = ref((route.query.agent as string) || '')
 const availableAgents = ref<Array<{ value: string; label: string }>>([])
 const loadingAgents = ref(false)
+
+// Sync filter changes to URL
+watch([selectedSource, selectedAgentKey], ([source, agent]) => {
+  const query: Record<string, string> = {}
+  if (source && source !== 'all') query.source = source
+  if (agent) query.agent = agent
+  router.replace({ query })
+})
 
 // Computed
 const currentOrgId = computed(() => authStore.currentOrganization?.id || '')
@@ -71,12 +81,22 @@ function handleSearchSelect(docId: string) {
   activeTab.value = '0'
 }
 
+function handleSelectAgentFromDashboard(agentKey: string) {
+  selectedSource.value = 'agent'
+  selectedAgentKey.value = agentKey
+  activeTab.value = '0' // Switch to Explorar tab
+}
+
 function goToUpload() {
   router.push('/upload-documents')
 }
 
 onMounted(() => {
   fetchDocuments()
+  // If source is 'agent' from URL, load agents
+  if (selectedSource.value === 'agent') {
+    fetchAgents()
+  }
 })
 </script>
 
@@ -95,6 +115,33 @@ onMounted(() => {
         icon="pi pi-upload"
         @click="goToUpload"
       />
+    </div>
+
+    <!-- Quick Navigation -->
+    <div class="flex items-center gap-4 mb-4 text-sm">
+      <RouterLink
+        to="/upload-documents"
+        class="flex items-center gap-1 text-gray-600 hover:text-primary-600 transition-colors"
+      >
+        <i class="pi pi-upload text-xs" />
+        <span>Subir documento</span>
+      </RouterLink>
+      <span class="text-gray-300">|</span>
+      <RouterLink
+        to="/embeddings"
+        class="flex items-center gap-1 text-gray-600 hover:text-primary-600 transition-colors"
+      >
+        <i class="pi pi-database text-xs" />
+        <span>Gestionar embeddings</span>
+      </RouterLink>
+      <span class="text-gray-300">|</span>
+      <RouterLink
+        to="/excelencia"
+        class="flex items-center gap-1 text-gray-600 hover:text-primary-600 transition-colors"
+      >
+        <i class="pi pi-box text-xs" />
+        <span>Catalogo de Software</span>
+      </RouterLink>
     </div>
 
     <!-- Source Filter -->
@@ -151,6 +198,12 @@ onMounted(() => {
                 <span>Busqueda Semantica</span>
               </div>
             </Tab>
+            <Tab value="2">
+              <div class="flex items-center gap-2">
+                <i class="pi pi-th-large" />
+                <span>Dashboard Agentes</span>
+              </div>
+            </Tab>
           </TabList>
           <TabPanels>
             <TabPanel value="0">
@@ -168,6 +221,9 @@ onMounted(() => {
                 :max-results="15"
                 @select="handleSearchSelect"
               />
+            </TabPanel>
+            <TabPanel value="2">
+              <AgentKnowledgeDashboard @select-agent="handleSelectAgentFromDashboard" />
             </TabPanel>
           </TabPanels>
         </Tabs>

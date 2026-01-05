@@ -18,6 +18,8 @@ import {
   getTierSeverity
 } from '@/types/agent.types'
 
+import ModuleEditDialog from '@/components/excelencia/ModuleEditDialog.vue'
+
 import Card from 'primevue/card'
 import Button from 'primevue/button'
 import DataTable from 'primevue/datatable'
@@ -26,7 +28,6 @@ import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
-import Dialog from 'primevue/dialog'
 import Tabs from 'primevue/tabs'
 import TabList from 'primevue/tablist'
 import Tab from 'primevue/tab'
@@ -135,6 +136,11 @@ function openModuleDialog(module: SoftwareModule | null = null) {
 function closeModuleDialog() {
   showModuleDialog.value = false
   editingModule.value = null
+}
+
+function onModuleDialogSaved() {
+  closeModuleDialog()
+  fetchModules()
 }
 
 async function handleSaveModule() {
@@ -499,79 +505,12 @@ onMounted(() => {
     </Card>
 
     <!-- Edit Module Dialog -->
-    <Dialog
+    <ModuleEditDialog
       v-model:visible="showModuleDialog"
-      header="Editar Modulo"
-      :modal="true"
-      :style="{ width: '550px' }"
-    >
-      <div class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Codigo</label>
-          <InputText :value="editingModule?.code" disabled class="w-full" />
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
-          <InputText v-model="moduleForm.name" class="w-full" />
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-            <Select
-              v-model="moduleForm.category"
-              :options="categoryOptions"
-              optionLabel="label"
-              optionValue="value"
-              class="w-full"
-            />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-            <Select
-              v-model="moduleForm.status"
-              :options="statusOptions"
-              optionLabel="label"
-              optionValue="value"
-              class="w-full"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Descripcion</label>
-          <Textarea v-model="moduleForm.description" rows="3" class="w-full" />
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Features (uno por linea)</label>
-            <Textarea v-model="moduleForm.features" rows="5" class="w-full" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Plan de Precios</label>
-            <Select
-              v-model="moduleForm.pricing_tier"
-              :options="pricingOptions"
-              optionLabel="label"
-              optionValue="value"
-              class="w-full"
-            />
-          </div>
-        </div>
-      </div>
-
-      <template #footer>
-        <Button label="Cancelar" severity="secondary" @click="closeModuleDialog" />
-        <Button
-          label="Guardar"
-          @click="handleSaveModule"
-          :loading="isLoading"
-          :disabled="!moduleForm.name"
-        />
-      </template>
-    </Dialog>
+      :module="editingModule"
+      @saved="onModuleDialogSaved"
+      @cancelled="closeModuleDialog"
+    />
   </div>
 </template>
 

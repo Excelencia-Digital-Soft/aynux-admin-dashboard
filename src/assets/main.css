@@ -2,7 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom styles */
+/* ============================================
+   Custom Fonts
+   ============================================ */
 :root {
   --font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
 }
@@ -17,7 +19,22 @@ body {
   min-height: 100vh;
 }
 
-/* PrimeVue overrides */
+/* ============================================
+   Aynux Brand Colors (CSS Variables)
+   ============================================ */
+:root {
+  --aynux-navy-900: #0c1d3d;
+  --aynux-navy-800: #142b4a;
+  --aynux-navy-700: #1e3a5f;
+  --aynux-violet-600: #7c3aed;
+  --aynux-violet-500: #8b5cf6;
+  --aynux-cyan-500: #06b6d4;
+  --aynux-cyan-400: #22d3ee;
+}
+
+/* ============================================
+   PrimeVue Global Overrides
+   ============================================ */
 .p-button {
   @apply font-medium;
 }
@@ -29,30 +46,27 @@ body {
 /* ============================================
    PrimeVue Tabs - Global Spacing Fixes
    ============================================ */
-
-/* Tab list - spacing between tabs */
 .p-tablist {
   gap: 0.75rem;
 }
 
-/* Individual tab - internal padding and spacing */
 .p-tab {
   padding: 0.75rem 1.25rem;
 }
 
-/* Tab content wrapper - ensure flex gap works for icon + text */
 .p-tab > * {
   display: flex;
   align-items: center;
   gap: 0.75rem;
 }
 
-/* Override for Tailwind flex containers inside tabs */
 .p-tab .flex {
   gap: 0.75rem !important;
 }
 
-/* Sidebar styles */
+/* ============================================
+   Sidebar Styles
+   ============================================ */
 .sidebar-menu .p-menuitem-link {
   @apply rounded-lg transition-colors duration-200;
 }
@@ -63,4 +77,160 @@ body {
 
 .sidebar-menu .p-menuitem-link.router-link-active {
   @apply bg-primary-100 text-primary-700;
+}
+
+/* ============================================
+   Gradient Utilities
+   ============================================ */
+.gradient-text {
+  @apply bg-clip-text text-transparent;
+  background-image: linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%);
+}
+
+.gradient-border {
+  @apply relative;
+}
+
+.gradient-border::before {
+  content: '';
+  @apply absolute inset-0 rounded-lg;
+  padding: 2px;
+  background: linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* ============================================
+   Card & Component Enhancements
+   ============================================ */
+.card-hover {
+  @apply transition-all duration-300;
+}
+
+.card-hover:hover {
+  @apply shadow-lg shadow-primary-500/10 -translate-y-0.5;
+}
+
+.glass-effect {
+  @apply bg-white/95 backdrop-blur-sm border border-white/20;
+}
+
+/* ============================================
+   Dark Mode Support
+   ============================================ */
+.dark-mode {
+  color-scheme: dark;
+}
+
+.dark-mode body {
+  @apply bg-navy-900 text-gray-100;
+}
+
+.dark-mode .bg-white {
+  @apply !bg-navy-800;
+}
+
+.dark-mode .bg-gray-100 {
+  @apply !bg-navy-900;
+}
+
+.dark-mode .bg-gray-50 {
+  @apply !bg-navy-800;
+}
+
+.dark-mode .text-gray-800 {
+  @apply !text-gray-100;
+}
+
+.dark-mode .text-gray-700 {
+  @apply !text-gray-200;
+}
+
+.dark-mode .text-gray-600 {
+  @apply !text-gray-300;
+}
+
+.dark-mode .text-gray-500 {
+  @apply !text-gray-400;
+}
+
+.dark-mode .border-gray-100,
+.dark-mode .border-gray-200 {
+  @apply !border-navy-700;
+}
+
+.dark-mode .border-b {
+  @apply border-navy-700;
+}
+
+.dark-mode .shadow-lg {
+  --tw-shadow-color: rgba(0, 0, 0, 0.3);
+}
+
+.dark-mode .hover\:bg-gray-100:hover {
+  @apply !bg-navy-700;
+}
+
+.dark-mode .hover\:bg-primary-50\/50:hover {
+  @apply !bg-primary-900/30;
+}
+
+.dark-mode .bg-gradient-to-r.from-primary-100 {
+  @apply !from-primary-900/40 !to-cyan-900/30;
+}
+
+/* Dark mode for login card */
+.dark-mode .bg-white\/95 {
+  @apply !bg-navy-800/95;
+}
+
+/* ============================================
+   Animation Utilities
+   ============================================ */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+/* ============================================
+   Scrollbar Styling
+   ============================================ */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400;
+}
+
+.dark-mode ::-webkit-scrollbar-track {
+  @apply bg-navy-800;
+}
+
+.dark-mode ::-webkit-scrollbar-thumb {
+  @apply bg-navy-600;
+}
+
+.dark-mode ::-webkit-scrollbar-thumb:hover {
+  @apply bg-navy-500;
 }

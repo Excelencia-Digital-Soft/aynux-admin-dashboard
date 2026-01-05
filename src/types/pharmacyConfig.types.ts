@@ -15,6 +15,12 @@ export interface PharmacyConfig {
   pharmacy_phone: string | null
   pharmacy_logo_path: string | null
 
+  // Contact and hours info
+  pharmacy_email: string | null
+  pharmacy_website: string | null
+  pharmacy_hours: Record<string, string> | null
+  pharmacy_is_24h: boolean
+
   // Mercado Pago configuration (secrets masked in responses)
   mp_enabled: boolean
   mp_sandbox: boolean
@@ -48,6 +54,12 @@ export interface PharmacyConfigCreateRequest {
   pharmacy_phone?: string
   pharmacy_logo_path?: string
 
+  // Contact and hours info
+  pharmacy_email?: string
+  pharmacy_website?: string
+  pharmacy_hours?: Record<string, string>
+  pharmacy_is_24h?: boolean
+
   // Mercado Pago configuration
   mp_enabled?: boolean
   mp_access_token?: string
@@ -71,6 +83,12 @@ export interface PharmacyConfigUpdateRequest {
   pharmacy_address?: string
   pharmacy_phone?: string
   pharmacy_logo_path?: string
+
+  // Contact and hours info
+  pharmacy_email?: string
+  pharmacy_website?: string
+  pharmacy_hours?: Record<string, string>
+  pharmacy_is_24h?: boolean
 
   // Mercado Pago configuration
   mp_enabled?: boolean
@@ -253,4 +271,27 @@ export function getSenderTypeSeverity(
     system: 'secondary'
   }
   return severities[type] || 'secondary'
+}
+
+/**
+ * Format pharmacy hours for display
+ */
+export function formatPharmacyHours(
+  hours: Record<string, string> | null,
+  is24h: boolean
+): string {
+  if (is24h) return 'Abierto 24 horas'
+  if (!hours || Object.keys(hours).length === 0) return 'No configurado'
+  return Object.entries(hours)
+    .map(([day, time]) => `${day}: ${time}`)
+    .join(' | ')
+}
+
+/**
+ * Default pharmacy hours template
+ */
+export const DEFAULT_PHARMACY_HOURS: Record<string, string> = {
+  'lun-vie': '08:00-20:00',
+  sab: '08:00-13:00',
+  dom: 'cerrado'
 }

@@ -8,7 +8,7 @@ import type {
   TenantDocumentStats
 } from '@/types/organization.types'
 
-const TENANT_URL = '/admin/tenant'
+const TENANT_URL = '/admin/organizations'
 
 export const tenantApi = {
   // ============ Configuration ============
@@ -81,14 +81,15 @@ export const tenantApi = {
     const { data } = await apiClient.get(`${TENANT_URL}/${orgId}/documents`, {
       params: {
         page: params.page || 1,
-        page_size: params.pageSize || 25,
+        per_page: params.pageSize || 25,
         document_type: params.documentType,
         category: params.category,
         active_only: params.activeOnly,
         search: params.search
       }
     })
-    return data
+    // Map backend response (items) to frontend format (documents)
+    return { documents: data.items || [], total: data.total || 0 }
   },
 
   /**

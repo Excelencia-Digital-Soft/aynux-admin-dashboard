@@ -1,5 +1,11 @@
 // Agent configuration and settings types
 
+// Respuesta real del API /admin/agents/config
+export interface AgentConfigResponse {
+  enabled_agents: string[]
+  system_initialized: boolean
+}
+
 export interface AgentModule {
   id: string
   name: string

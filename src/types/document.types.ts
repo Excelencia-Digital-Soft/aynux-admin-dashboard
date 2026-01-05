@@ -2,6 +2,7 @@ export interface Document {
   id: string
   title: string
   content: string
+  content_preview?: string
   document_type: string
   category?: string
   tags?: string[]
@@ -11,6 +12,9 @@ export interface Document {
   embedding_model?: string
   created_at: string
   updated_at: string
+  // Unified endpoint fields (optional for backward compatibility)
+  source?: 'company' | 'agent'
+  agent_key?: string
 }
 
 export interface DocumentCreateRequest {
@@ -64,6 +68,7 @@ export interface KnowledgeStats {
   documents_by_type: Record<string, number>
   documents_with_embedding: number
   documents_without_embedding: number
+  embedding_model?: string
 }
 
 export interface BatchResult {

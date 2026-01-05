@@ -1,86 +1,70 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { agentApi } from '@/api/agent.api'
 import { useToast } from '@/composables/useToast'
-import type { AgentConfig, AgentModule, AgentModuleUpdateRequest } from '@/types/agent.types'
+import type { AgentConfigResponse } from '@/types/agent.types'
 
 import Card from 'primevue/card'
 import Button from 'primevue/button'
-import InputText from 'primevue/inputtext'
-import Textarea from 'primevue/textarea'
-import InputNumber from 'primevue/inputnumber'
-import ToggleSwitch from 'primevue/toggleswitch'
-import Tabs from 'primevue/tabs'
-import TabList from 'primevue/tablist'
-import Tab from 'primevue/tab'
-import TabPanels from 'primevue/tabpanels'
-import TabPanel from 'primevue/tabpanel'
-import Panel from 'primevue/panel'
 import Tag from 'primevue/tag'
-import Message from 'primevue/message'
 import ProgressSpinner from 'primevue/progressspinner'
-import Divider from 'primevue/divider'
+import Panel from 'primevue/panel'
 
 const toast = useToast()
 
 const isLoading = ref(false)
-const config = ref<AgentConfig | null>(null)
-const activeTab = ref('0')
-const editingModuleId = ref<string | null>(null)
+const config = ref<AgentConfigResponse | null>(null)
 
-// Form state for module editing
-const moduleForm = ref({
-  name: '',
-  description: '',
-  target: '',
-  features: ''
-})
+// Agent icons mapping
+const agentIcons: Record<string, string> = {
+  greeting_agent: 'pi-comments',
+  support_agent: 'pi-headphones',
+  fallback_agent: 'pi-question-circle',
+  farewell_agent: 'pi-sign-out',
+  excelencia_agent: 'pi-star',
+  excelencia_invoice_agent: 'pi-file',
+  excelencia_promotions_agent: 'pi-megaphone',
+  data_insights_agent: 'pi-chart-bar'
+}
+
+// Agent descriptions
+const agentDescriptions: Record<string, string> = {
+  greeting_agent: 'Maneja saludos y bienvenida inicial',
+  support_agent: 'Proporciona soporte y ayuda general',
+  fallback_agent: 'Responde cuando no hay agente específico',
+  farewell_agent: 'Maneja despedidas y cierre de conversación',
+  excelencia_agent: 'Agente principal de Excelencia',
+  excelencia_invoice_agent: 'Consultas de facturas y pagos',
+  excelencia_promotions_agent: 'Información de promociones',
+  data_insights_agent: 'Análisis de datos e insights'
+}
+
+const agentCount = computed(() => config.value?.enabled_agents?.length ?? 0)
+
+function formatAgentName(agentId: string): string {
+  return agentId
+    .replace(/_agent$/, '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+function getAgentIcon(agentId: string): string {
+  return agentIcons[agentId] || 'pi-android'
+}
+
+function getAgentDescription(agentId: string): string {
+  return agentDescriptions[agentId] || 'Agente del sistema'
+}
 
 async function fetchConfig() {
   isLoading.value = true
   try {
     config.value = await agentApi.getConfig()
-  } finally {
-    isLoading.value = false
-  }
-}
-
-function startEditModule(moduleId: string, module: AgentModule) {
-  editingModuleId.value = moduleId
-  moduleForm.value = {
-    name: module.name,
-    description: module.description,
-    target: module.target,
-    features: module.features.join('\n')
-  }
-}
-
-function cancelEditModule() {
-  editingModuleId.value = null
-}
-
-async function saveModule(moduleId: string) {
-  isLoading.value = true
-  try {
-    const features = moduleForm.value.features
-      .split('\n')
-      .map((f) => f.trim())
-      .filter(Boolean)
-
-    const updateData: AgentModuleUpdateRequest = {
-      name: moduleForm.value.name,
-      description: moduleForm.value.description,
-      target: moduleForm.value.target,
-      features
+    if (config.value) {
+      toast.success('Configuración cargada')
     }
-
-    await agentApi.updateModules({ [moduleId]: updateData }, true)
-    toast.success('Modulo actualizado')
-    toast.warn('Reiniciar la aplicacion para aplicar los cambios')
-    editingModuleId.value = null
-    await fetchConfig()
   } catch (error) {
-    toast.error('Error al actualizar modulo')
+    toast.error('Error al cargar configuración')
   } finally {
     isLoading.value = false
   }
@@ -96,16 +80,24 @@ onMounted(() => {
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-2xl font-bold text-gray-800">Configuracion de Agentes</h1>
-        <p class="text-gray-500 mt-1">Ver y editar modulos y configuracion del agente</p>
+        <h1 class="text-2xl font-bold text-gray-800">Configuración de Agentes</h1>
+        <p class="text-gray-500 mt-1">Ver los agentes activos del sistema</p>
       </div>
-      <Button
-        icon="pi pi-refresh"
-        label="Actualizar"
-        severity="secondary"
-        @click="fetchConfig"
-        :loading="isLoading"
-      />
+      <div class="flex items-center gap-3">
+        <Tag
+          v-if="config"
+          :severity="config.system_initialized ? 'success' : 'warn'"
+          :value="config.system_initialized ? 'Sistema Inicializado' : 'No Inicializado'"
+          class="text-sm"
+        />
+        <Button
+          icon="pi pi-refresh"
+          label="Actualizar"
+          severity="secondary"
+          @click="fetchConfig"
+          :loading="isLoading"
+        />
+      </div>
     </div>
 
     <!-- Loading -->
@@ -118,223 +110,117 @@ onMounted(() => {
       <template #content>
         <div class="text-center py-8 text-gray-500">
           <i class="pi pi-exclamation-circle text-4xl mb-2" />
-          <p>No se pudo cargar la configuracion del agente. Esta la API activa?</p>
+          <p>No se pudo cargar la configuración del agente.</p>
+          <p class="text-sm mt-1">¿Está la API activa?</p>
         </div>
       </template>
     </Card>
 
     <!-- Config loaded -->
-    <Card v-else>
-      <template #content>
-        <Tabs v-model:value="activeTab">
-          <TabList>
-            <Tab value="0">
-              <div class="flex items-center gap-2">
-                <i class="pi pi-cog" />
-                <span>Modulos</span>
+    <div v-else>
+      <!-- Stats -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <Card>
+          <template #content>
+            <div class="flex items-center gap-4">
+              <div class="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-cyan-500 flex items-center justify-center">
+                <i class="pi pi-android text-white text-xl" />
               </div>
-            </Tab>
-            <Tab value="1">
-              <div class="flex items-center gap-2">
-                <i class="pi pi-sliders-h" />
-                <span>Settings</span>
+              <div>
+                <p class="text-2xl font-bold text-gray-800">{{ agentCount }}</p>
+                <p class="text-sm text-gray-500">Agentes Activos</p>
               </div>
-            </Tab>
-          </TabList>
-          <TabPanels>
-            <!-- Modules Tab -->
-            <TabPanel value="0">
-              <Message severity="warn" :closable="false" class="mb-4">
-                Los cambios a modulos requieren reiniciar la aplicacion!
-              </Message>
+            </div>
+          </template>
+        </Card>
 
-              <div class="space-y-4">
-                <Panel
-                  v-for="(module, moduleId) in config.modules"
-                  :key="moduleId"
-                  :header="module.name"
-                  toggleable
-                  :collapsed="editingModuleId !== moduleId"
-                >
-                  <template #header>
-                    <div class="flex items-center gap-2">
-                      <i class="pi pi-android" />
-                      <span class="font-medium">{{ module.name }}</span>
-                      <Tag
-                        v-if="module.enabled !== false"
-                        severity="success"
-                        value="Activo"
-                        class="text-xs"
-                      />
-                      <Tag v-else severity="secondary" value="Inactivo" class="text-xs" />
-                    </div>
-                  </template>
-
-                  <!-- Viewing mode -->
-                  <div v-if="editingModuleId !== moduleId">
-                    <div class="grid grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <label class="block text-sm font-medium text-gray-500">Descripcion</label>
-                        <p class="text-gray-800">{{ module.description || 'Sin descripcion' }}</p>
-                      </div>
-                      <div>
-                        <label class="block text-sm font-medium text-gray-500">
-                          Audiencia Objetivo
-                        </label>
-                        <p class="text-gray-800">{{ module.target || 'N/A' }}</p>
-                      </div>
-                    </div>
-
-                    <div class="mb-4">
-                      <label class="block text-sm font-medium text-gray-500 mb-2">Features</label>
-                      <div class="flex flex-wrap gap-2">
-                        <Tag
-                          v-for="(feature, idx) in module.features"
-                          :key="idx"
-                          :value="feature"
-                          severity="info"
-                        />
-                        <span v-if="!module.features?.length" class="text-gray-400">
-                          Sin features
-                        </span>
-                      </div>
-                    </div>
-
-                    <Button
-                      label="Editar"
-                      icon="pi pi-pencil"
-                      severity="secondary"
-                      size="small"
-                      @click="startEditModule(moduleId as string, module)"
-                    />
-                  </div>
-
-                  <!-- Editing mode -->
-                  <div v-else class="space-y-4">
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                      <InputText v-model="moduleForm.name" class="w-full" />
-                    </div>
-
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-1">Descripcion</label>
-                      <Textarea v-model="moduleForm.description" rows="3" class="w-full" />
-                    </div>
-
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Audiencia Objetivo
-                      </label>
-                      <InputText v-model="moduleForm.target" class="w-full" />
-                    </div>
-
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Features (uno por linea)
-                      </label>
-                      <Textarea v-model="moduleForm.features" rows="5" class="w-full" />
-                    </div>
-
-                    <div class="flex gap-2">
-                      <Button
-                        label="Guardar"
-                        icon="pi pi-save"
-                        size="small"
-                        @click="saveModule(moduleId as string)"
-                        :loading="isLoading"
-                      />
-                      <Button
-                        label="Cancelar"
-                        icon="pi pi-times"
-                        severity="secondary"
-                        size="small"
-                        @click="cancelEditModule"
-                      />
-                    </div>
-                  </div>
-                </Panel>
+        <Card>
+          <template #content>
+            <div class="flex items-center gap-4">
+              <div class="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+                <i class="pi pi-check-circle text-white text-xl" />
               </div>
-            </TabPanel>
+              <div>
+                <p class="text-2xl font-bold text-gray-800">{{ config.system_initialized ? 'Sí' : 'No' }}</p>
+                <p class="text-sm text-gray-500">Sistema Inicializado</p>
+              </div>
+            </div>
+          </template>
+        </Card>
 
-            <!-- Settings Tab -->
-            <TabPanel value="1">
-              <div class="max-w-2xl">
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-6 mb-6">
-                  <Card class="text-center">
-                    <template #content>
-                      <div class="text-2xl font-bold text-blue-600">
-                        {{ config.settings?.model || 'N/A' }}
-                      </div>
-                      <div class="text-sm text-gray-500">Modelo</div>
-                    </template>
-                  </Card>
+        <Card>
+          <template #content>
+            <div class="flex items-center gap-4">
+              <div class="w-12 h-12 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+                <i class="pi pi-cog text-white text-xl" />
+              </div>
+              <div>
+                <p class="text-2xl font-bold text-gray-800">v1.0</p>
+                <p class="text-sm text-gray-500">Versión Config</p>
+              </div>
+            </div>
+          </template>
+        </Card>
+      </div>
 
-                  <Card class="text-center">
-                    <template #content>
-                      <div class="text-2xl font-bold text-green-600">
-                        {{ config.settings?.temperature ?? 'N/A' }}
-                      </div>
-                      <div class="text-sm text-gray-500">Temperature</div>
-                    </template>
-                  </Card>
+      <!-- Agents Grid -->
+      <Panel header="Agentes Habilitados" class="mb-6">
+        <template #header>
+          <div class="flex items-center gap-2">
+            <i class="pi pi-android" />
+            <span class="font-semibold">Agentes Habilitados</span>
+            <Tag :value="String(agentCount)" severity="info" class="ml-2" />
+          </div>
+        </template>
 
-                  <Card class="text-center">
-                    <template #content>
-                      <div class="text-2xl font-bold text-purple-600">
-                        {{ config.settings?.max_response_length || 'N/A' }}
-                      </div>
-                      <div class="text-sm text-gray-500">Max Respuesta</div>
-                    </template>
-                  </Card>
-                </div>
-
-                <Divider />
-
-                <div class="grid grid-cols-2 gap-6 mt-6">
-                  <div class="flex items-center justify-between">
-                    <span class="font-medium">Usar RAG</span>
-                    <Tag
-                      :severity="config.settings?.use_rag ? 'success' : 'secondary'"
-                      :value="config.settings?.use_rag ? 'Activo' : 'Inactivo'"
-                    />
-                  </div>
-
-                  <div class="flex items-center justify-between">
-                    <span class="font-medium">RAG Max Resultados</span>
-                    <span class="text-gray-600">
-                      {{ config.settings?.rag_max_results || 'N/A' }}
-                    </span>
-                  </div>
-                </div>
-
-                <Message severity="info" :closable="false" class="mt-6">
-                  La funcionalidad de actualizacion de settings estara disponible proximamente!
-                </Message>
-
-                <Divider />
-
-                <div class="mt-6">
-                  <Panel header="Configuracion Raw" toggleable collapsed>
-                    <pre class="text-xs bg-gray-50 p-4 rounded overflow-auto max-h-96">{{
-                      JSON.stringify(config, null, 2)
-                    }}</pre>
-                  </Panel>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div
+            v-for="agent in config.enabled_agents"
+            :key="agent"
+            class="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md hover:border-primary-200 transition-all duration-200 card-hover"
+          >
+            <div class="flex items-start gap-3">
+              <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary-100 to-cyan-100 flex items-center justify-center flex-shrink-0">
+                <i :class="['pi', getAgentIcon(agent), 'text-primary-600']" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <h3 class="font-semibold text-gray-800 truncate">
+                  {{ formatAgentName(agent) }}
+                </h3>
+                <p class="text-xs text-gray-500 mt-1 line-clamp-2">
+                  {{ getAgentDescription(agent) }}
+                </p>
+                <div class="mt-2">
+                  <Tag severity="success" value="Activo" class="text-xs" />
                 </div>
               </div>
-            </TabPanel>
-          </TabPanels>
-        </Tabs>
-      </template>
-    </Card>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="!config.enabled_agents?.length" class="text-center py-8 text-gray-500">
+          <i class="pi pi-info-circle text-2xl mb-2" />
+          <p>No hay agentes habilitados</p>
+        </div>
+      </Panel>
+
+      <!-- Raw Config -->
+      <Panel header="Configuración Raw" toggleable collapsed>
+        <pre class="text-xs bg-gray-50 p-4 rounded-lg overflow-auto max-h-96 font-mono">{{ JSON.stringify(config, null, 2) }}</pre>
+      </Panel>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .agent-config-page :deep(.p-card-content) {
-  padding: 0;
+  padding: 1rem;
 }
 
-.agent-config-page :deep(.p-tabpanels) {
-  padding: 1.5rem;
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 </style>

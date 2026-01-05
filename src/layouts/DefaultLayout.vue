@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { RouterView, RouterLink, useRoute } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
+import { useDarkMode } from '@/composables/useDarkMode'
 import Button from 'primevue/button'
 import Menu from 'primevue/menu'
 import Select from 'primevue/select'
@@ -10,6 +11,7 @@ import type { MenuItem } from 'primevue/menuitem'
 
 const route = useRoute()
 const { currentUser, currentOrganization, organizations, logout, switchOrganization, username, isAdminOrOwner } = useAuth()
+const { isDark, toggleDarkMode } = useDarkMode()
 
 const sidebarCollapsed = ref(false)
 const userMenuRef = ref()
@@ -71,16 +73,16 @@ const multiTenantMenuItems = computed<MenuItem[]>(() => [
     disabled: !currentOrganization.value
   },
   {
-    label: 'Tenant Config',
+    label: 'Tenant Config (Soon)',
     icon: 'pi pi-cog',
     route: '/tenant-config',
-    disabled: !currentOrganization.value
+    disabled: true
   },
   {
-    label: 'Tenant Documents',
+    label: 'Tenant Documents (Soon)',
     icon: 'pi pi-file',
     route: '/tenant-documents',
-    disabled: !currentOrganization.value
+    disabled: true
   }
 ])
 
@@ -114,6 +116,11 @@ const configMenuItems = computed<MenuItem[]>(() => {
       label: 'Modelos AI',
       icon: 'pi pi-microchip-ai',
       route: '/ai-models'
+    })
+    items.push({
+      label: 'Catalogo Agentes',
+      icon: 'pi pi-box',
+      route: '/agent-catalog'
     })
   }
 
@@ -183,12 +190,26 @@ function handleOrgChange(orgId: string) {
       aria-label="Menu principal"
     >
       <!-- Logo -->
-      <div class="h-16 flex items-center justify-between px-4 border-b">
-        <span v-if="!sidebarCollapsed" class="text-xl font-bold text-primary-600">Aynux Admin</span>
+      <div class="h-16 flex items-center justify-between px-4 border-b border-gray-100">
+        <RouterLink to="/" class="flex items-center gap-2 overflow-hidden">
+          <img
+            v-if="sidebarCollapsed"
+            src="@/assets/aynux.svg"
+            alt="Aynux"
+            class="h-8 w-8 object-contain"
+          />
+          <img
+            v-else
+            src="@/assets/full-aynux.png"
+            alt="Aynux Admin"
+            class="h-10 object-contain"
+          />
+        </RouterLink>
         <Button
           :icon="sidebarCollapsed ? 'pi pi-angle-right' : 'pi pi-angle-left'"
           text
           rounded
+          severity="secondary"
           @click="toggleSidebar"
           :aria-label="sidebarCollapsed ? 'Expandir menu' : 'Colapsar menu'"
           :aria-expanded="!sidebarCollapsed"
@@ -222,10 +243,10 @@ function handleOrgChange(orgId: string) {
               <RouterLink
                 :to="item.route!"
                 :class="[
-                  'flex items-center px-3 py-2 rounded-lg transition-colors',
+                  'flex items-center px-3 py-2.5 rounded-lg transition-all duration-200',
                   isActive(item.route!)
-                    ? 'bg-primary-100 text-primary-700'
-                    : 'text-gray-600 hover:bg-gray-100'
+                    ? 'bg-gradient-to-r from-primary-100 to-cyan-50 text-primary-700 border-l-4 border-primary-500 -ml-1 pl-4'
+                    : 'text-gray-600 hover:bg-primary-50/50 hover:text-primary-600'
                 ]"
               >
                 <i :class="[item.icon, 'text-lg']" />
@@ -248,12 +269,12 @@ function handleOrgChange(orgId: string) {
               <RouterLink
                 :to="item.route!"
                 :class="[
-                  'flex items-center px-3 py-2 rounded-lg transition-colors',
+                  'flex items-center px-3 py-2.5 rounded-lg transition-all duration-200',
                   item.disabled
                     ? 'text-gray-300 cursor-not-allowed pointer-events-none'
                     : isActive(item.route!)
-                      ? 'bg-primary-100 text-primary-700'
-                      : 'text-gray-600 hover:bg-gray-100'
+                      ? 'bg-gradient-to-r from-primary-100 to-cyan-50 text-primary-700 border-l-4 border-primary-500 -ml-1 pl-4'
+                      : 'text-gray-600 hover:bg-primary-50/50 hover:text-primary-600'
                 ]"
               >
                 <i :class="[item.icon, 'text-lg']" />
@@ -276,10 +297,10 @@ function handleOrgChange(orgId: string) {
               <RouterLink
                 :to="item.route!"
                 :class="[
-                  'flex items-center px-3 py-2 rounded-lg transition-colors',
+                  'flex items-center px-3 py-2.5 rounded-lg transition-all duration-200',
                   isActive(item.route!)
-                    ? 'bg-primary-100 text-primary-700'
-                    : 'text-gray-600 hover:bg-gray-100'
+                    ? 'bg-gradient-to-r from-primary-100 to-cyan-50 text-primary-700 border-l-4 border-primary-500 -ml-1 pl-4'
+                    : 'text-gray-600 hover:bg-primary-50/50 hover:text-primary-600'
                 ]"
               >
                 <i :class="[item.icon, 'text-lg']" />
@@ -302,10 +323,10 @@ function handleOrgChange(orgId: string) {
               <RouterLink
                 :to="item.route!"
                 :class="[
-                  'flex items-center px-3 py-2 rounded-lg transition-colors',
+                  'flex items-center px-3 py-2.5 rounded-lg transition-all duration-200',
                   isActive(item.route!)
-                    ? 'bg-primary-100 text-primary-700'
-                    : 'text-gray-600 hover:bg-gray-100'
+                    ? 'bg-gradient-to-r from-primary-100 to-cyan-50 text-primary-700 border-l-4 border-primary-500 -ml-1 pl-4'
+                    : 'text-gray-600 hover:bg-primary-50/50 hover:text-primary-600'
                 ]"
               >
                 <i :class="[item.icon, 'text-lg']" />
@@ -317,12 +338,12 @@ function handleOrgChange(orgId: string) {
       </nav>
 
       <!-- User Section -->
-      <div class="border-t p-3">
+      <div class="border-t border-gray-100 p-3">
         <div
-          class="flex items-center cursor-pointer hover:bg-gray-100 rounded-lg p-2 transition-colors"
+          class="flex items-center cursor-pointer hover:bg-primary-50/50 rounded-lg p-2 transition-all duration-200"
           @click="toggleUserMenu"
         >
-          <Avatar :label="username.charAt(0).toUpperCase()" shape="circle" class="bg-primary-500 text-white" />
+          <Avatar :label="username.charAt(0).toUpperCase()" shape="circle" class="bg-gradient-to-br from-primary-500 to-cyan-500 text-white" />
           <div v-if="!sidebarCollapsed" class="ml-3 flex-1 min-w-0">
             <p class="text-sm font-medium text-gray-700 truncate">{{ username }}</p>
             <p class="text-xs text-gray-500 truncate">{{ currentOrganization?.name || 'Sin org' }}</p>
@@ -344,6 +365,15 @@ function handleOrgChange(orgId: string) {
           <span class="text-sm text-gray-500">
             {{ currentUser?.email }}
           </span>
+          <Button
+            :icon="isDark ? 'pi pi-sun' : 'pi pi-moon'"
+            text
+            rounded
+            severity="secondary"
+            @click="toggleDarkMode"
+            v-tooltip.bottom="isDark ? 'Modo claro' : 'Modo oscuro'"
+            aria-label="Cambiar modo de color"
+          />
         </div>
       </header>
 

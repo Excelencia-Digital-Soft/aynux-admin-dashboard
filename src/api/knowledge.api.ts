@@ -11,6 +11,7 @@ import type {
 } from '@/types/document.types'
 
 const KNOWLEDGE_ADMIN_URL = '/admin/knowledge'
+const KNOWLEDGE_UNIFIED_URL = '/admin/knowledge-unified'
 const DOCUMENT_UPLOAD_URL = '/admin/documents'
 
 export const knowledgeApi = {
@@ -40,9 +41,10 @@ export const knowledgeApi = {
 
   /**
    * Get single document by ID
+   * Uses unified endpoint to automatically search both company_knowledge and agent_knowledge
    */
   async getById(id: string): Promise<Document> {
-    const { data } = await apiClient.get<Document>(`${KNOWLEDGE_ADMIN_URL}/${id}`)
+    const { data } = await apiClient.get<Document>(`${KNOWLEDGE_UNIFIED_URL}/${id}`)
     return data
   },
 
@@ -59,6 +61,7 @@ export const knowledgeApi = {
 
   /**
    * Update existing document
+   * Uses unified endpoint to automatically update in correct table (company or agent)
    */
   async update(
     id: string,
@@ -66,7 +69,7 @@ export const knowledgeApi = {
     regenerateEmbedding = true
   ): Promise<Document> {
     const { data } = await apiClient.put<Document>(
-      `${KNOWLEDGE_ADMIN_URL}/${id}`,
+      `${KNOWLEDGE_UNIFIED_URL}/${id}`,
       updateData,
       { params: { regenerate_embedding: regenerateEmbedding } }
     )
@@ -75,9 +78,10 @@ export const knowledgeApi = {
 
   /**
    * Delete document (soft or hard delete)
+   * Uses unified endpoint to automatically delete from correct table (company or agent)
    */
   async delete(id: string, hardDelete = false): Promise<void> {
-    await apiClient.delete(`${KNOWLEDGE_ADMIN_URL}/${id}`, {
+    await apiClient.delete(`${KNOWLEDGE_UNIFIED_URL}/${id}`, {
       params: { hard_delete: hardDelete }
     })
   },
