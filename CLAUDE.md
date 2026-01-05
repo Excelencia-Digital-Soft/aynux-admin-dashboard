@@ -169,3 +169,19 @@ Vite is configured with manual chunks for optimal splitting:
 ### Path Alias
 
 `@` maps to `./src` directory.
+
+## Database Connection
+
+```bash
+PGPASSWORD=aynux_dev psql -h localhost -U enzo -d aynux
+```
+
+### Key Schemas & Tables
+
+| Schema | Table | Purpose |
+|--------|-------|---------|
+| `core` | `company_knowledge` | Knowledge Base documents |
+| `core` | `agent_knowledge` | Agent-specific knowledge |
+| `excelencia` | `software_modules` | Software catalog (Excelencia) |
+
+See `docs/knowledge-base-architecture.md` for detailed documentation.

@@ -2,7 +2,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import PrimeVue from 'primevue/config'
-import Aura from '@primevue/themes/aura'
+import AynuxPreset from './theme/aynux-preset'
 import ToastService from 'primevue/toastservice'
 import ConfirmationService from 'primevue/confirmationservice'
 import Tooltip from 'primevue/tooltip'
@@ -24,10 +24,10 @@ app.use(pinia)
 // Vue Router
 app.use(router)
 
-// PrimeVue with Aura theme
+// PrimeVue with Aynux custom theme (based on Lara)
 app.use(PrimeVue, {
   theme: {
-    preset: Aura,
+    preset: AynuxPreset,
     options: {
       darkModeSelector: '.dark-mode',
       cssLayer: {

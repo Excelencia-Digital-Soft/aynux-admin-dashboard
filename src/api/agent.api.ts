@@ -1,6 +1,6 @@
 import api from './index'
 import type {
-  AgentConfig,
+  AgentConfigResponse,
   AgentModuleUpdateRequest,
   AgentSettingsUpdateRequest,
   SoftwareModule,
@@ -13,7 +13,7 @@ import { adaptModules, adaptModule } from '@/adapters/moduleAdapter'
 // Agent Configuration API
 export const agentApi = {
   // Get agent configuration
-  async getConfig(): Promise<AgentConfig | null> {
+  async getConfig(): Promise<AgentConfigResponse | null> {
     try {
       const response = await api.get('/admin/agents/config')
       return response.data
@@ -27,7 +27,7 @@ export const agentApi = {
   async updateModules(
     modules: Record<string, AgentModuleUpdateRequest>,
     createBackup = true
-  ): Promise<AgentConfig | null> {
+  ): Promise<AgentConfigResponse | null> {
     try {
       const response = await api.patch('/admin/agents/modules', modules, {
         params: { create_backup: createBackup }
@@ -40,7 +40,7 @@ export const agentApi = {
   },
 
   // Update agent settings
-  async updateSettings(settings: AgentSettingsUpdateRequest): Promise<AgentConfig | null> {
+  async updateSettings(settings: AgentSettingsUpdateRequest): Promise<AgentConfigResponse | null> {
     try {
       const response = await api.patch('/admin/agents/settings', settings)
       return response.data

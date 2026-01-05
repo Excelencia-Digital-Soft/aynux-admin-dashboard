@@ -72,6 +72,9 @@ const localDocuments = ref<Array<Document | AgentKnowledge>>([])
 const localLoading = ref(false)
 const localError = ref<string | null>(null)
 
+// Store document for hard delete (to access agent_key)
+const hardDeleteDoc = ref<Document | AgentKnowledge | null>(null)
+
 // Computed: use local documents for agent/tenant/all, store documents for global only
 const displayDocuments = computed(() => {
   if (props.source === 'agent' || props.source === 'tenant' || props.source === 'all') {
@@ -160,17 +163,58 @@ async function handleSaveEdit() {
   }
 }
 
-async function handleDelete(docId: string) {
+async function handleDelete(doc: Document | AgentKnowledge, docId: string) {
   if (store.confirmDelete[docId]) {
-    await deleteDocument(docId)
+    // Check if this is an agent knowledge document
+    if ('agent_key' in doc && doc.agent_key) {
+      try {
+        await agentKnowledgeApi.delete(doc.agent_key, docId, false)
+        toast.success('Documento desactivado')
+        await loadDocuments()
+      } catch (err) {
+        console.error('Error deleting agent document:', err)
+        toast.error('Error al desactivar documento')
+      }
+    } else {
+      // Use global delete
+      await deleteDocument(docId)
+    }
+    store.cancelDelete(docId)
   } else {
     requestDelete(docId)
   }
 }
 
+function handleRequestHardDelete(doc: Document | AgentKnowledge) {
+  hardDeleteDoc.value = doc
+  requestHardDelete(doc.id)
+}
+
+function handleCancelHardDelete() {
+  hardDeleteDoc.value = null
+  cancelHardDelete()
+}
+
 async function handleHardDelete() {
-  if (store.confirmHardDelete) {
-    await hardDeleteDocument(store.confirmHardDelete)
+  if (store.confirmHardDelete && hardDeleteDoc.value) {
+    const doc = hardDeleteDoc.value
+    // Check if this is an agent knowledge document
+    if ('agent_key' in doc && doc.agent_key) {
+      try {
+        await agentKnowledgeApi.delete(doc.agent_key, store.confirmHardDelete, true)
+        toast.success('Documento eliminado permanentemente')
+        await loadDocuments()
+      } catch (err) {
+        console.error('Error hard deleting agent document:', err)
+        toast.error('Error al eliminar documento')
+      }
+      hardDeleteDoc.value = null
+      store.cancelHardDelete()
+    } else {
+      // Use global hard delete
+      await hardDeleteDocument(store.confirmHardDelete)
+      hardDeleteDoc.value = null
+    }
   }
 }
 
@@ -511,7 +555,7 @@ onMounted(() => {
               text
               rounded
               size="small"
-              @click="handleDelete(data.id)"
+              @click="handleDelete(data, data.id)"
               v-tooltip="'Desactivar'"
             />
             <template v-else>
@@ -521,7 +565,7 @@ onMounted(() => {
                 text
                 rounded
                 size="small"
-                @click="handleDelete(data.id)"
+                @click="handleDelete(data, data.id)"
                 v-tooltip="'Confirmar'"
               />
               <Button
@@ -540,7 +584,7 @@ onMounted(() => {
               outlined
               rounded
               size="small"
-              @click="requestHardDelete(data.id)"
+              @click="handleRequestHardDelete(data)"
               v-tooltip="'Eliminar permanente'"
             />
           </div>
@@ -561,11 +605,11 @@ onMounted(() => {
 
     <!-- Edit Dialog -->
     <Dialog
-      v-model:visible="showEditDialog"
+      :visible="showEditDialog"
+      @update:visible="(val: boolean) => { if (!val) cancelEditing() }"
       header="Editar Documento"
       :modal="true"
       :style="{ width: '600px' }"
-      @hide="cancelEditing"
     >
       <div class="space-y-4">
         <div>
@@ -613,7 +657,7 @@ onMounted(() => {
       header="Eliminar Permanentemente"
       :modal="true"
       :style="{ width: '400px' }"
-      @update:visible="(val) => !val && cancelHardDelete()"
+      @update:visible="(val) => !val && handleCancelHardDelete()"
     >
       <div class="flex items-center gap-4">
         <i class="pi pi-exclamation-triangle text-4xl text-red-500" />
@@ -625,7 +669,7 @@ onMounted(() => {
         </div>
       </div>
       <template #footer>
-        <Button label="Cancelar" severity="secondary" @click="cancelHardDelete" />
+        <Button label="Cancelar" severity="secondary" @click="handleCancelHardDelete" />
         <Button label="Eliminar" severity="danger" icon="pi pi-trash" @click="handleHardDelete" />
       </template>
     </Dialog>

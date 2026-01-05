@@ -7,6 +7,7 @@ import type {
   PharmacyConfigCreateRequest,
   PharmacyConfigUpdateRequest
 } from '@/types/pharmacyConfig.types'
+import { DEFAULT_PHARMACY_HOURS } from '@/types/pharmacyConfig.types'
 
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
@@ -17,10 +18,34 @@ import Button from 'primevue/button'
 import Divider from 'primevue/divider'
 import Password from 'primevue/password'
 import Message from 'primevue/message'
+import ToggleSwitch from 'primevue/toggleswitch'
 
 const store = usePharmacyStore()
 const authStore = useAuthStore()
 const { createPharmacy, updatePharmacy, isLoading, closePharmacyDialog } = usePharmacyConfig()
+
+// Hours editor as array for easier editing
+interface HourEntry {
+  day: string
+  hours: string
+}
+
+function hoursObjectToArray(obj: Record<string, string>): HourEntry[] {
+  return Object.entries(obj).map(([day, hours]) => ({ day, hours }))
+}
+
+function hoursArrayToObject(arr: HourEntry[]): Record<string, string> {
+  const result: Record<string, string> = {}
+  for (const entry of arr) {
+    if (entry.day.trim()) {
+      result[entry.day.trim()] = entry.hours
+    }
+  }
+  return result
+}
+
+// Hours array for UI editing
+const hoursEntries = ref<HourEntry[]>(hoursObjectToArray(DEFAULT_PHARMACY_HOURS))
 
 // Form state
 const formData = ref({
@@ -29,6 +54,12 @@ const formData = ref({
   pharmacy_address: '',
   pharmacy_phone: '',
   pharmacy_logo_path: '',
+
+  // Contact and hours info
+  pharmacy_email: '',
+  pharmacy_website: '',
+  pharmacy_hours: { ...DEFAULT_PHARMACY_HOURS } as Record<string, string>,
+  pharmacy_is_24h: false,
 
   // WhatsApp
   whatsapp_phone_number: '',
@@ -65,11 +96,16 @@ watch(
   () => store.editingPharmacy,
   (pharmacy) => {
     if (pharmacy) {
+      const hours = pharmacy.pharmacy_hours || { ...DEFAULT_PHARMACY_HOURS }
       formData.value = {
         pharmacy_name: pharmacy.pharmacy_name,
         pharmacy_address: pharmacy.pharmacy_address || '',
         pharmacy_phone: pharmacy.pharmacy_phone || '',
         pharmacy_logo_path: pharmacy.pharmacy_logo_path || '',
+        pharmacy_email: pharmacy.pharmacy_email || '',
+        pharmacy_website: pharmacy.pharmacy_website || '',
+        pharmacy_hours: hours,
+        pharmacy_is_24h: pharmacy.pharmacy_is_24h || false,
         whatsapp_phone_number: pharmacy.whatsapp_phone_number || '',
         mp_enabled: pharmacy.mp_enabled,
         mp_access_token: pharmacy.mp_access_token || '',
@@ -80,6 +116,8 @@ watch(
         mp_notification_url: pharmacy.mp_notification_url || '',
         receipt_public_url_base: pharmacy.receipt_public_url_base || ''
       }
+      // Sync hours entries array
+      hoursEntries.value = hoursObjectToArray(hours)
       // Reset credential modification tracking
       credentialsModified.value = {
         mp_access_token: false,
@@ -99,6 +137,10 @@ function resetForm() {
     pharmacy_address: '',
     pharmacy_phone: '',
     pharmacy_logo_path: '',
+    pharmacy_email: '',
+    pharmacy_website: '',
+    pharmacy_hours: { ...DEFAULT_PHARMACY_HOURS },
+    pharmacy_is_24h: false,
     whatsapp_phone_number: '',
     mp_enabled: false,
     mp_access_token: '',
@@ -109,6 +151,7 @@ function resetForm() {
     mp_notification_url: '',
     receipt_public_url_base: ''
   }
+  hoursEntries.value = hoursObjectToArray(DEFAULT_PHARMACY_HOURS)
   credentialsModified.value = {
     mp_access_token: false,
     mp_public_key: false,
@@ -118,6 +161,27 @@ function resetForm() {
 
 function onCredentialChange(field: 'mp_access_token' | 'mp_public_key' | 'mp_webhook_secret') {
   credentialsModified.value[field] = true
+}
+
+// Helper to get valid hours (excludes empty values)
+function getValidHours(): Record<string, string> | undefined {
+  if (formData.value.pharmacy_is_24h) return undefined
+  // Convert array to object, filtering out empty entries
+  const validEntries = hoursEntries.value.filter(
+    (entry) => entry.day.trim() && entry.hours.trim()
+  )
+  if (validEntries.length === 0) return undefined
+  return hoursArrayToObject(validEntries)
+}
+
+// Add a new hour entry
+function addHourEntry() {
+  hoursEntries.value.push({ day: '', hours: '' })
+}
+
+// Remove an hour entry by index
+function removeHourEntry(index: number) {
+  hoursEntries.value.splice(index, 1)
 }
 
 async function handleSubmit() {
@@ -130,6 +194,10 @@ async function handleSubmit() {
       pharmacy_address: formData.value.pharmacy_address || undefined,
       pharmacy_phone: formData.value.pharmacy_phone || undefined,
       pharmacy_logo_path: formData.value.pharmacy_logo_path || undefined,
+      pharmacy_email: formData.value.pharmacy_email || undefined,
+      pharmacy_website: formData.value.pharmacy_website || undefined,
+      pharmacy_hours: getValidHours(),
+      pharmacy_is_24h: formData.value.pharmacy_is_24h,
       whatsapp_phone_number: formData.value.whatsapp_phone_number || undefined,
       mp_enabled: formData.value.mp_enabled,
       mp_sandbox: formData.value.mp_sandbox,
@@ -164,6 +232,10 @@ async function handleSubmit() {
       pharmacy_address: formData.value.pharmacy_address || undefined,
       pharmacy_phone: formData.value.pharmacy_phone || undefined,
       pharmacy_logo_path: formData.value.pharmacy_logo_path || undefined,
+      pharmacy_email: formData.value.pharmacy_email || undefined,
+      pharmacy_website: formData.value.pharmacy_website || undefined,
+      pharmacy_hours: getValidHours(),
+      pharmacy_is_24h: formData.value.pharmacy_is_24h,
       whatsapp_phone_number: formData.value.whatsapp_phone_number || undefined,
       mp_enabled: formData.value.mp_enabled,
       mp_access_token: formData.value.mp_access_token || undefined,
@@ -250,6 +322,100 @@ function handleClose() {
               />
             </div>
           </div>
+        </div>
+      </div>
+
+      <Divider />
+
+      <!-- Contact & Hours Section -->
+      <div>
+        <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          <i class="pi pi-clock" />
+          Contacto y Horarios
+        </h3>
+
+        <div class="space-y-3">
+          <!-- Email and Website -->
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                Email
+              </label>
+              <InputText
+                v-model="formData.pharmacy_email"
+                placeholder="contacto@farmacia.com"
+                class="w-full"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                Sitio Web
+              </label>
+              <InputText
+                v-model="formData.pharmacy_website"
+                placeholder="https://farmacia.com"
+                class="w-full"
+              />
+            </div>
+          </div>
+
+          <!-- 24h Toggle -->
+          <div class="flex items-center gap-3 py-2">
+            <ToggleSwitch v-model="formData.pharmacy_is_24h" inputId="is_24h" />
+            <label for="is_24h" class="text-sm font-medium text-gray-700">
+              Farmacia 24 horas
+            </label>
+          </div>
+
+          <!-- Hours Editor (hidden if 24h) -->
+          <div v-if="!formData.pharmacy_is_24h" class="space-y-2">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Horarios de Atencion
+            </label>
+
+            <div
+              v-for="(entry, index) in hoursEntries"
+              :key="index"
+              class="flex items-center gap-2"
+            >
+              <InputText
+                v-model="entry.day"
+                placeholder="lun-vie, sab, dom..."
+                class="w-28"
+              />
+              <span class="text-gray-400">:</span>
+              <InputText
+                v-model="entry.hours"
+                placeholder="08:00-20:00 o cerrado"
+                class="flex-1"
+              />
+              <Button
+                icon="pi pi-times"
+                severity="danger"
+                text
+                rounded
+                size="small"
+                @click="removeHourEntry(index)"
+              />
+            </div>
+
+            <Button
+              label="Agregar horario"
+              icon="pi pi-plus"
+              severity="secondary"
+              text
+              size="small"
+              @click="addHourEntry"
+            />
+
+            <p class="text-xs text-gray-400 mt-1">
+              Formato: "08:00-20:00" o "cerrado". Dias: lun-vie, sab, dom, etc.
+            </p>
+          </div>
+
+          <Message v-if="formData.pharmacy_is_24h" severity="info" :closable="false">
+            La farmacia esta configurada como 24 horas
+          </Message>
         </div>
       </div>
 

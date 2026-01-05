@@ -226,6 +226,18 @@ const router = createRouter({
           }
         },
 
+        // Agent Catalog (Page 21) - CRUD for core.agents table
+        {
+          path: 'agent-catalog',
+          name: 'AgentCatalog',
+          component: () => import('@/pages/admin/AgentCatalogPage.vue'),
+          meta: {
+            title: 'Catalogo de Agentes',
+            icon: 'pi-android',
+            requiresAdmin: true
+          }
+        },
+
         // Chattigo Credentials (Page 20)
         {
           path: 'chattigo-credentials',

@@ -38,13 +38,17 @@ function handleKeydown(event: KeyboardEvent) {
 
 <template>
   <div class="w-full max-w-md">
-    <div class="bg-white rounded-2xl shadow-2xl p-8">
+    <div class="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 border border-white/20">
       <!-- Header -->
       <div class="text-center mb-8">
-        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-100 mb-4">
-          <i class="pi pi-lock text-3xl text-primary-600" />
+        <div class="flex justify-center mb-6">
+          <img
+            src="@/assets/full-aynux.png"
+            alt="Aynux"
+            class="h-20 object-contain"
+          />
         </div>
-        <h1 class="text-2xl font-bold text-gray-800">Aynux Admin</h1>
+        <h1 class="text-2xl font-bold text-gray-800">Panel de Administracion</h1>
         <p class="text-gray-500 mt-2">Ingresa tus credenciales para continuar</p>
       </div>
 
@@ -94,12 +98,12 @@ function handleKeydown(event: KeyboardEvent) {
       </form>
 
       <!-- Footer -->
-      <div class="mt-8 pt-6 border-t text-center">
+      <div class="mt-8 pt-6 border-t border-gray-100 text-center">
         <p class="text-sm text-gray-500">
           Sistema de administracion multi-tenant
         </p>
         <p class="text-xs text-gray-400 mt-1">
-          Aynux &copy; 2024
+          <span class="font-semibold bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-cyan-500">Aynux</span> &copy; {{ new Date().getFullYear() }}
         </p>
       </div>
     </div>
