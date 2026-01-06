@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { useChattigoCredentialsStore } from '@/stores/chattigoCredentials.store'
 import { useChattigoCredentials } from '@/composables/useChattigoCredentials'
 import { useAuthStore } from '@/stores/auth.store'
+import { useToast } from 'primevue/usetoast'
 import type {
   ChattigoCredentialCreateRequest,
   ChattigoCredentialUpdateRequest
@@ -20,6 +21,7 @@ import ToggleSwitch from 'primevue/toggleswitch'
 
 const store = useChattigoCredentialsStore()
 const authStore = useAuthStore()
+const toast = useToast()
 const { createCredential, updateCredential, isLoading, closeCredentialDialog } =
   useChattigoCredentials()
 
@@ -30,7 +32,7 @@ const formData = ref({
   username: '',
   password: '',
   login_url: '',
-  message_url: '',
+  base_url: '',
   bot_name: '',
   token_refresh_hours: CHATTIGO_DEFAULTS.TOKEN_REFRESH_HOURS,
   enabled: true
@@ -81,7 +83,7 @@ watch(
         username: credential.username, // Will be "***"
         password: credential.password, // Will be "***"
         login_url: credential.login_url,
-        message_url: credential.message_url,
+        base_url: credential.base_url,
         bot_name: credential.bot_name,
         token_refresh_hours: credential.token_refresh_hours,
         enabled: credential.enabled
@@ -105,7 +107,7 @@ function resetForm() {
     username: '',
     password: '',
     login_url: '',
-    message_url: '',
+    base_url: '',
     bot_name: '',
     token_refresh_hours: CHATTIGO_DEFAULTS.TOKEN_REFRESH_HOURS,
     enabled: true
@@ -120,6 +122,25 @@ function onCredentialChange(field: 'username' | 'password') {
   credentialsModified.value[field] = true
 }
 
+async function copyToClipboard(text: string, fieldName: string) {
+  try {
+    await navigator.clipboard.writeText(text)
+    toast.add({
+      severity: 'info',
+      summary: 'Copiado',
+      detail: `${fieldName} copiado al portapapeles`,
+      life: 2000
+    })
+  } catch {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'No se pudo copiar al portapapeles',
+      life: 3000
+    })
+  }
+}
+
 async function handleSubmit() {
   if (!canSave.value) return
 
@@ -128,7 +149,7 @@ async function handleSubmit() {
     const updateData: ChattigoCredentialUpdateRequest = {
       name: formData.value.name,
       login_url: formData.value.login_url || undefined,
-      message_url: formData.value.message_url || undefined,
+      base_url: formData.value.base_url || undefined,
       bot_name: formData.value.bot_name || undefined,
       token_refresh_hours: formData.value.token_refresh_hours,
       enabled: formData.value.enabled
@@ -157,7 +178,7 @@ async function handleSubmit() {
       username: formData.value.username,
       password: formData.value.password,
       login_url: formData.value.login_url || undefined,
-      message_url: formData.value.message_url || undefined,
+      base_url: formData.value.base_url || undefined,
       bot_name: formData.value.bot_name || undefined,
       token_refresh_hours: formData.value.token_refresh_hours,
       enabled: formData.value.enabled,
@@ -290,21 +311,38 @@ function handleClose() {
           <!-- Login URL -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1"> URL de Login </label>
-            <InputText
-              v-model="formData.login_url"
-              :placeholder="CHATTIGO_DEFAULTS.LOGIN_URL"
-              class="w-full text-sm"
-            />
+            <div class="flex gap-2">
+              <InputText
+                v-model="formData.login_url"
+                :placeholder="CHATTIGO_DEFAULTS.LOGIN_URL"
+                class="flex-1 text-sm"
+              />
+              <Button
+                icon="pi pi-copy"
+                severity="secondary"
+                v-tooltip.top="'Copiar URL'"
+                @click="copyToClipboard(formData.login_url || CHATTIGO_DEFAULTS.LOGIN_URL, 'Login URL')"
+              />
+            </div>
           </div>
 
-          <!-- Message URL -->
+          <!-- Base URL -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1"> URL de Mensajes </label>
-            <InputText
-              v-model="formData.message_url"
-              :placeholder="CHATTIGO_DEFAULTS.MESSAGE_URL"
-              class="w-full text-sm"
-            />
+            <label class="block text-sm font-medium text-gray-700 mb-1"> URL Base API </label>
+            <div class="flex gap-2">
+              <InputText
+                v-model="formData.base_url"
+                :placeholder="CHATTIGO_DEFAULTS.BASE_URL"
+                class="flex-1 text-sm"
+              />
+              <Button
+                icon="pi pi-copy"
+                severity="secondary"
+                v-tooltip.top="'Copiar URL'"
+                @click="copyToClipboard(formData.base_url || CHATTIGO_DEFAULTS.BASE_URL, 'Base URL')"
+              />
+            </div>
+            <small class="text-gray-500">Mensajes se envían a: {base_url}/v15.0/{did}/messages</small>
           </div>
         </div>
       </div>

@@ -10,7 +10,7 @@ export interface ChattigoCredential {
   username: string // Masked as "***" in responses
   password: string // Masked as "***" in responses
   login_url: string
-  message_url: string
+  base_url: string // API base URL (messages sent to /v15.0/{did}/messages)
   bot_name: string
   token_refresh_hours: number
   enabled: boolean
@@ -29,7 +29,7 @@ export interface ChattigoCredentialCreateRequest {
   username: string // Required
   password: string // Required
   login_url?: string // Optional, default: https://channels.chattigo.com/bsp-cloud-chattigo-isv/login
-  message_url?: string // Optional, default: https://channels.chattigo.com/bsp-cloud-chattigo-isv/webhooks/inbound
+  base_url?: string // Optional, default: https://channels.chattigo.com/bsp-cloud-chattigo-isv
   bot_name?: string // Optional, default: "Aynux"
   token_refresh_hours?: number // Optional, default: 7
   enabled?: boolean // Optional, default: true
@@ -45,7 +45,7 @@ export interface ChattigoCredentialUpdateRequest {
   username?: string
   password?: string
   login_url?: string
-  message_url?: string
+  base_url?: string
   bot_name?: string
   token_refresh_hours?: number
   enabled?: boolean
@@ -120,15 +120,16 @@ export function formatDID(did: string): string {
 
 /**
  * Default URLs for Chattigo ISV
+ * Note: Messages are sent to {base_url}/v15.0/{did}/messages
  */
 export const CHATTIGO_DEFAULTS: {
   LOGIN_URL: string
-  MESSAGE_URL: string
+  BASE_URL: string
   BOT_NAME: string
   TOKEN_REFRESH_HOURS: number
 } = {
   LOGIN_URL: 'https://channels.chattigo.com/bsp-cloud-chattigo-isv/login',
-  MESSAGE_URL: 'https://channels.chattigo.com/bsp-cloud-chattigo-isv/webhooks/inbound',
+  BASE_URL: 'https://channels.chattigo.com/bsp-cloud-chattigo-isv',
   BOT_NAME: 'Aynux',
   TOKEN_REFRESH_HOURS: 7
 }

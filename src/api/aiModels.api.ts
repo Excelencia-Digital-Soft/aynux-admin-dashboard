@@ -3,7 +3,7 @@ import apiClient from './index'
 export interface AIModel {
   id: string
   model_id: string
-  provider: 'ollama' | 'openai' | 'anthropic' | 'deepseek' | 'kimi' | 'groq'
+  provider: 'vllm' | 'openai' | 'anthropic' | 'deepseek' | 'kimi' | 'groq'
   model_type: 'llm' | 'embedding'
   display_name: string
   description: string | null
@@ -42,12 +42,6 @@ export interface AIModelListResponse {
   total: number
   enabled_count: number
   disabled_count: number
-}
-
-export interface SyncResult {
-  added: number
-  updated: number
-  errors: string[]
 }
 
 export interface SeedResult {
@@ -137,14 +131,6 @@ class AIModelsApi {
    */
   async toggle(id: string): Promise<AIModel> {
     const response = await apiClient.post(`${this.basePath}/${id}/toggle`)
-    return response.data
-  }
-
-  /**
-   * Sync models from Ollama.
-   */
-  async syncOllama(): Promise<SyncResult> {
-    const response = await apiClient.post(`${this.basePath}/sync/ollama`)
     return response.data
   }
 

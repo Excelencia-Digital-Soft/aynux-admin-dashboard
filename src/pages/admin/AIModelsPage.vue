@@ -22,7 +22,6 @@ const toast = useToast()
 // State
 const models = ref<AIModel[]>([])
 const loading = ref(false)
-const syncing = ref(false)
 const seeding = ref(false)
 const editDialogVisible = ref(false)
 const editingModel = ref<AIModel | null>(null)
@@ -44,7 +43,7 @@ const stats = computed(() => ({
 // Provider options for filter
 const providerOptions = [
   { value: undefined, label: 'Todos los proveedores' },
-  { value: 'ollama', label: 'Ollama (Local)' },
+  { value: 'vllm', label: 'vLLM (Local)' },
   { value: 'openai', label: 'OpenAI' },
   { value: 'anthropic', label: 'Anthropic' },
   { value: 'deepseek', label: 'DeepSeek' },
@@ -61,7 +60,7 @@ const typeOptions = [
 // Provider colors for tags
 function providerSeverity(provider: string): 'success' | 'info' | 'warn' | 'danger' | 'secondary' {
   const colors: Record<string, 'success' | 'info' | 'warn' | 'danger' | 'secondary'> = {
-    ollama: 'success',
+    vllm: 'success',
     openai: 'info',
     anthropic: 'warn',
     deepseek: 'secondary',
@@ -85,30 +84,6 @@ async function fetchModels() {
     })
   } finally {
     loading.value = false
-  }
-}
-
-// Sync from Ollama
-async function syncOllama() {
-  syncing.value = true
-  try {
-    const result = await aiModelsApi.syncOllama()
-    toast.add({
-      severity: 'success',
-      summary: 'Sincronizacion completada',
-      detail: `${result.added} nuevos, ${result.updated} actualizados`,
-      life: 5000
-    })
-    await fetchModels()
-  } catch (error) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error de sincronizacion',
-      detail: 'No se pudo conectar con Ollama',
-      life: 5000
-    })
-  } finally {
-    syncing.value = false
   }
 }
 
@@ -217,13 +192,6 @@ onMounted(fetchModels)
       </div>
       <div class="flex gap-2">
         <Button
-          label="Sync Ollama"
-          icon="pi pi-refresh"
-          severity="secondary"
-          :loading="syncing"
-          @click="syncOllama"
-        />
-        <Button
           label="Seed Externos"
           icon="pi pi-cloud-download"
           severity="secondary"
@@ -318,7 +286,7 @@ onMounted(fetchModels)
             <div class="text-center py-8 text-gray-500">
               <i class="pi pi-box text-4xl mb-4" />
               <p>No hay modelos registrados</p>
-              <p class="text-sm mt-2">Usa "Sync Ollama" para importar modelos locales</p>
+              <p class="text-sm mt-2">Usa "Seed Externos" para agregar modelos de proveedores externos</p>
             </div>
           </template>
 
