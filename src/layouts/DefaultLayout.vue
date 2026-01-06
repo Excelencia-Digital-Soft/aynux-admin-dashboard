@@ -73,10 +73,10 @@ const multiTenantMenuItems = computed<MenuItem[]>(() => [
     disabled: !currentOrganization.value
   },
   {
-    label: 'Tenant Config (Soon)',
+    label: 'Tenant Config',
     icon: 'pi pi-cog',
     route: '/tenant-config',
-    disabled: true
+    disabled: !currentOrganization.value
   },
   {
     label: 'Tenant Documents (Soon)',
