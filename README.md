@@ -15,7 +15,7 @@ Panel de administracion construido con Vue.js 3, TypeScript y PrimeVue.
 
 - Node.js 18+
 - npm 9+
-- Backend API corriendo en `localhost:8001`
+- Backend API corriendo en `localhost:8080`
 
 ## Instalacion
 
@@ -34,7 +34,7 @@ cp .env.example .env
 ## Variables de Entorno
 
 ```env
-VITE_API_BASE_URL=http://localhost:8001
+VITE_API_BASE_URL=http://localhost:8080
 VITE_API_V1_STR=/api/v1
 ```
 

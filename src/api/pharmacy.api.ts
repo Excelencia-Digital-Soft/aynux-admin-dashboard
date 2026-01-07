@@ -47,6 +47,36 @@ export interface PharmacyWebhookConfig {
   userName: string
 }
 
+// Conversation history types
+export interface ConversationContext {
+  conversation_id: string
+  summary: string
+  topic_history: string[]
+  total_turns: number
+  last_activity: string
+}
+
+export interface ConversationListResponse {
+  conversations: ConversationContext[]
+  total: number
+}
+
+export interface ConversationMessage {
+  sender_type: 'user' | 'assistant' | 'system'
+  content: string
+  agent_name: string | null
+  metadata: Record<string, unknown>
+  created_at: string
+}
+
+export interface MessageListResponse {
+  conversation_id: string
+  messages: ConversationMessage[]
+  limit: number
+  offset: number
+  total: number | null
+}
+
 export const pharmacyApi = {
   // Get available pharmacies for testing
   async getPharmacies(): Promise<Pharmacy[]> {
@@ -103,6 +133,43 @@ export const pharmacyApi = {
     } catch (error) {
       console.error('Failed to fetch graph data:', error)
       return null
+    }
+  },
+
+  // Get conversations by phone number
+  async getConversationsByPhone(userPhone: string, limit: number = 10): Promise<ConversationContext[]> {
+    try {
+      const response = await api.get<ConversationListResponse>('/conversations/recent', {
+        params: { user_phone: userPhone, limit }
+      })
+      return response.data.conversations
+    } catch (error) {
+      console.error('Failed to fetch conversations by phone:', error)
+      return []
+    }
+  },
+
+  // Get messages for a conversation
+  async getConversationMessages(conversationId: string, limit: number = 50): Promise<ConversationMessage[]> {
+    try {
+      const response = await api.get<MessageListResponse>(`/conversations/${conversationId}/messages`, {
+        params: { limit }
+      })
+      return response.data.messages
+    } catch (error) {
+      console.error('Failed to fetch conversation messages:', error)
+      return []
+    }
+  },
+
+  // Delete a conversation
+  async deleteConversation(conversationId: string): Promise<boolean> {
+    try {
+      await api.delete(`/conversations/${conversationId}`)
+      return true
+    } catch (error) {
+      console.error('Failed to delete conversation:', error)
+      return false
     }
   }
 }

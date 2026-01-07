@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build & Development Commands
 
 ```bash
-# Development server (port 3000, proxies /api to localhost:8001)
+# Development server (port 3000, proxies /api to localhost:8080)
 npm run dev
 
 # Production build (runs vue-tsc type checking before Vite build)

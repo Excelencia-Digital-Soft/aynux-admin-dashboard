@@ -30,6 +30,7 @@ import Textarea from 'primevue/textarea'
 import Message from 'primevue/message'
 import ProgressSpinner from 'primevue/progressspinner'
 import ConfirmDialog from 'primevue/confirmdialog'
+import SubgraphFlowDialog from '@/components/agentCatalog/SubgraphFlowDialog.vue'
 
 const toast = useToast()
 const confirm = useConfirm()
@@ -55,6 +56,10 @@ const newAgent = ref<AgentCatalogCreate>({
   priority: 50,
   keywords: []
 })
+
+// Subgraph dialog state
+const subgraphDialogVisible = ref(false)
+const selectedGraphName = ref<string | null>(null)
 
 // Filters
 const filters = ref<AgentCatalogFilters>({
@@ -306,6 +311,15 @@ function getGraphDisplay(agentKey: string) {
   return info.hasSubgraph ? `Main + ${info.graph}` : 'Main'
 }
 
+// Open subgraph visualization dialog
+function openSubgraphDialog(agentKey: string) {
+  const info = getGraphInfo(agentKey)
+  if (info.hasSubgraph) {
+    selectedGraphName.value = info.graph
+    subgraphDialogVisible.value = true
+  }
+}
+
 // Initialize
 onMounted(() => {
   fetchDomains()
@@ -503,9 +517,18 @@ onMounted(() => {
             </template>
           </Column>
 
-          <Column header="Acciones" style="width: 100px">
+          <Column header="Acciones" style="width: 130px">
             <template #body="{ data }">
               <div class="flex gap-1">
+                <Button
+                  v-if="getGraphInfo(data.agent_key).hasSubgraph"
+                  icon="pi pi-sitemap"
+                  severity="info"
+                  text
+                  rounded
+                  v-tooltip.top="'Ver Flow'"
+                  @click="openSubgraphDialog(data.agent_key)"
+                />
                 <Button
                   icon="pi pi-pencil"
                   severity="secondary"
@@ -679,6 +702,12 @@ onMounted(() => {
         <Button label="Crear" icon="pi pi-plus" @click="createAgent" />
       </template>
     </Dialog>
+
+    <!-- Subgraph Flow Dialog -->
+    <SubgraphFlowDialog
+      v-model:visible="subgraphDialogVisible"
+      :graphName="selectedGraphName"
+    />
   </div>
 </template>
 
