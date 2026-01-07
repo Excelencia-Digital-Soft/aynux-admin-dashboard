@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useBypassRules } from '@/composables/useBypassRules'
+import { useDomains } from '@/composables/useDomains'
 import type { BypassRule, BypassRuleType } from '@/types/bypassRules.types'
 import {
   getRuleTypeLabel,
   getRuleTypeSeverity,
-  getTargetDomainLabel,
   formatRuleMatch,
   getDetailedRuleMatch
 } from '@/types/bypassRules.types'
@@ -32,6 +32,8 @@ const {
   reorderRules,
   setFilters
 } = useBypassRules()
+
+const { fetchDomains, getDomainLabel, getDomainColor } = useDomains()
 
 // Filter options
 const statusOptions = [
@@ -98,6 +100,7 @@ async function movePriority(rule: BypassRule, direction: 'up' | 'down') {
 
 onMounted(() => {
   fetchRules()
+  fetchDomains()
 })
 </script>
 
@@ -225,10 +228,22 @@ onMounted(() => {
         <template #body="{ data }">
           <Tag
             v-if="data.target_domain"
-            :value="getTargetDomainLabel(data.target_domain)"
-            severity="secondary"
+            :value="getDomainLabel(data.target_domain)"
+            :severity="getDomainColor(data.target_domain)"
           />
           <span v-else class="text-gray-400">-</span>
+        </template>
+      </Column>
+
+      <!-- Isolated History -->
+      <Column header="Aislado" style="width: 80px">
+        <template #body="{ data }">
+          <i
+            v-if="data.isolated_history"
+            v-tooltip.top="'Historial aislado activo'"
+            class="pi pi-history text-blue-500"
+          />
+          <span v-else class="text-gray-300">-</span>
         </template>
       </Column>
 

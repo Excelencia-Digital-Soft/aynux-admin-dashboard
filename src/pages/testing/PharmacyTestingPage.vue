@@ -23,6 +23,8 @@ import TabPanel from 'primevue/tabpanel'
 
 const toast = useToast()
 
+const DEFAULT_PHONE = '2645631000'
+
 const isLoading = ref(false)
 const isSending = ref(false)
 const pharmacies = ref<Pharmacy[]>([])
@@ -32,7 +34,7 @@ const messages = ref<PharmacyTestMessage[]>([])
 const inputMessage = ref('')
 const webhookConfig = ref<PharmacyWebhookConfig>({
   enabled: false,
-  phoneNumber: '2645631000',
+  phoneNumber: DEFAULT_PHONE,
   userName: 'Pharmacy Tester'
 })
 const executionSteps = ref<unknown[]>([])
@@ -219,12 +221,12 @@ watch(webhookConfig, (val) => {
             <!-- Chat Messages -->
             <div
               ref="chatContainer"
-              class="chat-messages h-96 overflow-y-auto p-4 bg-gray-100"
+              class="chat-messages h-96 overflow-y-auto p-4 bg-gray-100 dark:bg-gray-800"
             >
               <!-- No messages -->
               <div
                 v-if="messages.length === 0"
-                class="h-full flex items-center justify-center text-gray-400"
+                class="h-full flex items-center justify-center text-gray-400 dark:text-gray-500"
               >
                 <div class="text-center">
                   <i class="pi pi-comments text-4xl mb-2" />
@@ -240,15 +242,15 @@ watch(webhookConfig, (val) => {
                   :class="[
                     'max-w-[80%] p-3 rounded-lg shadow-sm',
                     msg.role === 'user'
-                      ? 'ml-auto bg-green-100 rounded-br-none'
-                      : 'mr-auto bg-white rounded-bl-none'
+                      ? 'ml-auto bg-green-100 dark:bg-green-900 rounded-br-none'
+                      : 'mr-auto bg-white dark:bg-gray-700 rounded-bl-none'
                   ]"
                 >
-                  <div class="text-sm whitespace-pre-wrap">{{ msg.content }}</div>
+                  <div class="text-sm whitespace-pre-wrap text-gray-900 dark:text-gray-100">{{ msg.content }}</div>
                   <div
                     :class="[
                       'text-xs mt-1',
-                      msg.role === 'user' ? 'text-green-600 text-right' : 'text-gray-400'
+                      msg.role === 'user' ? 'text-green-600 dark:text-green-400 text-right' : 'text-gray-400 dark:text-gray-500'
                     ]"
                   >
                     {{ formatTime(msg.timestamp) }}
@@ -256,11 +258,11 @@ watch(webhookConfig, (val) => {
                 </div>
 
                 <!-- Typing indicator -->
-                <div v-if="isSending" class="mr-auto bg-white p-3 rounded-lg rounded-bl-none shadow-sm">
+                <div v-if="isSending" class="mr-auto bg-white dark:bg-gray-700 p-3 rounded-lg rounded-bl-none shadow-sm">
                   <div class="flex gap-1">
-                    <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms" />
-                    <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms" />
-                    <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms" />
+                    <span class="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style="animation-delay: 0ms" />
+                    <span class="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style="animation-delay: 150ms" />
+                    <span class="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style="animation-delay: 300ms" />
                   </div>
                 </div>
               </div>
@@ -301,24 +303,6 @@ watch(webhookConfig, (val) => {
               <TabList>
                 <Tab value="0">
                   <div class="flex items-center gap-2 text-sm">
-                    <i class="pi pi-info-circle" />
-                    <span>Sesion</span>
-                  </div>
-                </Tab>
-                <Tab value="1">
-                  <div class="flex items-center gap-2 text-sm">
-                    <i class="pi pi-list" />
-                    <span>Pasos</span>
-                  </div>
-                </Tab>
-                <Tab value="2">
-                  <div class="flex items-center gap-2 text-sm">
-                    <i class="pi pi-sitemap" />
-                    <span>Estado</span>
-                  </div>
-                </Tab>
-                <Tab value="3">
-                  <div class="flex items-center gap-2 text-sm">
                     <i class="pi pi-bolt" />
                     <span>Webhook</span>
                     <Tag
@@ -330,37 +314,65 @@ watch(webhookConfig, (val) => {
                     />
                   </div>
                 </Tab>
+                <Tab value="1">
+                  <div class="flex items-center gap-2 text-sm">
+                    <i class="pi pi-info-circle" />
+                    <span>Sesion</span>
+                  </div>
+                </Tab>
+                <Tab value="2">
+                  <div class="flex items-center gap-2 text-sm">
+                    <i class="pi pi-list" />
+                    <span>Pasos</span>
+                  </div>
+                </Tab>
+                <Tab value="3">
+                  <div class="flex items-center gap-2 text-sm">
+                    <i class="pi pi-sitemap" />
+                    <span>Estado</span>
+                  </div>
+                </Tab>
               </TabList>
 
               <TabPanels>
-                <!-- Session Info -->
+                <!-- Webhook Config -->
                 <TabPanel value="0">
+                  <PharmacyWebhookPanel
+                    :config="webhookConfig"
+                    :has-session="hasSession"
+                    :default-phone="DEFAULT_PHONE"
+                    @update="(c) => webhookConfig = { ...webhookConfig, ...c }"
+                  />
+                </TabPanel>
+
+                <!-- Session Info -->
+                <TabPanel value="1">
                   <div class="space-y-4 p-3">
                     <div>
-                      <label class="block text-sm font-medium text-gray-500">Session ID</label>
+                      <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Session ID</label>
                       <code class="text-xs break-all">{{ sessionId || 'N/A' }}</code>
                     </div>
 
                     <div>
-                      <label class="block text-sm font-medium text-gray-500">Telefono</label>
+                      <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Telefono</label>
                       <code class="text-xs break-all">{{ webhookConfig.phoneNumber }}</code>
                     </div>
 
                     <div>
-                      <label class="block text-sm font-medium text-gray-500">Farmacia</label>
+                      <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Farmacia</label>
                       <p>{{ selectedPharmacy?.name || 'No seleccionada' }}</p>
                     </div>
 
                     <div>
-                      <label class="block text-sm font-medium text-gray-500">Mensajes</label>
+                      <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Mensajes</label>
                       <Tag :value="`${messages.length} mensajes`" severity="info" />
                     </div>
                   </div>
                 </TabPanel>
 
                 <!-- Execution Steps -->
-                <TabPanel value="1">
-                  <div v-if="executionSteps.length === 0" class="text-center text-gray-400 py-4">
+                <TabPanel value="2">
+                  <div v-if="executionSteps.length === 0" class="text-center text-gray-400 dark:text-gray-500 py-4">
                     <i class="pi pi-list text-2xl mb-2" />
                     <p class="text-sm">Sin pasos de ejecucion</p>
                   </div>
@@ -369,7 +381,7 @@ watch(webhookConfig, (val) => {
                     <div
                       v-for="(step, idx) in executionSteps"
                       :key="idx"
-                      class="p-2 bg-gray-50 rounded text-xs"
+                      class="p-2 bg-gray-50 dark:bg-gray-800 rounded text-xs"
                     >
                       <pre class="overflow-auto">{{ JSON.stringify(step, null, 2) }}</pre>
                     </div>
@@ -377,26 +389,17 @@ watch(webhookConfig, (val) => {
                 </TabPanel>
 
                 <!-- Graph State -->
-                <TabPanel value="2">
-                  <div v-if="!graphState" class="text-center text-gray-400 py-4">
+                <TabPanel value="3">
+                  <div v-if="!graphState" class="text-center text-gray-400 dark:text-gray-500 py-4">
                     <i class="pi pi-sitemap text-2xl mb-2" />
                     <p class="text-sm">Sin estado de grafo</p>
                   </div>
 
                   <div v-else class="max-h-64 overflow-y-auto p-3">
-                    <pre class="text-xs bg-gray-50 p-2 rounded">{{
+                    <pre class="text-xs bg-gray-50 dark:bg-gray-800 p-2 rounded">{{
                       JSON.stringify(graphState, null, 2)
                     }}</pre>
                   </div>
-                </TabPanel>
-
-                <!-- Webhook Config -->
-                <TabPanel value="3">
-                  <PharmacyWebhookPanel
-                    :config="webhookConfig"
-                    :has-session="hasSession"
-                    @update="(c) => webhookConfig = { ...webhookConfig, ...c }"
-                  />
                 </TabPanel>
               </TabPanels>
             </Tabs>

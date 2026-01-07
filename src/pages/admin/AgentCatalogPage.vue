@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import { agentCatalogApi } from '@/api/agentCatalog.api'
+import { useDomains } from '@/composables/useDomains'
 import type {
   AgentCatalogItem,
   AgentCatalogFilters,
@@ -10,9 +11,7 @@ import type {
   AgentCatalogUpdate
 } from '@/types/agentCatalog.types'
 import {
-  DOMAIN_OPTIONS,
   AGENT_TYPE_OPTIONS,
-  getDomainConfig,
   getGraphInfo,
   getAgentTypeSeverity
 } from '@/types/agentCatalog.types'
@@ -34,6 +33,10 @@ import ConfirmDialog from 'primevue/confirmdialog'
 
 const toast = useToast()
 const confirm = useConfirm()
+const { fetchDomains, getDomainOptions, getDomainLabel, getDomainColor, getDomainIcon } = useDomains()
+
+// Domain options from API
+const domainOptions = computed(() => getDomainOptions(true))
 
 // State
 const agents = ref<AgentCatalogItem[]>([])
@@ -61,10 +64,10 @@ const filters = ref<AgentCatalogFilters>({
 })
 
 // Filter options
-const domainFilterOptions = [
+const domainFilterOptions = computed(() => [
   { value: undefined, label: 'Todos los dominios' },
-  ...DOMAIN_OPTIONS.map((d) => ({ value: d.value ?? 'global', label: d.label }))
-]
+  ...domainOptions.value.map((d) => ({ value: d.value ?? 'global', label: d.label }))
+])
 
 const typeFilterOptions = [
   { value: undefined, label: 'Todos los tipos' },
@@ -290,8 +293,11 @@ async function deleteAgent(agent: AgentCatalogItem) {
 
 // Get domain display info
 function getDomainDisplay(domainKey: string | null) {
-  const config = getDomainConfig(domainKey as null)
-  return config
+  return {
+    label: getDomainLabel(domainKey),
+    color: getDomainColor(domainKey),
+    icon: getDomainIcon(domainKey)
+  }
 }
 
 // Get graph display info
@@ -301,7 +307,10 @@ function getGraphDisplay(agentKey: string) {
 }
 
 // Initialize
-onMounted(fetchAgents)
+onMounted(() => {
+  fetchDomains()
+  fetchAgents()
+})
 </script>
 
 <template>
@@ -541,7 +550,7 @@ onMounted(fetchAgents)
             <label class="block text-sm font-medium text-gray-700 mb-1">Dominio</label>
             <Select
               v-model="editingAgent.domain_key"
-              :options="DOMAIN_OPTIONS"
+              :options="domainOptions"
               optionLabel="label"
               optionValue="value"
               class="w-full"
@@ -632,7 +641,7 @@ onMounted(fetchAgents)
             <label class="block text-sm font-medium text-gray-700 mb-1">Dominio</label>
             <Select
               v-model="newAgent.domain_key"
-              :options="DOMAIN_OPTIONS"
+              :options="domainOptions"
               optionLabel="label"
               optionValue="value"
               class="w-full"

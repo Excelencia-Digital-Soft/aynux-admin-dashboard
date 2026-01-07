@@ -2,12 +2,12 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useBypassRulesStore } from '@/stores/bypassRules.store'
 import { useBypassRules } from '@/composables/useBypassRules'
-import { agentApi } from '@/api/agent.api'
+import { useDomains } from '@/composables/useDomains'
+import { agentCatalogApi } from '@/api/agentCatalog.api'
 import type {
   BypassRuleCreateRequest,
   BypassRuleUpdateRequest,
-  BypassRuleType,
-  TargetDomain
+  BypassRuleType
 } from '@/types/bypassRules.types'
 
 import Dialog from 'primevue/dialog'
@@ -19,9 +19,11 @@ import Button from 'primevue/button'
 import Divider from 'primevue/divider'
 import Message from 'primevue/message'
 import Chip from 'primevue/chip'
+import ToggleSwitch from 'primevue/toggleswitch'
 
 const store = useBypassRulesStore()
 const { createRule, updateRule, isLoading, closeRuleDialog } = useBypassRules()
+const { fetchDomains, getDomainOptions, isLoading: loadingDomains } = useDomains()
 
 // Available agents (fetched on mount)
 const availableAgents = ref<string[]>([])
@@ -36,9 +38,10 @@ const formData = ref({
   phone_numbers: [] as string[],
   phone_number_id: '',
   target_agent: '',
-  target_domain: undefined as TargetDomain | undefined,
+  target_domain: undefined as string | undefined,
   priority: 100,
-  enabled: true
+  enabled: true,
+  isolated_history: false
 })
 
 // For phone number list input
@@ -51,13 +54,8 @@ const ruleTypeOptions = [
   { label: 'WhatsApp Phone ID', value: 'whatsapp_phone_number_id' }
 ]
 
-const domainOptions = [
-  { label: 'Sin dominio especifico', value: undefined },
-  { label: 'Excelencia', value: 'excelencia' },
-  { label: 'Salud', value: 'healthcare' },
-  { label: 'Credito', value: 'credit' },
-  { label: 'E-commerce', value: 'ecommerce' }
-]
+// Domain options from centralized API
+const domainOptions = computed(() => getDomainOptions(true))
 
 const isEditing = computed(() => store.editingRule !== null)
 const dialogTitle = computed(() =>
@@ -97,7 +95,8 @@ watch(
         target_agent: rule.target_agent,
         target_domain: rule.target_domain || undefined,
         priority: rule.priority,
-        enabled: rule.enabled
+        enabled: rule.enabled,
+        isolated_history: rule.isolated_history ?? false
       }
     } else {
       resetForm()
@@ -117,7 +116,8 @@ function resetForm() {
     target_agent: '',
     target_domain: undefined,
     priority: 100,
-    enabled: true
+    enabled: true,
+    isolated_history: false
   }
   newPhoneNumber.value = ''
 }
@@ -137,9 +137,9 @@ function removePhoneNumber(number: string) {
 async function fetchAgents() {
   loadingAgents.value = true
   try {
-    const response = await agentApi.getEnabledAgents()
-    // Handle both array and object responses
-    availableAgents.value = Array.isArray(response) ? response : (response as any)?.agents || []
+    // Use agent catalog API to get enabled agents from database
+    // This reflects changes made in /agent-catalog UI
+    availableAgents.value = await agentCatalogApi.getEnabledKeys()
   } catch (error) {
     console.error('Error fetching agents:', error)
     availableAgents.value = []
@@ -159,7 +159,8 @@ async function handleSubmit() {
     target_agent: formData.value.target_agent,
     target_domain: formData.value.target_domain,
     priority: formData.value.priority,
-    enabled: formData.value.enabled
+    enabled: formData.value.enabled,
+    isolated_history: formData.value.isolated_history
   }
 
   // Add type-specific fields
@@ -192,6 +193,7 @@ function handleClose() {
 
 onMounted(() => {
   fetchAgents()
+  fetchDomains()
 })
 </script>
 
@@ -362,6 +364,27 @@ onMounted(() => {
               placeholder="Opcional"
               class="w-full"
             />
+          </div>
+        </div>
+      </div>
+
+      <Divider />
+
+      <!-- Isolation Section -->
+      <div>
+        <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          <i class="pi pi-history" />
+          Aislamiento de Historial
+        </h3>
+
+        <div class="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
+          <ToggleSwitch v-model="formData.isolated_history" />
+          <div>
+            <span class="text-sm font-medium text-gray-700">Historial Aislado</span>
+            <p class="text-xs text-gray-500 mt-1">
+              Cuando esta activo, este agente tendra un historial de conversacion separado
+              de otros agentes. Util para separar contextos (ej: farmacia vs excelencia).
+            </p>
           </div>
         </div>
       </div>

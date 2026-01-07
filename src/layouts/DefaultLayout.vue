@@ -122,6 +122,11 @@ const configMenuItems = computed<MenuItem[]>(() => {
       icon: 'pi pi-box',
       route: '/agent-catalog'
     })
+    items.push({
+      label: 'Dominios',
+      icon: 'pi pi-globe',
+      route: '/domains'
+    })
   }
 
   return items

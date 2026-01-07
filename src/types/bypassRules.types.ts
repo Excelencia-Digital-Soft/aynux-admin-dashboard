@@ -13,9 +13,10 @@
 export type BypassRuleType = 'phone_number' | 'phone_number_list' | 'whatsapp_phone_number_id'
 
 /**
- * Target domain options
+ * Target domain - now dynamic from API (see useDomains composable)
+ * Previously was: 'excelencia' | 'healthcare' | 'credit' | 'ecommerce'
  */
-export type TargetDomain = 'excelencia' | 'healthcare' | 'credit' | 'ecommerce'
+export type TargetDomain = string
 
 // ============================================================
 // Entity Interfaces
@@ -37,6 +38,7 @@ export interface BypassRule {
   target_domain?: TargetDomain | null
   priority: number
   enabled: boolean
+  isolated_history?: boolean | null
   created_at: string
   updated_at: string
 }
@@ -59,6 +61,7 @@ export interface BypassRuleCreateRequest {
   target_domain?: TargetDomain
   priority?: number
   enabled?: boolean
+  isolated_history?: boolean
 }
 
 /**
@@ -75,6 +78,7 @@ export interface BypassRuleUpdateRequest {
   target_domain?: TargetDomain
   priority?: number
   enabled?: boolean
+  isolated_history?: boolean
 }
 
 /**
@@ -185,14 +189,17 @@ export function getRuleTypeSeverity(type: BypassRuleType): 'info' | 'warn' | 'su
 
 /**
  * Get label for target domain
+ * @deprecated Use useDomains().getDomainLabel() instead for dynamic domain labels
  */
 export function getTargetDomainLabel(domain?: TargetDomain | string | null): string {
   if (!domain) return '-'
+  // Fallback labels - domains are now fetched from API via useDomains composable
   const labels: Record<string, string> = {
     excelencia: 'Excelencia',
     healthcare: 'Salud',
     credit: 'Credito',
-    ecommerce: 'E-commerce'
+    ecommerce: 'E-commerce',
+    pharmacy: 'Farmacia'
   }
   return labels[domain] || domain
 }

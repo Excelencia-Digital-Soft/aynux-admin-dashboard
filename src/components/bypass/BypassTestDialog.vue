@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useBypassRulesStore } from '@/stores/bypassRules.store'
 import { useBypassRules } from '@/composables/useBypassRules'
+import { useDomains } from '@/composables/useDomains'
 import type { BypassTestRequest } from '@/types/bypassRules.types'
-import { getTargetDomainLabel } from '@/types/bypassRules.types'
 
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
@@ -15,6 +15,7 @@ import Message from 'primevue/message'
 
 const store = useBypassRulesStore()
 const { testRouting, isLoading, closeTestDialog, clearTestResult } = useBypassRules()
+const { fetchDomains, getDomainLabel, getDomainColor } = useDomains()
 
 const testData = ref<BypassTestRequest>({
   wa_id: '',
@@ -53,6 +54,10 @@ function handleClose() {
 function clearResults() {
   clearTestResult()
 }
+
+onMounted(() => {
+  fetchDomains()
+})
 </script>
 
 <template>
@@ -168,8 +173,8 @@ function clearResults() {
                 <label class="block text-sm font-medium text-gray-500">Dominio</label>
                 <Tag
                   v-if="testResult.target_domain"
-                  :value="getTargetDomainLabel(testResult.target_domain)"
-                  severity="secondary"
+                  :value="getDomainLabel(testResult.target_domain)"
+                  :severity="getDomainColor(testResult.target_domain)"
                 />
                 <span v-else class="text-gray-400">-</span>
               </div>

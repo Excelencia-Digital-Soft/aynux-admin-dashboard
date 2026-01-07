@@ -1,18 +1,31 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { PharmacyWebhookConfig } from '@/api/pharmacy.api'
 import ToggleSwitch from 'primevue/toggleswitch'
 import InputText from 'primevue/inputtext'
+import Button from 'primevue/button'
 import Tag from 'primevue/tag'
 import Message from 'primevue/message'
 
-defineProps<{
+const props = defineProps<{
   config: PharmacyWebhookConfig
   hasSession: boolean
+  defaultPhone?: string
 }>()
 
 const emit = defineEmits<{
   update: [config: Partial<PharmacyWebhookConfig>]
 }>()
+
+const DEFAULT_PHONE = props.defaultPhone || '2645631000'
+
+const PHONE_PRESETS = [
+  { label: 'Default', value: DEFAULT_PHONE },
+  { label: 'Test 1', value: '2645000001' },
+  { label: 'Test 2', value: '2645000002' },
+]
+
+const isDefaultPhone = computed(() => props.config.phoneNumber === DEFAULT_PHONE)
 
 function handleEnabledChange(value: boolean) {
   emit('update', { enabled: value })
@@ -27,6 +40,14 @@ function handleNameChange(event: Event) {
   const target = event.target as HTMLInputElement
   emit('update', { userName: target.value })
 }
+
+function handleResetPhone() {
+  emit('update', { phoneNumber: DEFAULT_PHONE })
+}
+
+function selectPreset(value: string) {
+  emit('update', { phoneNumber: value })
+}
 </script>
 
 <template>
@@ -37,7 +58,7 @@ function handleNameChange(event: Event) {
       <template #default>
         <div class="text-sm">
           Este modo simula el flujo de WhatsApp usando
-          <code class="bg-blue-100 px-1 rounded">PharmacyGraph</code>.
+          <code class="bg-blue-100 dark:bg-blue-900 px-1 rounded">PharmacyGraph</code>.
         </div>
       </template>
     </Message>
@@ -58,21 +79,51 @@ function handleNameChange(event: Event) {
       <!-- Config (visible cuando activo) -->
       <div v-if="config.enabled" class="space-y-3 pl-4 border-l-2 border-green-300 ml-2">
         <div>
-          <label class="text-sm text-gray-600 block mb-1">Telefono simulado</label>
-          <InputText
-            :modelValue="config.phoneNumber"
-            @input="handlePhoneChange"
-            class="w-full"
-            placeholder="2645631000"
-            :disabled="hasSession"
-          />
-          <small class="text-gray-400 text-xs">
-            Numero de telefono para identificar cliente
+          <label class="text-sm text-gray-600 dark:text-gray-400 block mb-1">Telefono simulado</label>
+          <div class="flex gap-2">
+            <InputText
+              :modelValue="config.phoneNumber"
+              @input="handlePhoneChange"
+              class="flex-1"
+              placeholder="2645631000"
+              :disabled="hasSession"
+            />
+            <Button
+              icon="pi pi-refresh"
+              severity="secondary"
+              size="small"
+              @click="handleResetPhone"
+              :disabled="hasSession || isDefaultPhone"
+              v-tooltip.top="'Restaurar default'"
+            />
+          </div>
+
+          <!-- Phone Presets -->
+          <div class="flex flex-wrap gap-1 mt-2">
+            <Tag
+              v-for="preset in PHONE_PRESETS"
+              :key="preset.value"
+              :value="preset.label"
+              :severity="config.phoneNumber === preset.value ? 'success' : 'secondary'"
+              class="cursor-pointer text-xs"
+              :class="{ 'opacity-50': hasSession }"
+              @click="!hasSession && selectPreset(preset.value)"
+            />
+            <Tag
+              v-if="!PHONE_PRESETS.some(p => p.value === config.phoneNumber)"
+              value="Custom"
+              severity="info"
+              class="text-xs"
+            />
+          </div>
+
+          <small class="text-gray-400 dark:text-gray-500 text-xs block mt-1">
+            Selecciona un preset o ingresa un numero personalizado
           </small>
         </div>
 
         <div>
-          <label class="text-sm text-gray-600 block mb-1">Nombre usuario</label>
+          <label class="text-sm text-gray-600 dark:text-gray-400 block mb-1">Nombre usuario</label>
           <InputText
             :modelValue="config.userName"
             @input="handleNameChange"
@@ -83,10 +134,10 @@ function handleNameChange(event: Event) {
         </div>
 
         <div>
-          <label class="text-sm text-gray-600 block mb-1">Dominio</label>
+          <label class="text-sm text-gray-600 dark:text-gray-400 block mb-1">Dominio</label>
           <div class="flex items-center gap-2">
             <Tag value="Pharmacy" severity="success" />
-            <span class="text-xs text-gray-500">(PharmacyGraph)</span>
+            <span class="text-xs text-gray-500 dark:text-gray-400">(PharmacyGraph)</span>
           </div>
         </div>
 
