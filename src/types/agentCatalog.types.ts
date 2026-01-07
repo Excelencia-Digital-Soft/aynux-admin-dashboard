@@ -103,6 +103,7 @@ export interface DomainOption {
 
 /**
  * Domain options for Select component
+ * @deprecated Use useDomains().getDomainOptions() instead for dynamic domain data from API
  */
 export const DOMAIN_OPTIONS: DomainOption[] = [
   { value: null, label: 'Global', color: 'info', icon: 'pi-globe' },
@@ -137,6 +138,7 @@ export const SUBGRAPH_INFO: Record<string, { graph: string; hasSubgraph: boolean
 
 /**
  * Get domain configuration by domain_key
+ * @deprecated Use useDomains().getDomainLabel(), getDomainColor(), getDomainIcon() instead
  */
 export function getDomainConfig(domainKey: DomainKey): DomainOption {
   return DOMAIN_OPTIONS.find((d) => d.value === domainKey) || DOMAIN_OPTIONS[0]

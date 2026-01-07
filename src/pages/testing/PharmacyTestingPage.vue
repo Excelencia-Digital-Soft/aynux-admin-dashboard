@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { pharmacyApi } from '@/api/pharmacy.api'
-import type { Pharmacy, PharmacyTestMessage, PharmacyWebhookConfig } from '@/api/pharmacy.api'
+import type { Pharmacy, PharmacyTestMessage, PharmacyWebhookConfig, ConversationContext, ConversationMessage } from '@/api/pharmacy.api'
 import { useToast } from '@/composables/useToast'
 import PharmacyWebhookPanel from '@/components/pharmacy/PharmacyWebhookPanel.vue'
 
@@ -20,8 +20,11 @@ import TabList from 'primevue/tablist'
 import Tab from 'primevue/tab'
 import TabPanels from 'primevue/tabpanels'
 import TabPanel from 'primevue/tabpanel'
+import Dialog from 'primevue/dialog'
 
 const toast = useToast()
+
+const DEFAULT_PHONE = '2645631000'
 
 const isLoading = ref(false)
 const isSending = ref(false)
@@ -32,12 +35,20 @@ const messages = ref<PharmacyTestMessage[]>([])
 const inputMessage = ref('')
 const webhookConfig = ref<PharmacyWebhookConfig>({
   enabled: false,
-  phoneNumber: '2645631000',
+  phoneNumber: DEFAULT_PHONE,
   userName: 'Pharmacy Tester'
 })
 const executionSteps = ref<unknown[]>([])
 const graphState = ref<unknown | null>(null)
 const chatContainer = ref<HTMLElement | null>(null)
+
+// History state
+const conversationHistory = ref<ConversationContext[]>([])
+const historyMessages = ref<ConversationMessage[]>([])
+const selectedConversation = ref<ConversationContext | null>(null)
+const isLoadingHistory = ref(false)
+const isDeletingHistory = ref(false)
+const showDeleteConfirm = ref(false)
 
 const hasSession = computed(() => !!sessionId.value)
 
@@ -140,6 +151,84 @@ function handleKeyPress(event: KeyboardEvent) {
   }
 }
 
+// History functions
+async function fetchHistory() {
+  if (!webhookConfig.value.phoneNumber) {
+    toast.warn('Selecciona un telefono primero')
+    return
+  }
+  isLoadingHistory.value = true
+  try {
+    conversationHistory.value = await pharmacyApi.getConversationsByPhone(
+      webhookConfig.value.phoneNumber
+    )
+    if (conversationHistory.value.length === 0) {
+      toast.info('No hay historial para este telefono')
+    }
+  } catch {
+    toast.error('Error al cargar historial')
+  } finally {
+    isLoadingHistory.value = false
+  }
+}
+
+async function selectConversation(conv: ConversationContext) {
+  selectedConversation.value = conv
+  isLoadingHistory.value = true
+  try {
+    historyMessages.value = await pharmacyApi.getConversationMessages(conv.conversation_id)
+  } finally {
+    isLoadingHistory.value = false
+  }
+}
+
+async function deleteConversation(conv: ConversationContext) {
+  try {
+    const success = await pharmacyApi.deleteConversation(conv.conversation_id)
+    if (success) {
+      conversationHistory.value = conversationHistory.value.filter(
+        c => c.conversation_id !== conv.conversation_id
+      )
+      if (selectedConversation.value?.conversation_id === conv.conversation_id) {
+        selectedConversation.value = null
+        historyMessages.value = []
+      }
+      toast.success('Conversacion eliminada')
+    } else {
+      toast.error('Error al eliminar conversacion')
+    }
+  } catch {
+    toast.error('Error al eliminar conversacion')
+  }
+}
+
+async function deleteAllHistory() {
+  isDeletingHistory.value = true
+  try {
+    for (const conv of conversationHistory.value) {
+      await pharmacyApi.deleteConversation(conv.conversation_id)
+    }
+    conversationHistory.value = []
+    historyMessages.value = []
+    selectedConversation.value = null
+    toast.success('Historial eliminado completamente')
+  } catch {
+    toast.error('Error al eliminar historial')
+  } finally {
+    isDeletingHistory.value = false
+    showDeleteConfirm.value = false
+  }
+}
+
+function formatDateTime(dateStr: string): string {
+  return new Date(dateStr).toLocaleString('es-ES', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
 onMounted(() => {
   // Load webhook config from localStorage
   const saved = localStorage.getItem('pharmacy-webhook-config')
@@ -157,6 +246,13 @@ onMounted(() => {
 watch(webhookConfig, (val) => {
   localStorage.setItem('pharmacy-webhook-config', JSON.stringify(val))
 }, { deep: true })
+
+// Clear history when phone changes
+watch(() => webhookConfig.value.phoneNumber, () => {
+  conversationHistory.value = []
+  historyMessages.value = []
+  selectedConversation.value = null
+})
 </script>
 
 <template>
@@ -219,12 +315,12 @@ watch(webhookConfig, (val) => {
             <!-- Chat Messages -->
             <div
               ref="chatContainer"
-              class="chat-messages h-96 overflow-y-auto p-4 bg-gray-100"
+              class="chat-messages h-96 overflow-y-auto p-4 bg-gray-100 dark:bg-gray-800"
             >
               <!-- No messages -->
               <div
                 v-if="messages.length === 0"
-                class="h-full flex items-center justify-center text-gray-400"
+                class="h-full flex items-center justify-center text-gray-400 dark:text-gray-500"
               >
                 <div class="text-center">
                   <i class="pi pi-comments text-4xl mb-2" />
@@ -240,15 +336,15 @@ watch(webhookConfig, (val) => {
                   :class="[
                     'max-w-[80%] p-3 rounded-lg shadow-sm',
                     msg.role === 'user'
-                      ? 'ml-auto bg-green-100 rounded-br-none'
-                      : 'mr-auto bg-white rounded-bl-none'
+                      ? 'ml-auto bg-green-100 dark:bg-green-900 rounded-br-none'
+                      : 'mr-auto bg-white dark:bg-gray-700 rounded-bl-none'
                   ]"
                 >
-                  <div class="text-sm whitespace-pre-wrap">{{ msg.content }}</div>
+                  <div class="text-sm whitespace-pre-wrap text-gray-900 dark:text-gray-100">{{ msg.content }}</div>
                   <div
                     :class="[
                       'text-xs mt-1',
-                      msg.role === 'user' ? 'text-green-600 text-right' : 'text-gray-400'
+                      msg.role === 'user' ? 'text-green-600 dark:text-green-400 text-right' : 'text-gray-400 dark:text-gray-500'
                     ]"
                   >
                     {{ formatTime(msg.timestamp) }}
@@ -256,11 +352,11 @@ watch(webhookConfig, (val) => {
                 </div>
 
                 <!-- Typing indicator -->
-                <div v-if="isSending" class="mr-auto bg-white p-3 rounded-lg rounded-bl-none shadow-sm">
+                <div v-if="isSending" class="mr-auto bg-white dark:bg-gray-700 p-3 rounded-lg rounded-bl-none shadow-sm">
                   <div class="flex gap-1">
-                    <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms" />
-                    <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms" />
-                    <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms" />
+                    <span class="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style="animation-delay: 0ms" />
+                    <span class="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style="animation-delay: 150ms" />
+                    <span class="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style="animation-delay: 300ms" />
                   </div>
                 </div>
               </div>
@@ -301,24 +397,6 @@ watch(webhookConfig, (val) => {
               <TabList>
                 <Tab value="0">
                   <div class="flex items-center gap-2 text-sm">
-                    <i class="pi pi-info-circle" />
-                    <span>Sesion</span>
-                  </div>
-                </Tab>
-                <Tab value="1">
-                  <div class="flex items-center gap-2 text-sm">
-                    <i class="pi pi-list" />
-                    <span>Pasos</span>
-                  </div>
-                </Tab>
-                <Tab value="2">
-                  <div class="flex items-center gap-2 text-sm">
-                    <i class="pi pi-sitemap" />
-                    <span>Estado</span>
-                  </div>
-                </Tab>
-                <Tab value="3">
-                  <div class="flex items-center gap-2 text-sm">
                     <i class="pi pi-bolt" />
                     <span>Webhook</span>
                     <Tag
@@ -330,37 +408,78 @@ watch(webhookConfig, (val) => {
                     />
                   </div>
                 </Tab>
+                <Tab value="1">
+                  <div class="flex items-center gap-2 text-sm">
+                    <i class="pi pi-info-circle" />
+                    <span>Sesion</span>
+                  </div>
+                </Tab>
+                <Tab value="2">
+                  <div class="flex items-center gap-2 text-sm">
+                    <i class="pi pi-list" />
+                    <span>Pasos</span>
+                  </div>
+                </Tab>
+                <Tab value="3">
+                  <div class="flex items-center gap-2 text-sm">
+                    <i class="pi pi-sitemap" />
+                    <span>Estado</span>
+                  </div>
+                </Tab>
+                <Tab value="4">
+                  <div class="flex items-center gap-2 text-sm">
+                    <i class="pi pi-history" />
+                    <span>Historial</span>
+                    <Tag
+                      v-if="conversationHistory.length"
+                      :value="conversationHistory.length"
+                      severity="info"
+                      class="ml-1"
+                      style="font-size: 0.65rem; padding: 0.1rem 0.3rem;"
+                    />
+                  </div>
+                </Tab>
               </TabList>
 
               <TabPanels>
-                <!-- Session Info -->
+                <!-- Webhook Config -->
                 <TabPanel value="0">
+                  <PharmacyWebhookPanel
+                    :config="webhookConfig"
+                    :has-session="hasSession"
+                    :default-phone="DEFAULT_PHONE"
+                    @update="(c) => webhookConfig = { ...webhookConfig, ...c }"
+                  />
+                </TabPanel>
+
+                <!-- Session Info -->
+                <TabPanel value="1">
                   <div class="space-y-4 p-3">
                     <div>
-                      <label class="block text-sm font-medium text-gray-500">Session ID</label>
+                      <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Session ID</label>
                       <code class="text-xs break-all">{{ sessionId || 'N/A' }}</code>
                     </div>
 
                     <div>
-                      <label class="block text-sm font-medium text-gray-500">Telefono</label>
+                      <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Telefono</label>
                       <code class="text-xs break-all">{{ webhookConfig.phoneNumber }}</code>
                     </div>
 
                     <div>
-                      <label class="block text-sm font-medium text-gray-500">Farmacia</label>
+                      <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Farmacia</label>
                       <p>{{ selectedPharmacy?.name || 'No seleccionada' }}</p>
                     </div>
 
                     <div>
-                      <label class="block text-sm font-medium text-gray-500">Mensajes</label>
+                      <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Mensajes</label>
                       <Tag :value="`${messages.length} mensajes`" severity="info" />
                     </div>
                   </div>
                 </TabPanel>
 
                 <!-- Execution Steps -->
-                <TabPanel value="1">
-                  <div v-if="executionSteps.length === 0" class="text-center text-gray-400 py-4">
+                <TabPanel value="2">
+                  <div v-if="executionSteps.length === 0" class="text-center text-gray-400 dark:text-gray-500 py-4">
                     <i class="pi pi-list text-2xl mb-2" />
                     <p class="text-sm">Sin pasos de ejecucion</p>
                   </div>
@@ -369,7 +488,7 @@ watch(webhookConfig, (val) => {
                     <div
                       v-for="(step, idx) in executionSteps"
                       :key="idx"
-                      class="p-2 bg-gray-50 rounded text-xs"
+                      class="p-2 bg-gray-50 dark:bg-gray-800 rounded text-xs"
                     >
                       <pre class="overflow-auto">{{ JSON.stringify(step, null, 2) }}</pre>
                     </div>
@@ -377,26 +496,131 @@ watch(webhookConfig, (val) => {
                 </TabPanel>
 
                 <!-- Graph State -->
-                <TabPanel value="2">
-                  <div v-if="!graphState" class="text-center text-gray-400 py-4">
+                <TabPanel value="3">
+                  <div v-if="!graphState" class="text-center text-gray-400 dark:text-gray-500 py-4">
                     <i class="pi pi-sitemap text-2xl mb-2" />
                     <p class="text-sm">Sin estado de grafo</p>
                   </div>
 
                   <div v-else class="max-h-64 overflow-y-auto p-3">
-                    <pre class="text-xs bg-gray-50 p-2 rounded">{{
+                    <pre class="text-xs bg-gray-50 dark:bg-gray-800 p-2 rounded">{{
                       JSON.stringify(graphState, null, 2)
                     }}</pre>
                   </div>
                 </TabPanel>
 
-                <!-- Webhook Config -->
-                <TabPanel value="3">
-                  <PharmacyWebhookPanel
-                    :config="webhookConfig"
-                    :has-session="hasSession"
-                    @update="(c) => webhookConfig = { ...webhookConfig, ...c }"
-                  />
+                <!-- Message History -->
+                <TabPanel value="4">
+                  <div class="p-3 space-y-4">
+                    <!-- Header with phone and load button -->
+                    <div class="flex items-center justify-between">
+                      <div class="text-sm">
+                        <span class="text-gray-500 dark:text-gray-400">Telefono:</span>
+                        <code class="ml-2 text-xs">{{ webhookConfig.phoneNumber }}</code>
+                      </div>
+                      <Button
+                        icon="pi pi-refresh"
+                        label="Cargar"
+                        size="small"
+                        severity="secondary"
+                        @click="fetchHistory"
+                        :loading="isLoadingHistory"
+                      />
+                    </div>
+
+                    <!-- Conversation list -->
+                    <div v-if="conversationHistory.length > 0" class="space-y-2">
+                      <label class="text-sm font-medium text-gray-500 dark:text-gray-400 block">
+                        Conversaciones ({{ conversationHistory.length }})
+                      </label>
+                      <div class="max-h-32 overflow-y-auto space-y-1">
+                        <div
+                          v-for="conv in conversationHistory"
+                          :key="conv.conversation_id"
+                          :class="[
+                            'flex items-center justify-between p-2 rounded cursor-pointer text-xs',
+                            selectedConversation?.conversation_id === conv.conversation_id
+                              ? 'bg-green-100 dark:bg-green-900 border border-green-300 dark:border-green-700'
+                              : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
+                          ]"
+                          @click="selectConversation(conv)"
+                        >
+                          <div class="flex items-center gap-2 flex-1 min-w-0">
+                            <i class="pi pi-comments text-gray-400" />
+                            <span class="truncate">{{ conv.total_turns }} msgs</span>
+                            <span class="text-gray-400">{{ formatDateTime(conv.last_activity) }}</span>
+                          </div>
+                          <Button
+                            icon="pi pi-times"
+                            size="small"
+                            severity="danger"
+                            text
+                            rounded
+                            @click.stop="deleteConversation(conv)"
+                            v-tooltip.top="'Eliminar conversacion'"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Messages for selected conversation -->
+                    <div v-if="selectedConversation && historyMessages.length > 0" class="space-y-2">
+                      <label class="text-sm font-medium text-gray-500 dark:text-gray-400 block">
+                        Mensajes ({{ historyMessages.length }})
+                      </label>
+                      <div class="max-h-40 overflow-y-auto space-y-1 p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                        <div
+                          v-for="(msg, idx) in historyMessages"
+                          :key="idx"
+                          :class="[
+                            'p-2 rounded text-xs',
+                            msg.sender_type === 'user'
+                              ? 'ml-4 bg-green-100 dark:bg-green-900'
+                              : msg.sender_type === 'assistant'
+                                ? 'mr-4 bg-white dark:bg-gray-700'
+                                : 'mx-auto bg-gray-200 dark:bg-gray-600 text-center'
+                          ]"
+                        >
+                          <div class="flex items-center gap-2 mb-1">
+                            <Tag
+                              :value="msg.sender_type"
+                              :severity="msg.sender_type === 'user' ? 'success' : msg.sender_type === 'assistant' ? 'info' : 'secondary'"
+                              class="text-xs"
+                              style="font-size: 0.6rem; padding: 0.1rem 0.25rem;"
+                            />
+                            <span class="text-gray-400 text-xs">{{ formatDateTime(msg.created_at) }}</span>
+                          </div>
+                          <div class="whitespace-pre-wrap break-words">{{ msg.content }}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Empty state -->
+                    <div
+                      v-if="!isLoadingHistory && conversationHistory.length === 0"
+                      class="text-center text-gray-400 dark:text-gray-500 py-4"
+                    >
+                      <i class="pi pi-history text-2xl mb-2" />
+                      <p class="text-sm">Presiona "Cargar" para ver historial</p>
+                    </div>
+
+                    <!-- Loading state -->
+                    <div v-if="isLoadingHistory" class="text-center py-4">
+                      <ProgressSpinner style="width: 30px; height: 30px" />
+                    </div>
+
+                    <!-- Delete all button -->
+                    <Button
+                      v-if="conversationHistory.length > 0"
+                      icon="pi pi-trash"
+                      label="Eliminar Todo el Historial"
+                      severity="danger"
+                      size="small"
+                      class="w-full"
+                      @click="showDeleteConfirm = true"
+                      :loading="isDeletingHistory"
+                    />
+                  </div>
                 </TabPanel>
               </TabPanels>
             </Tabs>
@@ -455,6 +679,42 @@ watch(webhookConfig, (val) => {
         </Card>
       </div>
     </div>
+
+    <!-- Delete Confirmation Dialog -->
+    <Dialog
+      v-model:visible="showDeleteConfirm"
+      modal
+      header="Eliminar Historial"
+      :style="{ width: '400px' }"
+    >
+      <div class="flex items-start gap-3">
+        <i class="pi pi-exclamation-triangle text-yellow-500 text-2xl" />
+        <div>
+          <p class="text-gray-700 dark:text-gray-300">
+            Esta accion eliminara <strong>TODAS</strong> las conversaciones para el telefono
+            <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded">{{ webhookConfig.phoneNumber }}</code>.
+          </p>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+            Esta accion no se puede deshacer.
+          </p>
+        </div>
+      </div>
+      <template #footer>
+        <Button
+          label="Cancelar"
+          severity="secondary"
+          @click="showDeleteConfirm = false"
+          :disabled="isDeletingHistory"
+        />
+        <Button
+          label="Eliminar"
+          severity="danger"
+          icon="pi pi-trash"
+          @click="deleteAllHistory"
+          :loading="isDeletingHistory"
+        />
+      </template>
+    </Dialog>
   </div>
 </template>
 

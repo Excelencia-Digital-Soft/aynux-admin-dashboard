@@ -238,6 +238,18 @@ const router = createRouter({
           }
         },
 
+        // Domains Admin (Page 22) - CRUD for core.domains table
+        {
+          path: 'domains',
+          name: 'Domains',
+          component: () => import('@/pages/admin/DomainsPage.vue'),
+          meta: {
+            title: 'Dominios',
+            icon: 'pi-globe',
+            requiresAdmin: true
+          }
+        },
+
         // Chattigo Credentials (Page 20)
         {
           path: 'chattigo-credentials',
