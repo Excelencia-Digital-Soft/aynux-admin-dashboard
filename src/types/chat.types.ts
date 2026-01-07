@@ -142,13 +142,18 @@ export interface StreamChunk {
 }
 
 // Webhook simulation types
-export type BusinessDomain = 'excelencia' | 'ecommerce' | 'healthcare' | 'credit'
+export type BusinessDomain = 'excelencia' | 'ecommerce' | 'healthcare' | 'credit' | 'pharmacy'
 
 export interface WebhookSimulationConfig {
   enabled: boolean
   phoneNumber: string
   userName: string
   businessDomain: BusinessDomain
+  // Chattigo simulation fields
+  did: string | null
+  simulateBypass: boolean
+  organizationId: string | null
+  pharmacyId: string | null
 }
 
 export interface WebhookSimulationRequest {
@@ -158,6 +163,11 @@ export interface WebhookSimulationRequest {
   business_domain: BusinessDomain
   session_id?: string
   debug: boolean
+  // Chattigo simulation fields
+  did?: string | null
+  simulate_bypass?: boolean
+  organization_id?: string | null
+  pharmacy_id?: string | null
 }
 
 export interface WebhookSimulationResponse {

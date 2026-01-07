@@ -36,7 +36,12 @@ const inputMessage = ref('')
 const webhookConfig = ref<PharmacyWebhookConfig>({
   enabled: false,
   phoneNumber: DEFAULT_PHONE,
-  userName: 'Pharmacy Tester'
+  userName: 'Pharmacy Tester',
+  // Chattigo simulation fields
+  did: null,
+  simulateBypass: false,
+  organizationId: null,
+  pharmacyId: null
 })
 const executionSteps = ref<unknown[]>([])
 const graphState = ref<unknown | null>(null)

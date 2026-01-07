@@ -231,7 +231,33 @@ export const chatApi = {
       { timeout: 180000 } // 3 minutes for complex processing
     )
     return data
+  },
+
+  /**
+   * Get available bypass rules for test webhook dropdown
+   *
+   * Returns all enabled bypass rules that can be selected
+   * to simulate production-like routing behavior.
+   */
+  async getAvailableBypassRules(): Promise<BypassRuleOption[]> {
+    const { data } = await apiClient.get<BypassRuleOption[]>(
+      `${ADMIN_CHAT_URL}/bypass-rules/available`
+    )
+    return data
   }
+}
+
+// Bypass rule option for dropdown
+export interface BypassRuleOption {
+  id: string
+  name: string
+  type: string
+  pattern: string | null
+  phone_number_id: string | null
+  phone_numbers: string[] | null
+  target_domain: string | null
+  pharmacy_id: string | null
+  organization_id: string
 }
 
 export default chatApi
