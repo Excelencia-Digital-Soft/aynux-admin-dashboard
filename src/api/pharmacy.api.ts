@@ -45,6 +45,11 @@ export interface PharmacyWebhookConfig {
   enabled: boolean
   phoneNumber: string
   userName: string
+  // Chattigo simulation fields (same as WebhookSimulationConfig)
+  did: string | null
+  simulateBypass: boolean
+  organizationId: string | null
+  pharmacyId: string | null
 }
 
 // Conversation history types
@@ -171,5 +176,32 @@ export const pharmacyApi = {
       console.error('Failed to delete conversation:', error)
       return false
     }
+  },
+
+  /**
+   * Get available bypass rules for test webhook dropdown.
+   * Reuses the same endpoint as chat.api.ts.
+   */
+  async getAvailableBypassRules(): Promise<BypassRuleOption[]> {
+    try {
+      const response = await api.get<BypassRuleOption[]>('/admin/chat/bypass-rules/available')
+      return response.data
+    } catch (error) {
+      console.error('Failed to fetch bypass rules:', error)
+      return []
+    }
   }
+}
+
+// Bypass rule option for dropdown (same as chat.api.ts)
+export interface BypassRuleOption {
+  id: string
+  name: string
+  type: string
+  pattern: string | null
+  phone_number_id: string | null
+  phone_numbers: string[] | null
+  target_domain: string | null
+  pharmacy_id: string | null
+  organization_id: string
 }

@@ -63,7 +63,12 @@ async function handleSendMessage(message: string) {
         user_name: store.webhookSimulation.userName,
         business_domain: store.webhookSimulation.businessDomain,
         session_id: threadId,
-        debug: debugMode.value
+        debug: debugMode.value,
+        // Chattigo simulation fields
+        did: store.webhookSimulation.did,
+        simulate_bypass: store.webhookSimulation.simulateBypass,
+        organization_id: store.webhookSimulation.organizationId,
+        pharmacy_id: store.webhookSimulation.pharmacyId
       })
 
       const assistantMessage: ConversationMessage = {

@@ -58,7 +58,12 @@ export const useChatStore = defineStore('chat', {
       enabled: false,
       phoneNumber: 'web_5491100001234',
       userName: 'Web Tester',
-      businessDomain: 'excelencia'
+      businessDomain: 'excelencia',
+      // Chattigo simulation fields
+      did: null,
+      simulateBypass: false,
+      organizationId: null,
+      pharmacyId: null
     }
   }),
 
