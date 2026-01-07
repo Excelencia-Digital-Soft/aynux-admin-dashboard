@@ -4,6 +4,7 @@ import { useBypassRulesStore } from '@/stores/bypassRules.store'
 import { useBypassRules } from '@/composables/useBypassRules'
 import { useDomains } from '@/composables/useDomains'
 import { agentCatalogApi } from '@/api/agentCatalog.api'
+import { pharmacyApi, type Pharmacy } from '@/api/pharmacy.api'
 import type {
   BypassRuleCreateRequest,
   BypassRuleUpdateRequest,
@@ -29,6 +30,10 @@ const { fetchDomains, getDomainOptions, isLoading: loadingDomains } = useDomains
 const availableAgents = ref<string[]>([])
 const loadingAgents = ref(false)
 
+// Available pharmacies (fetched on mount)
+const availablePharmacies = ref<Pharmacy[]>([])
+const loadingPharmacies = ref(false)
+
 // Form state
 const formData = ref({
   rule_name: '',
@@ -39,6 +44,7 @@ const formData = ref({
   phone_number_id: '',
   target_agent: '',
   target_domain: undefined as string | undefined,
+  pharmacy_id: undefined as string | undefined,
   priority: 100,
   enabled: true,
   isolated_history: false
@@ -57,6 +63,9 @@ const ruleTypeOptions = [
 // Domain options from centralized API
 const domainOptions = computed(() => getDomainOptions(true))
 
+// Show pharmacy selector when domain is 'pharmacy'
+const showPharmacySelector = computed(() => formData.value.target_domain === 'pharmacy')
+
 const isEditing = computed(() => store.editingRule !== null)
 const dialogTitle = computed(() =>
   isEditing.value ? 'Editar Regla de Bypass' : 'Nueva Regla de Bypass'
@@ -66,6 +75,11 @@ const canSave = computed(() => {
   // Base validation
   if (!formData.value.rule_name.trim()) return false
   if (!formData.value.target_agent) return false
+
+  // Pharmacy validation: require pharmacy_id when domain is 'pharmacy'
+  if (formData.value.target_domain === 'pharmacy' && !formData.value.pharmacy_id) {
+    return false
+  }
 
   // Type-specific validation
   switch (formData.value.rule_type) {
@@ -94,6 +108,7 @@ watch(
         phone_number_id: rule.phone_number_id || '',
         target_agent: rule.target_agent,
         target_domain: rule.target_domain || undefined,
+        pharmacy_id: rule.pharmacy_id || undefined,
         priority: rule.priority,
         enabled: rule.enabled,
         isolated_history: rule.isolated_history ?? false
@@ -103,6 +118,16 @@ watch(
     }
   },
   { immediate: true }
+)
+
+// Clear pharmacy_id when domain changes from 'pharmacy'
+watch(
+  () => formData.value.target_domain,
+  (newDomain) => {
+    if (newDomain !== 'pharmacy') {
+      formData.value.pharmacy_id = undefined
+    }
+  }
 )
 
 function resetForm() {
@@ -115,6 +140,7 @@ function resetForm() {
     phone_number_id: '',
     target_agent: '',
     target_domain: undefined,
+    pharmacy_id: undefined,
     priority: 100,
     enabled: true,
     isolated_history: false
@@ -148,8 +174,24 @@ async function fetchAgents() {
   }
 }
 
+async function fetchPharmacies() {
+  loadingPharmacies.value = true
+  try {
+    availablePharmacies.value = await pharmacyApi.getPharmacies()
+  } catch (error) {
+    console.error('Error fetching pharmacies:', error)
+    availablePharmacies.value = []
+  } finally {
+    loadingPharmacies.value = false
+  }
+}
+
 async function handleSubmit() {
   if (!canSave.value) return
+
+  // Determine pharmacy_id: use value if domain is pharmacy, otherwise explicitly null to clear
+  const pharmacyId =
+    formData.value.target_domain === 'pharmacy' ? formData.value.pharmacy_id : null
 
   // Build request data based on rule type
   const baseData = {
@@ -158,6 +200,7 @@ async function handleSubmit() {
     rule_type: formData.value.rule_type,
     target_agent: formData.value.target_agent,
     target_domain: formData.value.target_domain,
+    pharmacy_id: pharmacyId,
     priority: formData.value.priority,
     enabled: formData.value.enabled,
     isolated_history: formData.value.isolated_history
@@ -194,6 +237,7 @@ function handleClose() {
 onMounted(() => {
   fetchAgents()
   fetchDomains()
+  fetchPharmacies()
 })
 </script>
 
@@ -365,6 +409,25 @@ onMounted(() => {
               class="w-full"
             />
           </div>
+        </div>
+
+        <!-- Pharmacy Selector (conditional - shows when domain is 'pharmacy') -->
+        <div v-if="showPharmacySelector" class="mt-4">
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Farmacia *
+          </label>
+          <Select
+            v-model="formData.pharmacy_id"
+            :options="availablePharmacies"
+            optionLabel="name"
+            optionValue="id"
+            placeholder="Seleccionar farmacia"
+            class="w-full"
+            :loading="loadingPharmacies"
+          />
+          <p class="text-xs text-gray-400 mt-1">
+            Selecciona la farmacia a la que se vinculara esta regla.
+          </p>
         </div>
       </div>
 

@@ -121,6 +121,38 @@ body {
    ============================================ */
 .dark-mode {
   color-scheme: dark;
+
+  /* Override PrimeVue CSS Variables for dark mode */
+  --p-surface-0: var(--aynux-navy-900);
+  --p-surface-50: var(--aynux-navy-800);
+  --p-surface-100: var(--aynux-navy-700);
+  --p-surface-200: #2d5a8c;
+  --p-surface-ground: var(--aynux-navy-900);
+  --p-surface-section: var(--aynux-navy-800);
+  --p-surface-card: var(--aynux-navy-800);
+  --p-surface-overlay: var(--aynux-navy-800);
+  --p-surface-border: var(--aynux-navy-700);
+  --p-content-background: var(--aynux-navy-800);
+  --p-content-color: #f3f4f6;
+  --p-text-color: #f3f4f6;
+  --p-text-muted-color: #9ca3af;
+
+  /* PrimeVue Component-specific variables */
+  --p-card-background: var(--aynux-navy-800);
+  --p-card-color: #f3f4f6;
+  --p-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --p-datatable-header-background: var(--aynux-navy-700);
+  --p-datatable-row-background: var(--aynux-navy-800);
+  --p-datatable-row-odd-background: var(--aynux-navy-900);
+  --p-inputtext-background: var(--aynux-navy-900);
+  --p-inputtext-color: #f3f4f6;
+  --p-tabs-tablist-background: var(--aynux-navy-800);
+  --p-tabs-tab-color: #9ca3af;
+  --p-tabs-tab-active-color: var(--aynux-violet-400);
+  --p-dialog-background: var(--aynux-navy-800);
+  --p-dialog-header-background: var(--aynux-navy-800);
+  --p-select-background: var(--aynux-navy-900);
+  --p-select-overlay-background: var(--aynux-navy-800);
 }
 
 .dark-mode body {
@@ -183,6 +215,717 @@ body {
 /* Dark mode for login card */
 .dark-mode .bg-white\/95 {
   @apply !bg-navy-800/95;
+}
+
+/* ============================================
+   Dark Mode - Component Specific Overrides
+   ============================================ */
+
+/* MetricsPanel - stat cards */
+.dark-mode .stat-card {
+  background: var(--aynux-navy-800) !important;
+  border-color: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .stat-value {
+  color: #f3f4f6 !important;
+}
+
+.dark-mode .stat-label {
+  color: #9ca3af !important;
+}
+
+.dark-mode .summary-label,
+.dark-mode .metric-label,
+.dark-mode .breakdown-legend {
+  color: #9ca3af !important;
+}
+
+.dark-mode .summary-value,
+.dark-mode .metric-value {
+  color: #f3f4f6 !important;
+}
+
+.dark-mode .step-breakdown {
+  border-top-color: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .breakdown-bars {
+  background: var(--aynux-navy-700) !important;
+}
+
+/* ConversationHistory - messages and input */
+.dark-mode .messages-container {
+  background: var(--aynux-navy-900) !important;
+}
+
+.dark-mode .message-assistant {
+  background: var(--aynux-navy-800) !important;
+  color: #f3f4f6 !important;
+  border-color: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .message-assistant .message-role,
+.dark-mode .message-assistant .message-time {
+  color: #9ca3af !important;
+}
+
+.dark-mode .message-assistant .message-metadata {
+  color: #6b7280 !important;
+  border-top-color: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .input-area {
+  background: var(--aynux-navy-800) !important;
+  border-top-color: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .empty-state .empty-title {
+  color: #e5e7eb !important;
+}
+
+.dark-mode .empty-state .empty-subtitle {
+  color: #9ca3af !important;
+}
+
+.dark-mode .empty-icon {
+  background: linear-gradient(135deg, var(--aynux-navy-700) 0%, var(--aynux-navy-800) 100%) !important;
+}
+
+.dark-mode .empty-icon i {
+  color: #22d3ee !important;
+}
+
+.dark-mode .dots-container .dot {
+  background-color: #6b7280 !important;
+}
+
+/* GraphVisualization and AgentFlowGraph - nodes and controls */
+.dark-mode .graph-visualization,
+.dark-mode .flow-graph {
+  background-color: var(--aynux-navy-900) !important;
+  border-color: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .graph-legend,
+.dark-mode .flow-legend {
+  background: var(--aynux-navy-800) !important;
+  color: #e5e7eb !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark-mode .fit-view-btn {
+  background: var(--aynux-navy-800) !important;
+  border-color: var(--aynux-navy-700) !important;
+  color: #e5e7eb !important;
+}
+
+.dark-mode .fit-view-btn:hover {
+  background: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .custom-node {
+  background: var(--aynux-navy-800) !important;
+  border-color: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .custom-node .node-label {
+  color: #f3f4f6 !important;
+}
+
+.dark-mode .custom-node .node-description {
+  color: #9ca3af !important;
+}
+
+.dark-mode .custom-node .node-header i {
+  color: #9ca3af !important;
+}
+
+.dark-mode .custom-node .node-duration {
+  color: #6b7280 !important;
+}
+
+.dark-mode .custom-node.node-error {
+  background: #450a0a !important;
+}
+
+.dark-mode .stats-panel {
+  background: var(--aynux-navy-800) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark-mode .legend-item {
+  color: #9ca3af !important;
+}
+
+.dark-mode .legend-badges {
+  border-top-color: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .rag-badge {
+  background: #1e3a5f !important;
+  color: #60a5fa !important;
+}
+
+.dark-mode .rag-badge:hover {
+  background: #1e40af !important;
+}
+
+/* SubgraphFlowDialog */
+.dark-mode .flow-container {
+  border-color: var(--aynux-navy-700) !important;
+  background-color: var(--aynux-navy-900) !important;
+}
+
+/* ============================================
+   Dark Mode - PrimeVue Components
+   ============================================ */
+
+/* PrimeVue Card - Multiple selectors for higher specificity */
+.dark-mode .p-card,
+.dark-mode .p-card-body,
+.dark-mode .p-component.p-card {
+  background: var(--aynux-navy-800) !important;
+  background-color: var(--aynux-navy-800) !important;
+  color: #f3f4f6 !important;
+  border-color: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .p-card-title {
+  color: #f3f4f6 !important;
+}
+
+.dark-mode .p-card-subtitle {
+  color: #9ca3af !important;
+}
+
+.dark-mode .p-card-content {
+  color: #e5e7eb !important;
+}
+
+/* PrimeVue DataTable */
+.dark-mode .p-datatable {
+  background: var(--aynux-navy-800) !important;
+}
+
+.dark-mode .p-datatable .p-datatable-thead > tr > th {
+  background: var(--aynux-navy-700) !important;
+  color: #f3f4f6 !important;
+  border-color: var(--aynux-navy-600) !important;
+}
+
+.dark-mode .p-datatable .p-datatable-tbody > tr {
+  background: var(--aynux-navy-800) !important;
+  color: #e5e7eb !important;
+}
+
+.dark-mode .p-datatable .p-datatable-tbody > tr:nth-child(even) {
+  background: var(--aynux-navy-900) !important;
+}
+
+.dark-mode .p-datatable .p-datatable-tbody > tr > td {
+  border-color: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .p-datatable .p-datatable-tbody > tr:hover {
+  background: var(--aynux-navy-700) !important;
+}
+
+/* PrimeVue InputText, Textarea, Select */
+.dark-mode .p-inputtext,
+.dark-mode .p-textarea,
+.dark-mode .p-select {
+  background: var(--aynux-navy-900) !important;
+  color: #f3f4f6 !important;
+  border-color: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .p-inputtext:enabled:focus,
+.dark-mode .p-textarea:enabled:focus {
+  border-color: var(--aynux-violet-500) !important;
+}
+
+.dark-mode .p-inputtext::placeholder,
+.dark-mode .p-textarea::placeholder {
+  color: #6b7280 !important;
+}
+
+/* PrimeVue Select/Dropdown */
+.dark-mode .p-select-label {
+  color: #f3f4f6 !important;
+}
+
+.dark-mode .p-select-dropdown {
+  background: var(--aynux-navy-800) !important;
+}
+
+.dark-mode .p-select-overlay {
+  background: var(--aynux-navy-800) !important;
+  border-color: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .p-select-option {
+  color: #e5e7eb !important;
+}
+
+.dark-mode .p-select-option:hover {
+  background: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .p-select-option.p-highlight {
+  background: var(--aynux-violet-600) !important;
+}
+
+/* PrimeVue Tabs */
+.dark-mode .p-tablist {
+  background: var(--aynux-navy-800) !important;
+  border-color: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .p-tab {
+  color: #9ca3af !important;
+}
+
+.dark-mode .p-tab:hover {
+  color: #f3f4f6 !important;
+}
+
+.dark-mode .p-tab.p-tab-active {
+  color: var(--aynux-violet-400) !important;
+}
+
+.dark-mode .p-tabpanels {
+  background: var(--aynux-navy-800) !important;
+}
+
+/* PrimeVue Panel */
+.dark-mode .p-panel {
+  background: var(--aynux-navy-800) !important;
+  border-color: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .p-panel-header {
+  background: var(--aynux-navy-700) !important;
+  color: #f3f4f6 !important;
+  border-color: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .p-panel-content {
+  background: var(--aynux-navy-800) !important;
+  color: #e5e7eb !important;
+}
+
+/* PrimeVue Dialog */
+.dark-mode .p-dialog {
+  background: var(--aynux-navy-800) !important;
+  border-color: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .p-dialog-header {
+  background: var(--aynux-navy-800) !important;
+  color: #f3f4f6 !important;
+}
+
+.dark-mode .p-dialog-content {
+  background: var(--aynux-navy-800) !important;
+  color: #e5e7eb !important;
+}
+
+.dark-mode .p-dialog-footer {
+  background: var(--aynux-navy-800) !important;
+  border-color: var(--aynux-navy-700) !important;
+}
+
+/* PrimeVue ProgressBar */
+.dark-mode .p-progressbar {
+  background: var(--aynux-navy-700) !important;
+}
+
+/* PrimeVue Paginator */
+.dark-mode .p-paginator {
+  background: var(--aynux-navy-800) !important;
+  border-color: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .p-paginator .p-paginator-page {
+  color: #9ca3af !important;
+}
+
+.dark-mode .p-paginator .p-paginator-page.p-highlight {
+  background: var(--aynux-violet-600) !important;
+  color: white !important;
+}
+
+/* PrimeVue Menu */
+.dark-mode .p-menu {
+  background: var(--aynux-navy-800) !important;
+  border-color: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .p-menu .p-menuitem-link {
+  color: #e5e7eb !important;
+}
+
+.dark-mode .p-menu .p-menuitem-link:hover {
+  background: var(--aynux-navy-700) !important;
+}
+
+/* PrimeVue Breadcrumb */
+.dark-mode .p-breadcrumb {
+  background: transparent !important;
+}
+
+.dark-mode .p-breadcrumb .p-breadcrumb-item-link {
+  color: #9ca3af !important;
+}
+
+/* PrimeVue ToggleSwitch */
+.dark-mode .p-toggleswitch:not(.p-toggleswitch-checked) .p-toggleswitch-slider {
+  background: var(--aynux-navy-600) !important;
+}
+
+/* PrimeVue Splitter */
+.dark-mode .p-splitter {
+  background: transparent !important;
+  border-color: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .p-splitter-gutter {
+  background: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .p-splitter-gutter-handle {
+  background: var(--aynux-navy-500) !important;
+}
+
+.dark-mode .p-splitter-panel {
+  background: transparent !important;
+}
+
+/* PrimeVue Message */
+.dark-mode .p-message {
+  background: var(--aynux-navy-800) !important;
+  border-color: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .p-message-text {
+  color: #e5e7eb !important;
+}
+
+/* PrimeVue Checkbox */
+.dark-mode .p-checkbox-box {
+  background: var(--aynux-navy-900) !important;
+  border-color: var(--aynux-navy-600) !important;
+}
+
+/* PrimeVue Tag - Dark Mode */
+.dark-mode .p-tag {
+  color: #1e293b !important;
+}
+
+/* Default/Secondary tags (white/gray background) - need dark bg in dark mode */
+.dark-mode .p-tag-secondary,
+.dark-mode .p-tag[data-p-severity="secondary"] {
+  background: var(--aynux-navy-600) !important;
+  color: #e5e7eb !important;
+}
+
+/* Tags without explicit severity that appear white */
+.dark-mode .p-tag:not([class*="p-tag-"]):not([data-p-severity]) {
+  background: var(--aynux-navy-600) !important;
+  color: #e5e7eb !important;
+}
+
+/* Light colored tags need dark text */
+.dark-mode .p-tag-success,
+.dark-mode .p-tag-warning,
+.dark-mode .p-tag-info,
+.dark-mode .p-tag[data-p-severity="success"],
+.dark-mode .p-tag[data-p-severity="warning"],
+.dark-mode .p-tag[data-p-severity="info"] {
+  color: #1e293b !important;
+}
+
+/* Contrast severity tags */
+.dark-mode .p-tag-contrast,
+.dark-mode .p-tag[data-p-severity="contrast"] {
+  background: var(--aynux-navy-700) !important;
+  color: #f3f4f6 !important;
+}
+
+/* PrimeVue Badge - Dark Mode */
+.dark-mode .p-badge {
+  color: #1e293b !important;
+}
+
+.dark-mode .p-badge-secondary,
+.dark-mode .p-badge:not([class*="p-badge-"]) {
+  background: var(--aynux-navy-600) !important;
+  color: #e5e7eb !important;
+}
+
+/* Page headers text override */
+.dark-mode h1.text-gray-800,
+.dark-mode .text-gray-800 {
+  color: #f3f4f6 !important;
+}
+
+.dark-mode p.text-gray-500,
+.dark-mode .text-gray-500,
+.dark-mode span.text-gray-500 {
+  color: #9ca3af !important;
+}
+
+.dark-mode .text-gray-600,
+.dark-mode a.text-gray-600 {
+  color: #d1d5db !important;
+}
+
+.dark-mode .text-gray-300 {
+  color: #6b7280 !important;
+}
+
+.dark-mode .text-gray-400 {
+  color: #9ca3af !important;
+}
+
+/* Borders */
+.dark-mode .border-gray-200,
+.dark-mode .border-gray-300 {
+  border-color: var(--aynux-navy-700) !important;
+}
+
+/* Page content wrapper */
+.dark-mode [class*="Page"],
+.dark-mode .page-content {
+  background: transparent !important;
+}
+
+/* ============================================
+   Dark Mode - Vue Flow
+   ============================================ */
+
+/* Vue Flow Container */
+.dark-mode .vue-flow {
+  background-color: var(--aynux-navy-900) !important;
+}
+
+/* Vue Flow Background */
+.dark-mode .vue-flow__background {
+  background-color: var(--aynux-navy-900) !important;
+}
+
+.dark-mode .vue-flow__background pattern line {
+  stroke: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .vue-flow__background pattern circle {
+  fill: var(--aynux-navy-700) !important;
+}
+
+/* Vue Flow Nodes */
+.dark-mode .vue-flow__node {
+  background: var(--aynux-navy-800) !important;
+  border-color: var(--aynux-navy-600) !important;
+  color: #f3f4f6 !important;
+}
+
+.dark-mode .vue-flow__node.selected {
+  border-color: var(--aynux-violet-500) !important;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3) !important;
+}
+
+.dark-mode .vue-flow__node:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Vue Flow Node Labels */
+.dark-mode .vue-flow__node-default,
+.dark-mode .vue-flow__node-input,
+.dark-mode .vue-flow__node-output {
+  background: var(--aynux-navy-800) !important;
+  border-color: var(--aynux-navy-600) !important;
+  color: #f3f4f6 !important;
+}
+
+/* Vue Flow Edges */
+.dark-mode .vue-flow__edge-path {
+  stroke: #6b7280 !important;
+}
+
+.dark-mode .vue-flow__edge.selected .vue-flow__edge-path {
+  stroke: var(--aynux-violet-500) !important;
+}
+
+.dark-mode .vue-flow__edge-text {
+  fill: #9ca3af !important;
+}
+
+.dark-mode .vue-flow__edge-textbg {
+  fill: var(--aynux-navy-800) !important;
+}
+
+/* Vue Flow Connection Line */
+.dark-mode .vue-flow__connection-line {
+  stroke: var(--aynux-violet-500) !important;
+}
+
+/* Vue Flow Handles */
+.dark-mode .vue-flow__handle {
+  background: var(--aynux-navy-600) !important;
+  border-color: var(--aynux-navy-500) !important;
+}
+
+.dark-mode .vue-flow__handle:hover {
+  background: var(--aynux-violet-500) !important;
+}
+
+.dark-mode .vue-flow__handle.connecting {
+  background: var(--aynux-violet-500) !important;
+}
+
+/* Vue Flow Controls */
+.dark-mode .vue-flow__controls {
+  background: var(--aynux-navy-800) !important;
+  border-color: var(--aynux-navy-700) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark-mode .vue-flow__controls-button {
+  background: var(--aynux-navy-800) !important;
+  border-color: var(--aynux-navy-700) !important;
+  color: #e5e7eb !important;
+  fill: #e5e7eb !important;
+}
+
+.dark-mode .vue-flow__controls-button:hover {
+  background: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .vue-flow__controls-button svg {
+  fill: #e5e7eb !important;
+}
+
+/* Vue Flow MiniMap */
+.dark-mode .vue-flow__minimap {
+  background: var(--aynux-navy-800) !important;
+  border-color: var(--aynux-navy-700) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark-mode .vue-flow__minimap-mask {
+  fill: rgba(12, 29, 61, 0.8) !important;
+}
+
+.dark-mode .vue-flow__minimap-node {
+  fill: var(--aynux-navy-600) !important;
+  stroke: var(--aynux-navy-500) !important;
+}
+
+/* Vue Flow Panel */
+.dark-mode .vue-flow__panel {
+  background: var(--aynux-navy-800) !important;
+  color: #e5e7eb !important;
+}
+
+/* Vue Flow Attribution */
+.dark-mode .vue-flow__attribution {
+  background: rgba(12, 29, 61, 0.8) !important;
+  color: #6b7280 !important;
+}
+
+.dark-mode .vue-flow__attribution a {
+  color: #9ca3af !important;
+}
+
+/* Vue Flow Selection Box */
+.dark-mode .vue-flow__selection {
+  background: rgba(139, 92, 246, 0.1) !important;
+  border-color: var(--aynux-violet-500) !important;
+}
+
+/* Vue Flow Pane */
+.dark-mode .vue-flow__pane {
+  cursor: grab;
+}
+
+/* Custom node styles for dark mode */
+.dark-mode .custom-node,
+.dark-mode .vue-flow .custom-node {
+  background: var(--aynux-navy-800) !important;
+  border-color: var(--aynux-navy-600) !important;
+  color: #f3f4f6 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+.dark-mode .custom-node .node-header,
+.dark-mode .vue-flow .custom-node .node-header {
+  border-bottom-color: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .custom-node .node-label,
+.dark-mode .vue-flow .custom-node .node-label {
+  color: #f3f4f6 !important;
+}
+
+.dark-mode .custom-node .node-description,
+.dark-mode .vue-flow .custom-node .node-description {
+  color: #9ca3af !important;
+}
+
+.dark-mode .custom-node .node-icon,
+.dark-mode .vue-flow .custom-node .node-icon {
+  color: #9ca3af !important;
+}
+
+/* Node status colors in dark mode */
+.dark-mode .node-pending {
+  border-color: #6b7280 !important;
+}
+
+.dark-mode .node-running {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3) !important;
+}
+
+.dark-mode .node-completed {
+  border-color: #10b981 !important;
+}
+
+.dark-mode .node-error {
+  border-color: #ef4444 !important;
+  background: rgba(127, 29, 29, 0.5) !important;
+}
+
+.dark-mode .node-selected {
+  border-color: var(--aynux-violet-500) !important;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.3) !important;
+}
+
+/* Node type specific dark mode styles */
+.dark-mode .message-input-node {
+  background: linear-gradient(135deg, #14532d 0%, #064e3b 100%) !important;
+  border-color: #22c55e !important;
+}
+
+.dark-mode .bypass-group-node {
+  background: var(--aynux-navy-800) !important;
+  border-color: #f97316 !important;
+}
+
+.dark-mode .agent-node {
+  background: var(--aynux-navy-800) !important;
+  border-color: var(--aynux-violet-500) !important;
+}
+
+.dark-mode .tool-node {
+  background: var(--aynux-navy-800) !important;
+  border-color: #f59e0b !important;
+}
+
+.dark-mode .llm-node {
+  background: var(--aynux-navy-800) !important;
+  border-color: #3b82f6 !important;
 }
 
 /* ============================================

@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useBypassRules } from '@/composables/useBypassRules'
 import { useDomains } from '@/composables/useDomains'
+import { pharmacyApi, type Pharmacy } from '@/api/pharmacy.api'
 import type { BypassRule, BypassRuleType } from '@/types/bypassRules.types'
 import {
   getRuleTypeLabel,
@@ -34,6 +35,15 @@ const {
 } = useBypassRules()
 
 const { fetchDomains, getDomainLabel, getDomainColor } = useDomains()
+
+// Available pharmacies for displaying pharmacy names
+const pharmacies = ref<Pharmacy[]>([])
+
+function getPharmacyName(pharmacyId: string | null | undefined): string | null {
+  if (!pharmacyId) return null
+  const pharmacy = pharmacies.value.find((p) => p.id === pharmacyId)
+  return pharmacy?.name || null
+}
 
 // Filter options
 const statusOptions = [
@@ -98,9 +108,14 @@ async function movePriority(rule: BypassRule, direction: 'up' | 'down') {
   await reorderRules(ruleIds)
 }
 
-onMounted(() => {
+onMounted(async () => {
   fetchRules()
   fetchDomains()
+  try {
+    pharmacies.value = await pharmacyApi.getPharmacies()
+  } catch (error) {
+    console.error('Error fetching pharmacies:', error)
+  }
 })
 </script>
 
@@ -224,14 +239,22 @@ onMounted(() => {
       </Column>
 
       <!-- Domain -->
-      <Column field="target_domain" header="Dominio" style="width: 120px">
+      <Column field="target_domain" header="Dominio" style="width: 140px">
         <template #body="{ data }">
-          <Tag
-            v-if="data.target_domain"
-            :value="getDomainLabel(data.target_domain)"
-            :severity="getDomainColor(data.target_domain)"
-          />
-          <span v-else class="text-gray-400">-</span>
+          <div class="flex flex-col gap-1">
+            <Tag
+              v-if="data.target_domain"
+              :value="getDomainLabel(data.target_domain)"
+              :severity="getDomainColor(data.target_domain)"
+            />
+            <span v-else class="text-gray-400">-</span>
+            <span
+              v-if="data.pharmacy_id && getPharmacyName(data.pharmacy_id)"
+              class="text-xs text-gray-500"
+            >
+              {{ getPharmacyName(data.pharmacy_id) }}
+            </span>
+          </div>
         </template>
       </Column>
 
