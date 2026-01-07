@@ -134,32 +134,46 @@ const PharmacyGraphDefinition: SubgraphDefinition = {
     {
       from: 'customer_identification_node',
       to: 'pharmacy_router',
-      label: 'Identificado',
+      label: 'Cliente identificado',
       condition: 'customer_identified'
     },
     {
       from: 'customer_identification_node',
       to: 'customer_registration_node',
-      label: 'Registrar',
+      label: 'Nuevo cliente',
       condition: 'register_prompt',
       isConditional: true
     },
     {
       from: 'customer_identification_node',
       to: 'end',
-      label: 'Cancelar/Espera',
+      label: 'Esperando datos',
+      isConditional: true
+    },
+    {
+      from: 'customer_identification_node',
+      to: 'customer_identification_node',
+      label: 'Reintento',
+      condition: 'retry_identification',
       isConditional: true
     },
     // From customer_registration_node
     {
       from: 'customer_registration_node',
       to: 'pharmacy_router',
-      label: 'Registrado'
+      label: 'Cliente registrado'
     },
     {
       from: 'customer_registration_node',
       to: 'end',
-      label: 'Espera datos',
+      label: 'Esperando datos',
+      isConditional: true
+    },
+    {
+      from: 'customer_registration_node',
+      to: 'customer_registration_node',
+      label: 'Datos faltantes',
+      condition: 'awaiting_data',
       isConditional: true
     },
     // From pharmacy_router
@@ -173,7 +187,7 @@ const PharmacyGraphDefinition: SubgraphDefinition = {
     {
       from: 'debt_check_node',
       to: 'payment_link_node',
-      label: 'Confirmar pago',
+      label: 'Deuda confirmada',
       condition: 'debt_confirmed',
       isConditional: true
     },
@@ -182,7 +196,7 @@ const PharmacyGraphDefinition: SubgraphDefinition = {
     {
       from: 'confirmation_node',
       to: 'payment_link_node',
-      label: 'Proceder',
+      label: 'Confirmado',
       condition: 'confirmed',
       isConditional: true
     },

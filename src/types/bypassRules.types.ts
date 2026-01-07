@@ -36,6 +36,7 @@ export interface BypassRule {
   phone_number_id?: string | null
   target_agent: string
   target_domain?: TargetDomain | null
+  pharmacy_id?: string | null
   priority: number
   enabled: boolean
   isolated_history?: boolean | null
@@ -49,6 +50,7 @@ export interface BypassRule {
 
 /**
  * Request to create a new bypass rule
+ * Note: pharmacy_id is required when target_domain='pharmacy'
  */
 export interface BypassRuleCreateRequest {
   rule_name: string
@@ -59,6 +61,7 @@ export interface BypassRuleCreateRequest {
   phone_number_id?: string
   target_agent: string
   target_domain?: TargetDomain
+  pharmacy_id?: string | null // Required when target_domain='pharmacy', null to clear
   priority?: number
   enabled?: boolean
   isolated_history?: boolean
@@ -76,6 +79,7 @@ export interface BypassRuleUpdateRequest {
   phone_number_id?: string
   target_agent?: string
   target_domain?: TargetDomain
+  pharmacy_id?: string | null // null to clear
   priority?: number
   enabled?: boolean
   isolated_history?: boolean
