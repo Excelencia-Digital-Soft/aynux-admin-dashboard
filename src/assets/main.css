@@ -44,6 +44,29 @@ body {
 }
 
 /* ============================================
+   PrimeVue IconField Fix
+   ============================================ */
+.p-iconfield {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.p-iconfield .p-inputicon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--p-text-muted-color, #6b7280);
+  z-index: 1;
+}
+
+.p-iconfield .p-inputtext {
+  padding-left: 2.5rem;
+  width: 100%;
+}
+
+/* ============================================
    PrimeVue Tabs - Global Spacing Fixes
    ============================================ */
 .p-tablist {

@@ -63,7 +63,7 @@ npx playwright test --project=chromium
 - All stores use `pinia-plugin-persistedstate` for localStorage persistence
 - Auth store manages JWT tokens, user data, and organization context
 
-**Composables** (`src/composables/`):
+**Composables** (`src/composables/`) Always use composables in pages:
 - `useAuth` - Auth state and actions wrapper
 - `useKnowledge`, `useOrganization` - Domain-specific logic
 - `usePagination`, `useSearch`, `useToast` - Reusable utilities
@@ -88,74 +88,7 @@ npx playwright test --project=chromium
 
 ### PrimeVue v4 Component Guidelines
 
-**IMPORTANT**: This project uses PrimeVue v4.2.5. Always use the new component names, not the deprecated ones.
-
-#### Component Renames (Use New Names)
-
-| Deprecated (v3) | New (v4) | Import Path |
-|-----------------|----------|-------------|
-| `Calendar` | `DatePicker` | `primevue/datepicker` |
-| `Dropdown` | `Select` | `primevue/select` |
-| `InputSwitch` | `ToggleSwitch` | `primevue/toggleswitch` |
-| `OverlayPanel` | `Popover` | `primevue/popover` |
-| `Sidebar` | `Drawer` | `primevue/drawer` |
-
-#### Deprecated Components (Use Alternatives)
-
-| Deprecated | Replacement | Notes |
-|------------|-------------|-------|
-| `Chips` | `AutoComplete` | Use `multiple` prop and `:typeahead="false"` |
-| `TabMenu` | `Tabs` | Use without panels |
-| `Steps` | `Stepper` | Use without panels |
-| `InlineMessage` | `Message` | Message now handles inline use cases |
-| `BadgeDirective` | `OverlayBadge` | Component-based approach |
-| `TabView` | `Tabs` | New Tabs + TabPanels structure |
-| `Accordion` | `Accordion` | New AccordionHeader/AccordionContent sub-components |
-| `TriStateCheckbox` | `Checkbox` | Use `indeterminate` prop |
-| `DataViewLayoutOptions` | `SelectButton` | Use for layout switching |
-
-#### Breaking Changes in v4
-
-**Removed/Changed**:
-- `theme.css` and `primevue/resources` directory no longer exist
-- Imports from `primevue/api` → use `@primevue/core/api`
-- `Sidebar/Drawer`: `size` prop removed (use CSS/Tailwind classes)
-- `Rating`: `cancel` prop removed (toggling star clears value)
-- `.p-link` class removed (use Button with `link` variant)
-- `.p-highlight` removed (use component-specific classes like `.p-select-option-selected`)
-
-**Message Component Changes**:
-- `closable` is now `false` by default
-- Default margins removed
-- Messages no longer auto-disappear (no default `life` prop)
-
-#### Code Examples
-
-```typescript
-// ❌ Deprecated - Don't use
-import Dropdown from 'primevue/dropdown'
-import InputSwitch from 'primevue/inputswitch'
-import Calendar from 'primevue/calendar'
-import Chips from 'primevue/chips'
-
-// ✅ Correct - Use these
-import Select from 'primevue/select'
-import ToggleSwitch from 'primevue/toggleswitch'
-import DatePicker from 'primevue/datepicker'
-import AutoComplete from 'primevue/autocomplete'
-```
-
-```vue
-<!-- ❌ Deprecated -->
-<Dropdown v-model="value" :options="items" optionLabel="name" />
-<InputSwitch v-model="checked" />
-<Chips v-model="tags" />
-
-<!-- ✅ Correct -->
-<Select v-model="value" :options="items" optionLabel="name" />
-<ToggleSwitch v-model="checked" />
-<AutoComplete v-model="tags" multiple :typeahead="false" />
-```
+**IMPORTANT**: This project uses PrimeVue v4.2.5. Always use MCP PrimeVue.
 
 ### Build Configuration
 

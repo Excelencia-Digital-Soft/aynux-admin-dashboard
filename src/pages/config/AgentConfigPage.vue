@@ -1,8 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { agentApi } from '@/api/agent.api'
-import { useToast } from '@/composables/useToast'
-import type { AgentConfigResponse } from '@/types/agent.types'
+import { useAgentConfig } from '@/composables/useAgentConfig'
 
 import Card from 'primevue/card'
 import Button from 'primevue/button'
@@ -10,69 +7,15 @@ import Tag from 'primevue/tag'
 import ProgressSpinner from 'primevue/progressspinner'
 import Panel from 'primevue/panel'
 
-const toast = useToast()
-
-const isLoading = ref(false)
-const config = ref<AgentConfigResponse | null>(null)
-
-// Agent icons mapping
-const agentIcons: Record<string, string> = {
-  greeting_agent: 'pi-comments',
-  support_agent: 'pi-headphones',
-  fallback_agent: 'pi-question-circle',
-  farewell_agent: 'pi-sign-out',
-  excelencia_agent: 'pi-star',
-  excelencia_invoice_agent: 'pi-file',
-  excelencia_promotions_agent: 'pi-megaphone',
-  data_insights_agent: 'pi-chart-bar'
-}
-
-// Agent descriptions
-const agentDescriptions: Record<string, string> = {
-  greeting_agent: 'Maneja saludos y bienvenida inicial',
-  support_agent: 'Proporciona soporte y ayuda general',
-  fallback_agent: 'Responde cuando no hay agente específico',
-  farewell_agent: 'Maneja despedidas y cierre de conversación',
-  excelencia_agent: 'Agente principal de Excelencia',
-  excelencia_invoice_agent: 'Consultas de facturas y pagos',
-  excelencia_promotions_agent: 'Información de promociones',
-  data_insights_agent: 'Análisis de datos e insights'
-}
-
-const agentCount = computed(() => config.value?.enabled_agents?.length ?? 0)
-
-function formatAgentName(agentId: string): string {
-  return agentId
-    .replace(/_agent$/, '')
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase())
-}
-
-function getAgentIcon(agentId: string): string {
-  return agentIcons[agentId] || 'pi-android'
-}
-
-function getAgentDescription(agentId: string): string {
-  return agentDescriptions[agentId] || 'Agente del sistema'
-}
-
-async function fetchConfig() {
-  isLoading.value = true
-  try {
-    config.value = await agentApi.getConfig()
-    if (config.value) {
-      toast.success('Configuración cargada')
-    }
-  } catch (error) {
-    toast.error('Error al cargar configuración')
-  } finally {
-    isLoading.value = false
-  }
-}
-
-onMounted(() => {
-  fetchConfig()
-})
+const {
+  config,
+  isLoading,
+  agentCount,
+  formatAgentName,
+  getAgentIcon,
+  getAgentDescription,
+  fetchConfig
+} = useAgentConfig()
 </script>
 
 <template>

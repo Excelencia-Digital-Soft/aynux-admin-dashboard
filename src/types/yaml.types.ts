@@ -52,13 +52,14 @@ export interface YamlListParams {
 // Version Management
 export interface PromptVersion {
   id: string
-  prompt_key: string
+  prompt_id: string
   version: string
-  content: string
-  metadata: PromptMetadata
-  created_by: string
+  template: string
+  performance_metrics?: Record<string, unknown>
+  is_active: boolean
+  created_by: string | null
   created_at: string
-  change_description?: string
+  notes?: string | null
 }
 
 // Lock Management

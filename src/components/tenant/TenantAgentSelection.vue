@@ -94,6 +94,7 @@ watch(() => props.orgId, fetchAgents, { immediate: true })
         v-if="agents.length === 0 && !loading"
         label="Inicializar Agentes"
         icon="pi pi-plus"
+        severity="primary"
         size="small"
         @click="initBuiltinAgents"
       />

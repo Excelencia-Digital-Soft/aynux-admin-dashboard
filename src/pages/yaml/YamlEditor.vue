@@ -27,25 +27,26 @@
         
         <!-- Action buttons -->
         <Button 
-          @click="showTestDialog = true" 
+          @click="openTestDialog" 
           icon="pi pi-play" 
           label="Test"
           severity="info"
           :disabled="!currentPrompt"
         />
         <Button 
-          @click="validateCurrentTemplate" 
+          @click="validateTemplate" 
           icon="pi pi-check" 
           label="Validar"
           severity="info"
           :loading="validating"
         />
-        <Button 
-          @click="saveTemplate" 
-          icon="pi pi-save" 
+        <Button
+          @click="saveTemplate"
+          icon="pi pi-save"
           label="Guardar"
           :loading="saving"
           :disabled="!canSave"
+          v-tooltip="!canSave ? saveDisabledReason : 'Guardar template'"
         />
       </div>
     </div>
@@ -382,37 +383,20 @@
     </div>
 
     <!-- Test Dialog -->
-    <Dialog 
-      v-model:visible="showTestDialog" 
-      header="Test Prompt"
-      :style="{ width: '90vw' }"
-      :maximizable="true"
-      modal
-      @update:visible="showTestDialog = false"
-    >
-      <YamlTestDialog 
-        v-if="showTestDialog && currentPrompt"
-        :visible="showTestDialog"
-        :promptKey="currentPrompt.key"
-        @close="showTestDialog = false"
-      />
-    </Dialog>
+    <YamlTestDialog
+      v-if="currentPrompt"
+      :visible="showTestDialog"
+      :promptKey="currentPrompt.key"
+      @close="showTestDialog = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useToast } from 'primevue/usetoast'
-import { storeToRefs } from 'pinia'
-import * as monaco from 'monaco-editor'
-import { useYamlStore } from '@/stores/yaml.store'
-import { useAuthStore } from '@/stores/auth.store'
-import yaml from 'yaml'
+import { useYamlEditor } from '@/composables/useYamlEditor'
 import YamlTestDialog from './components/YamlTestDialog.vue'
-import { useAIModels } from '@/composables/useAIModels'
-import { useConfirm } from '@/composables/useConfirm'
-import type { YamlPrompt, CreateYamlRequest } from '@/types/yaml.types'
 
 // PrimeVue Components
 import Button from 'primevue/button'
@@ -427,525 +411,65 @@ import AutoComplete from 'primevue/autocomplete'
 import Checkbox from 'primevue/checkbox'
 import Dialog from 'primevue/dialog'
 
-// Extended type for form data that includes optional key for editing
-interface FormData extends CreateYamlRequest {
-  key?: string
-}
-
-const router = useRouter()
-const route = useRoute()
-const toast = useToast()
-const yamlStore = useYamlStore()
-const authStore = useAuthStore()
-const { confirmDiscard } = useConfirm()
-
-// AI Models from database (replaces hardcoded list)
-const { simpleOptions: modelOptions, loading: modelsLoading, defaultModel } = useAIModels()
-
-// Editor state
+// Editor container ref
 const editorContainer = ref<HTMLElement>()
-let editor: monaco.editor.IStandaloneCodeEditor | null = null
+const toast = useToast()
 
-// Component state
-const showTestDialog = ref(false)
-const validating = ref(false)
-const saving = ref(false)
-const editorHeight = ref(600)
+// Use composable
+const {
+  // State
+  showTestDialog,
+  validating,
+  saving,
+  editorHeight,
+  formData,
+  // Store refs
+  currentPrompt,
+  validation,
+  isPromptLocked,
+  lockingUser,
+  // Computed
+  isNew,
+  parsedTemplate,
+  detectedVariables,
+  requiredVariables,
+  optionalVariables,
+  canSave,
+  saveDisabledReason,
+  canPreview,
+  // Options
+  domainOptions,
+  modelOptions,
+  modelsLoading,
+  quickTemplates,
+  // Monaco
+  monacoEditor,
+  // Actions
+  goBack,
+  formatYaml,
+  insertTemplate,
+  insertQuickTemplate,
+  validateTemplate,
+  scanForVariables,
+  toggleVariableRequired,
+  saveTemplate,
+  initialize,
+  cleanup,
+  openTestDialog,
+  closeTestDialog
+} = useYamlEditor(editorContainer, toast)
 
-// Store state (use storeToRefs for reactivity)
-const { currentPrompt, validation, isPromptLocked, lockingUser } = storeToRefs(yamlStore)
-
-// Computed
-const isNew = computed(() => route.name === 'yaml-create')
-const promptKey = computed(() => route.params.key as string)
-
-const parsedTemplate = computed(() => {
-  if (!yamlStore.editorContent) return null
-  try {
-    return yaml.parse(yamlStore.editorContent)
-  } catch {
-    return null
-  }
-})
-
-const detectedVariables = computed(() => {
-  if (!validation.value?.detected_variables) return []
-  return validation.value.detected_variables
-})
-
-const requiredVariables = computed(() => {
-  return detectedVariables.value.filter((v: any) => v.required)
-})
-
-const optionalVariables = computed(() => {
-  return detectedVariables.value.filter((v: any) => !v.required)
-})
-
-const canSave = computed(() => {
-  return yamlStore.editorContent &&
-         (isNew.value ? true : formData.value.key) &&
-         formData.value.name &&
-         formData.value.metadata.domain &&
-         formData.value.metadata.model &&
-         yamlStore.editorDirty &&
-         (!currentPrompt.value || !isPromptLocked.value(currentPrompt.value.key))
-})
-
-const canPreview = computed(() => {
-  return parsedTemplate.value && validation.value?.valid
-})
-
-// Form data
-const formData = ref<FormData>({
-  name: '',
-  description: '',
-  version: '1.0.0',
-  template: '',
-  metadata: {
-    temperature: 0.7,
-    max_tokens: 1000,
-    model: 'gpt-3.5-turbo',
-    tags: [],
-    variables: {
-      required: [],
-      optional: []
-    },
-    domain: 'core'
-  },
-  active: true,
-  source: 'database'
-})
-
+// Local state for test dialog
 const testVariables = ref<Record<string, any>>({})
-
-// Options
-const domainOptions = [
-  { value: 'core', label: 'Core' },
-  { value: 'agents', label: 'Agentes' },
-  { value: 'bypass-rules', label: 'Reglas de Bypass' },
-  { value: 'healthcare', label: 'Salud' },
-  { value: 'ecommerce', label: 'E-commerce' },
-  { value: 'excelencia', label: 'Excelencia' },
-  { value: 'orchestrator', label: 'Orquestador' },
-  { value: 'pharmacy', label: 'Farmacia' },
-  { value: 'product', label: 'Producto' },
-  { value: 'tools', label: 'Herramientas' }
-]
-
-// modelOptions is now provided by useAIModels() composable above
-
-const quickTemplates = [
-  {
-    name: 'Prompt Básico',
-    content: `prompts:
-  - key: domain.action
-    name: Template Name
-    description: What this template does
-    version: "1.0.0"
-    template: |
-      Your prompt template here with {variables}
-    metadata:
-      temperature: 0.7
-      max_tokens: 1000
-      model: gpt-3.5-turbo
-      tags:
-        - tag1
-        - tag2
-      variables:
-        required:
-          - variable1
-        optional:
-          - variable2`
-  },
-  {
-    name: 'Agent Prompt',
-    content: `prompts:
-  - key: agents.agent_name
-    name: Agent Name
-    description: Description for this agent
-    version: "1.0.0"
-    template: |
-      Eres un agente especializado en...
-      
-      Tu objetivo es: {objective}
-      
-      Contexto: {context}
-      
-      Responde de manera profesional y útil.
-    metadata:
-      temperature: 0.7
-      max_tokens: 1000
-      model: gpt-3.5-turbo
-      tags:
-        - agent
-        - domain
-      variables:
-        required:
-          - objective
-          - context
-        optional:
-          - tone`
-  }
-]
-
-// Monaco Editor initialization
-async function initializeEditor() {
-  if (!editorContainer.value) return
-
-  // Configure YAML language
-  monaco.languages.register({ id: 'yaml' })
-  
-  editor = monaco.editor.create(editorContainer.value, {
-    value: yamlStore.editorContent || getDefaultTemplate(),
-    language: 'yaml',
-    theme: 'vs-dark',
-    automaticLayout: true,
-    minimap: { enabled: true },
-    wordWrap: 'on',
-    lineNumbers: 'on',
-    folding: true,
-    fontSize: 14,
-    tabSize: 2,
-    scrollBeyondLastLine: false
-  })
-
-  // Listen for content changes
-  editor.onDidChangeModelContent(() => {
-    const content = editor?.getValue() || ''
-    yamlStore.setEditorContent(content)
-    formData.value.template = content
-    
-    // Auto-validate after a delay
-    debounceValidation()
-  })
-
-  // Set initial editor content from store
-  if (yamlStore.editorContent) {
-    editor.setValue(yamlStore.editorContent)
-  }
-}
-
-function getDefaultTemplate(): string {
-  return `prompts:
-  - key: domain.subdomain.action
-    name: Template Name
-    description: Describe what this template does
-    version: "1.0.0"
-    template: |
-      Your prompt template here with {variables}
-    metadata:
-      temperature: 0.7
-      max_tokens: 1000
-      model: gpt-3.5-turbo
-      tags:
-        - example
-        - template
-      variables:
-        required:
-          - variable1
-        optional:
-          - variable2`
-}
-
-// Debounced validation
-let validationTimeout: ReturnType<typeof setTimeout>
-function debounceValidation() {
-  clearTimeout(validationTimeout)
-  validationTimeout = setTimeout(() => {
-    if (yamlStore.editorContent) {
-      validateCurrentTemplate()
-    }
-  }, 1000)
-}
-
-// Actions
-async function goBack() {
-  if (yamlStore.editorDirty) {
-    const confirmed = await confirmDiscard(
-      'Tienes cambios sin guardar. ¿Estás seguro de que quieres salir?'
-    )
-    if (!confirmed) return
-  }
-  router.push('/yaml-management')
-}
-
-function formatYaml() {
-  if (!editor || !yamlStore.editorContent) return
-  
-  try {
-    const parsed = yaml.parse(yamlStore.editorContent)
-    const formatted = yaml.stringify(parsed, { indent: 2 })
-    editor.setValue(formatted)
-  } catch (error: any) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'No se puede formatear el YAML: ' + error.message,
-      life: 5000
-    })
-  }
-}
-
-function insertTemplate() {
-  // Show template selection dialog
-  const template = quickTemplates[0] // For now, use first template
-  insertQuickTemplate(template)
-}
-
-function insertQuickTemplate(template: any) {
-  if (!editor) return
-  
-  const currentContent = editor.getValue()
-  const newContent = currentContent ? 
-    currentContent + '\n\n' + template.content : 
-    template.content
-  
-  editor.setValue(newContent)
-}
-
-async function validateCurrentTemplate() {
-  if (!yamlStore.editorContent) return
-
-  validating.value = true
-
-  try {
-    // Extract variables from template (pattern: {variable_name})
-    const variablePattern = /\{(\w+)\}/g
-    const matches = yamlStore.editorContent.matchAll(variablePattern)
-    const detectedVars = [...new Set([...matches].map(m => m[1]))]
-
-    // Preserve existing required/optional status from formData
-    const existingRequired = new Set(formData.value.metadata.variables?.required || [])
-    const existingOptional = new Set(formData.value.metadata.variables?.optional || [])
-
-    // Update validation state locally
-    yamlStore.validation = {
-      valid: true,
-      errors: [],
-      warnings: [],
-      detected_variables: detectedVars.map(name => ({
-        name,
-        required: existingRequired.has(name) || !existingOptional.has(name),
-        type: 'string'
-      }))
-    }
-
-    // Update form metadata with detected variables
-    formData.value.metadata.variables = {
-      required: detectedVars.filter(v => existingRequired.has(v) || !existingOptional.has(v)),
-      optional: detectedVars.filter(v => existingOptional.has(v))
-    }
-
-    toast.add({
-      severity: 'success',
-      summary: 'Validación exitosa',
-      detail: `Template válido. ${detectedVars.length} variable(s) detectada(s)`,
-      life: 3000
-    })
-  } catch (error: any) {
-    // Unexpected error
-    yamlStore.validation = {
-      valid: false,
-      errors: [{
-        message: error.message,
-        line: 0,
-        path: '',
-        severity: 'error'
-      }],
-      warnings: []
-    }
-
-    toast.add({
-      severity: 'error',
-      summary: 'Error inesperado',
-      detail: error.message,
-      life: 5000
-    })
-  } finally {
-    validating.value = false
-  }
-}
-
-// Scan for variables without full validation
-function scanForVariables() {
-  if (!yamlStore.editorContent) {
-    toast.add({
-      severity: 'warn',
-      summary: 'Sin contenido',
-      detail: 'Escribe algo en el editor primero',
-      life: 3000
-    })
-    return
-  }
-
-  // Extract variables from template
-  const variablePattern = /\{(\w+)\}/g
-  const matches = yamlStore.editorContent.matchAll(variablePattern)
-  const detectedVars = [...new Set([...matches].map(m => m[1]))]
-
-  // Preserve existing required/optional status from formData
-  const existingRequired = new Set(formData.value.metadata.variables?.required || [])
-  const existingOptional = new Set(formData.value.metadata.variables?.optional || [])
-
-  // Update validation state with preserved status
-  yamlStore.validation = {
-    valid: true,
-    errors: [],
-    warnings: [],
-    detected_variables: detectedVars.map(name => ({
-      name,
-      required: existingRequired.has(name) || !existingOptional.has(name),
-      type: 'string'
-    }))
-  }
-
-  // Update form metadata
-  formData.value.metadata.variables = {
-    required: detectedVars.filter(v => existingRequired.has(v) || !existingOptional.has(v)),
-    optional: detectedVars.filter(v => existingOptional.has(v))
-  }
-
-  toast.add({
-    severity: 'info',
-    summary: 'Variables escaneadas',
-    detail: `Se encontraron ${detectedVars.length} variable(s)`,
-    life: 2000
-  })
-}
-
-// Toggle variable between required and optional
-function toggleVariableRequired(variableName: string, makeRequired: boolean) {
-  const required = new Set(formData.value.metadata.variables?.required || [])
-  const optional = new Set(formData.value.metadata.variables?.optional || [])
-
-  if (makeRequired) {
-    required.add(variableName)
-    optional.delete(variableName)
-  } else {
-    optional.add(variableName)
-    required.delete(variableName)
-  }
-
-  // Update formData
-  formData.value.metadata.variables = {
-    required: [...required],
-    optional: [...optional]
-  }
-
-  // Update validation state
-  if (yamlStore.validation?.detected_variables) {
-    yamlStore.validation = {
-      ...yamlStore.validation,
-      detected_variables: yamlStore.validation.detected_variables.map((v: any) => ({
-        ...v,
-        required: v.name === variableName ? makeRequired : v.required
-      }))
-    }
-  }
-
-  // Mark as dirty
-  yamlStore.editorDirty = true
-}
-
-async function saveTemplate() {
-  if (!canSave.value) return
-
-  saving.value = true
-
-  try {
-    if (isNew.value) {
-      const newPromptData = {
-        ...formData.value,
-        key: formData.value.name.toLowerCase().replace(/\s+/g, '_')
-      }
-      await yamlStore.createPrompt(newPromptData)
-      toast.add({
-        severity: 'success',
-        summary: 'Template creado',
-        detail: 'El template ha sido creado exitosamente',
-        life: 3000
-      })
-    } else {
-      await yamlStore.updatePrompt(currentPrompt.value!.key, formData.value)
-      toast.add({
-        severity: 'success',
-        summary: 'Template actualizado',
-        detail: 'El template ha sido actualizado exitosamente',
-        life: 3000
-      })
-    }
-
-    // Unlock if we had it locked
-    if (currentPrompt.value && isPromptLocked.value(currentPrompt.value.key)) {
-      await yamlStore.unlockPrompt(currentPrompt.value.key)
-    }
-
-    goBack()
-  } catch (error: any) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error al guardar',
-      detail: error.message || 'Error al guardar el template',
-      life: 5000
-    })
-  } finally {
-    saving.value = false
-  }
-}
 
 // Lifecycle
 onMounted(async () => {
-  // Check permissions
-  if (!authStore.isAdminOrOwner) {
-    router.push('/unauthorized')
-    return
-  }
-
-  // Load existing prompt if editing
-  if (!isNew.value && promptKey.value) {
-    await yamlStore.fetchPromptByKey(promptKey.value)
-
-    if (currentPrompt.value) {
-      // Lock prompt for editing
-      await yamlStore.lockPrompt(promptKey.value)
-
-      // Update form data with explicit mapping to ensure metadata fields are set
-      formData.value = {
-        name: currentPrompt.value.name || '',
-        description: currentPrompt.value.description || '',
-        version: currentPrompt.value.version || '1.0.0',
-        template: currentPrompt.value.template || '',
-        metadata: {
-          temperature: currentPrompt.value.metadata?.temperature ?? 0.7,
-          max_tokens: currentPrompt.value.metadata?.max_tokens ?? 1000,
-          model: currentPrompt.value.metadata?.model || 'default',
-          tags: currentPrompt.value.metadata?.tags || [],
-          variables: currentPrompt.value.metadata?.variables || { required: [], optional: [] },
-          domain: currentPrompt.value.metadata?.domain || 'core'
-        },
-        active: currentPrompt.value.active ?? true,
-        source: currentPrompt.value.source || 'database'
-      }
-    }
-  }
-
-  // Initialize editor
   await nextTick()
-  initializeEditor()
+  await initialize()
 })
 
 onBeforeUnmount(() => {
-  // Unlock if we had it locked
-  if (currentPrompt.value && isPromptLocked.value(currentPrompt.value.key)) {
-    yamlStore.unlockPrompt(currentPrompt.value.key)
-  }
-
-  // Cleanup editor
-  if (editor) {
-    editor.dispose()
-  }
-
-  clearTimeout(validationTimeout)
+  cleanup()
 })
 </script>
 

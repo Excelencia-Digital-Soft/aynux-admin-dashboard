@@ -14,6 +14,8 @@ import Column from 'primevue/column'
 import Button from 'primevue/button'
 import Tag from 'primevue/tag'
 import InputText from 'primevue/inputtext'
+import IconField from 'primevue/iconfield'
+import InputIcon from 'primevue/inputicon'
 import Select from 'primevue/select'
 import Skeleton from 'primevue/skeleton'
 import ToggleSwitch from 'primevue/toggleswitch'
@@ -74,12 +76,15 @@ onMounted(() => {
     <!-- Filters -->
     <div class="flex gap-4 mb-4">
       <div class="flex-1">
-        <InputText
-          v-model="searchValue"
-          placeholder="Buscar por nombre, DID o bot..."
-          class="w-full"
-          @input="handleSearch"
-        />
+        <IconField class="w-full">
+          <InputIcon class="pi pi-search" />
+          <InputText
+            v-model="searchValue"
+            placeholder="Buscar por nombre, DID o bot..."
+            class="w-full"
+            @input="handleSearch"
+          />
+        </IconField>
       </div>
       <Select
         :options="enabledOptions"

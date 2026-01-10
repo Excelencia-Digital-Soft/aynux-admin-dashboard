@@ -1,14 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { useChatStore } from '@/stores/chat.store'
-import { chatApi } from '@/api/chat.api'
-import { useToast } from '@/composables/useToast'
+import { useChatVisualizer } from '@/composables/useChatVisualizer'
 import GraphVisualization from '@/components/chat/GraphVisualization.vue'
 import ConversationHistory from '@/components/chat/ConversationHistory.vue'
 import ReasoningDisplay from '@/components/chat/ReasoningDisplay.vue'
 import MetricsPanel from '@/components/chat/MetricsPanel.vue'
 import WebhookSimulationPanel from '@/components/chat/WebhookSimulationPanel.vue'
-import type { ConversationMessage } from '@/types/chat.types'
 
 import Card from 'primevue/card'
 import Button from 'primevue/button'
@@ -24,177 +20,20 @@ import Checkbox from 'primevue/checkbox'
 import Message from 'primevue/message'
 import Tag from 'primevue/tag'
 
-const store = useChatStore()
-const toast = useToast()
-
-const activeTab = ref('0')
-const debugMode = ref(true)
-const showSettings = ref(false)
-const useStreaming = ref(false)
-
-async function handleSendMessage(message: string) {
-  store.clearExecutionState()
-  store.setLoading(true)
-  store.setError(null)
-
-  try {
-    // IMPORTANT: Create/get thread BEFORE adding user message
-    // Otherwise createNewThread() will reset currentMessages and lose the user message
-    let threadId = store.activeThreadId
-    if (!threadId) {
-      threadId = store.createNewThread()
-    }
-
-    // Add user message AFTER thread is set up
-    const userMessage: ConversationMessage = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: message,
-      timestamp: new Date().toISOString()
-    }
-    store.addMessage(userMessage)
-
-    // Check if webhook simulation mode is enabled
-    if (store.webhookSimulation.enabled) {
-      // Use webhook simulation endpoint (process_webhook_message flow)
-      const result = await chatApi.testWebhookSimulation({
-        message,
-        phone_number: store.webhookSimulation.phoneNumber,
-        user_name: store.webhookSimulation.userName,
-        business_domain: store.webhookSimulation.businessDomain,
-        session_id: threadId,
-        debug: debugMode.value,
-        // Chattigo simulation fields
-        did: store.webhookSimulation.did,
-        simulate_bypass: store.webhookSimulation.simulateBypass,
-        organization_id: store.webhookSimulation.organizationId,
-        pharmacy_id: store.webhookSimulation.pharmacyId
-      })
-
-      const assistantMessage: ConversationMessage = {
-        id: result.session_id || crypto.randomUUID(),
-        role: 'assistant',
-        content: result.response,
-        timestamp: new Date().toISOString()
-      }
-      store.addMessage(assistantMessage)
-
-      if (result.execution_steps) {
-        store.setExecutionSteps(result.execution_steps)
-      }
-    } else if (useStreaming.value) {
-      // Streaming mode
-      store.startStreaming()
-
-      const response = await chatApi.sendMessageStream(
-        { message, thread_id: threadId },
-        (chunk) => store.appendStreamContent(chunk),
-        (step) => store.addExecutionStep(step)
-      )
-
-      store.endStreaming()
-      store.addMessage(response.message)
-
-      if (response.execution_steps) {
-        store.setExecutionSteps(response.execution_steps)
-      }
-      if (response.agent_state) {
-        store.setAgentState(response.agent_state)
-      }
-    } else {
-      // Non-streaming with debug
-      if (debugMode.value) {
-        const result = await chatApi.testAgent({
-          message,
-          debug: true,
-          session_id: threadId
-        })
-
-        // Backend returns response as string, not object
-        const assistantMessage: ConversationMessage = {
-          id: result.session_id || crypto.randomUUID(),
-          role: 'assistant',
-          content: result.response,
-          timestamp: new Date().toISOString()
-        }
-        store.addMessage(assistantMessage)
-
-        if (result.execution_steps) {
-          store.setExecutionSteps(result.execution_steps)
-        }
-      } else {
-        const response = await chatApi.sendMessage({
-          message,
-          thread_id: threadId
-        })
-
-        store.addMessage(response.message)
-
-        if (response.execution_steps) {
-          store.setExecutionSteps(response.execution_steps)
-        }
-      }
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
-    store.setError(errorMessage)
-    toast.error(`Error: ${errorMessage}`)
-
-    // Add error step
-    store.addExecutionStep({
-      id: crypto.randomUUID(),
-      step_number: store.executionSteps.length + 1,
-      node_type: 'error',
-      name: 'Error',
-      description: errorMessage,
-      status: 'error',
-      error_message: errorMessage,
-      timestamp: new Date().toISOString()
-    })
-  } finally {
-    store.setLoading(false)
-  }
-}
-
-function handleMessageClick(message: ConversationMessage) {
-  // Could load execution steps for this specific message
-  console.log('Message clicked:', message.id)
-}
-
-function handleNodeClick(nodeId: string) {
-  // Already handled by store.selectNode in GraphVisualization
-  // Switch to reasoning tab to show details
-  activeTab.value = '1'
-}
-
-async function handleClearChat() {
-  store.clearAllThreads()
-  store.clearExecutionState()
-  toast.info('Conversacion limpiada')
-}
-
-async function handleNewThread() {
-  store.createNewThread()
-  store.clearExecutionState()
-  toast.info('Nueva conversacion iniciada')
-}
-
-async function loadMetrics() {
-  try {
-    const metrics = await chatApi.getMetrics({ days: 7 })
-    store.setSessionMetrics(metrics)
-  } catch (error) {
-    console.error('Error loading metrics:', error)
-  }
-}
-
-onMounted(() => {
-  loadMetrics()
-})
-
-onUnmounted(() => {
-  // Cleanup if needed
-})
+const {
+  activeTab,
+  debugMode,
+  showSettings,
+  useStreaming,
+  store,
+  sendMessage,
+  handleMessageClick,
+  handleNodeClick,
+  clearChat,
+  newThread,
+  closeSettings,
+  clearError
+} = useChatVisualizer()
 </script>
 
 <template>
@@ -213,14 +52,14 @@ onUnmounted(() => {
           label="Nueva"
           severity="secondary"
           size="small"
-          @click="handleNewThread"
+          @click="newThread"
         />
         <Button
           icon="pi pi-trash"
           label="Limpiar"
           severity="secondary"
           size="small"
-          @click="handleClearChat"
+          @click="clearChat"
         />
         <Button
           icon="pi pi-cog"
@@ -232,7 +71,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Error message -->
-    <Message v-if="store.error" severity="error" :closable="true" @close="store.setError(null)" class="mb-4">
+    <Message v-if="store.error" severity="error" :closable="true" @close="clearError" class="mb-4">
       {{ store.error }}
     </Message>
 
@@ -244,7 +83,7 @@ onUnmounted(() => {
           <template #content>
             <ConversationHistory
               :max-height="'calc(100vh - 180px)'"
-              @send="handleSendMessage"
+              @send="sendMessage"
               @message-click="handleMessageClick"
             />
           </template>
@@ -334,7 +173,7 @@ onUnmounted(() => {
       </div>
 
       <template #footer>
-        <Button label="Cerrar" severity="secondary" @click="showSettings = false" />
+        <Button label="Cerrar" severity="secondary" @click="closeSettings" />
       </template>
     </Dialog>
   </div>

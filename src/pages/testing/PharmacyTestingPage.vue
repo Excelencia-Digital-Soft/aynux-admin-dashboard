@@ -1,20 +1,14 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
-import { pharmacyApi } from '@/api/pharmacy.api'
-import type { Pharmacy, PharmacyTestMessage, PharmacyWebhookConfig, ConversationContext, ConversationMessage } from '@/api/pharmacy.api'
-import { useToast } from '@/composables/useToast'
+import { ref, nextTick } from 'vue'
+import { usePharmacyTesting } from '@/composables/usePharmacyTesting'
 import PharmacyWebhookPanel from '@/components/pharmacy/PharmacyWebhookPanel.vue'
 
 import Card from 'primevue/card'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
-import Divider from 'primevue/divider'
-import Panel from 'primevue/panel'
 import Tag from 'primevue/tag'
-import ScrollPanel from 'primevue/scrollpanel'
 import ProgressSpinner from 'primevue/progressspinner'
-import Message from 'primevue/message'
 import Tabs from 'primevue/tabs'
 import TabList from 'primevue/tablist'
 import Tab from 'primevue/tab'
@@ -22,118 +16,40 @@ import TabPanels from 'primevue/tabpanels'
 import TabPanel from 'primevue/tabpanel'
 import Dialog from 'primevue/dialog'
 
-const toast = useToast()
-
 const DEFAULT_PHONE = '2645631000'
 
-const isLoading = ref(false)
-const isSending = ref(false)
-const pharmacies = ref<Pharmacy[]>([])
-const selectedPharmacy = ref<Pharmacy | null>(null)
-const sessionId = ref<string | null>(null)
-const messages = ref<PharmacyTestMessage[]>([])
-const inputMessage = ref('')
-const webhookConfig = ref<PharmacyWebhookConfig>({
-  enabled: false,
-  phoneNumber: DEFAULT_PHONE,
-  userName: 'Pharmacy Tester',
-  // Chattigo simulation fields
-  did: null,
-  simulateBypass: false,
-  organizationId: null,
-  pharmacyId: null
-})
-const executionSteps = ref<unknown[]>([])
-const graphState = ref<unknown | null>(null)
+const {
+  isLoading,
+  isSending,
+  pharmacies,
+  selectedPharmacy,
+  sessionId,
+  messages,
+  inputMessage,
+  webhookConfig,
+  executionSteps,
+  graphState,
+  conversationHistory,
+  historyMessages,
+  selectedConversation,
+  isLoadingHistory,
+  isDeletingHistory,
+  showDeleteConfirm,
+  hasSession,
+  fetchPharmacies,
+  sendMessage,
+  clearSession,
+  setQuickMessage,
+  updateWebhookConfig,
+  fetchHistory,
+  selectConversation,
+  deleteConversation,
+  deleteAllHistory,
+  formatTime,
+  formatDateTime
+} = usePharmacyTesting({ defaultPhone: DEFAULT_PHONE })
+
 const chatContainer = ref<HTMLElement | null>(null)
-
-// History state
-const conversationHistory = ref<ConversationContext[]>([])
-const historyMessages = ref<ConversationMessage[]>([])
-const selectedConversation = ref<ConversationContext | null>(null)
-const isLoadingHistory = ref(false)
-const isDeletingHistory = ref(false)
-const showDeleteConfirm = ref(false)
-
-const hasSession = computed(() => !!sessionId.value)
-
-async function fetchPharmacies() {
-  isLoading.value = true
-  try {
-    pharmacies.value = await pharmacyApi.getPharmacies()
-    if (pharmacies.value.length > 0 && !selectedPharmacy.value) {
-      selectedPharmacy.value = pharmacies.value[0]
-    }
-  } finally {
-    isLoading.value = false
-  }
-}
-
-async function sendMessage() {
-  if (!inputMessage.value.trim() || !selectedPharmacy.value) return
-
-  const userMessage: PharmacyTestMessage = {
-    id: `user-${Date.now()}`,
-    role: 'user',
-    content: inputMessage.value,
-    timestamp: new Date().toISOString()
-  }
-
-  messages.value.push(userMessage)
-  const messageText = inputMessage.value
-  inputMessage.value = ''
-  await scrollToBottom()
-
-  isSending.value = true
-  try {
-    const response = await pharmacyApi.sendTestMessage({
-      pharmacy_id: selectedPharmacy.value.id,
-      message: messageText,
-      session_id: sessionId.value || undefined,
-      phone_number: webhookConfig.value.phoneNumber
-    })
-
-    if (response) {
-      sessionId.value = response.session_id
-
-      const assistantMessage: PharmacyTestMessage = {
-        id: `assistant-${Date.now()}`,
-        role: 'assistant',
-        content: response.response,
-        timestamp: new Date().toISOString(),
-        metadata: response.metadata
-      }
-
-      messages.value.push(assistantMessage)
-
-      if (response.execution_steps) {
-        executionSteps.value = response.execution_steps
-      }
-      if (response.graph_state) {
-        graphState.value = response.graph_state
-      }
-
-      await scrollToBottom()
-    }
-  } catch (error) {
-    toast.error('Error al enviar mensaje')
-    // Remove user message on error
-    messages.value.pop()
-  } finally {
-    isSending.value = false
-  }
-}
-
-async function clearSession() {
-  if (sessionId.value) {
-    await pharmacyApi.clearSession(sessionId.value)
-  }
-  sessionId.value = null
-  messages.value = []
-  executionSteps.value = []
-  graphState.value = null
-  toast.info('Sesion reiniciada')
-}
 
 async function scrollToBottom() {
   await nextTick()
@@ -142,122 +58,17 @@ async function scrollToBottom() {
   }
 }
 
-function formatTime(timestamp: string): string {
-  return new Date(timestamp).toLocaleTimeString('es-ES', {
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
 function handleKeyPress(event: KeyboardEvent) {
   if (event.key === 'Enter' && !event.shiftKey) {
     event.preventDefault()
-    sendMessage()
+    sendMessage().then(scrollToBottom)
   }
 }
 
-// History functions
-async function fetchHistory() {
-  if (!webhookConfig.value.phoneNumber) {
-    toast.warn('Selecciona un telefono primero')
-    return
-  }
-  isLoadingHistory.value = true
-  try {
-    conversationHistory.value = await pharmacyApi.getConversationsByPhone(
-      webhookConfig.value.phoneNumber
-    )
-    if (conversationHistory.value.length === 0) {
-      toast.info('No hay historial para este telefono')
-    }
-  } catch {
-    toast.error('Error al cargar historial')
-  } finally {
-    isLoadingHistory.value = false
-  }
+async function handleSendMessage() {
+  await sendMessage()
+  await scrollToBottom()
 }
-
-async function selectConversation(conv: ConversationContext) {
-  selectedConversation.value = conv
-  isLoadingHistory.value = true
-  try {
-    historyMessages.value = await pharmacyApi.getConversationMessages(conv.conversation_id)
-  } finally {
-    isLoadingHistory.value = false
-  }
-}
-
-async function deleteConversation(conv: ConversationContext) {
-  try {
-    const success = await pharmacyApi.deleteConversation(conv.conversation_id)
-    if (success) {
-      conversationHistory.value = conversationHistory.value.filter(
-        c => c.conversation_id !== conv.conversation_id
-      )
-      if (selectedConversation.value?.conversation_id === conv.conversation_id) {
-        selectedConversation.value = null
-        historyMessages.value = []
-      }
-      toast.success('Conversacion eliminada')
-    } else {
-      toast.error('Error al eliminar conversacion')
-    }
-  } catch {
-    toast.error('Error al eliminar conversacion')
-  }
-}
-
-async function deleteAllHistory() {
-  isDeletingHistory.value = true
-  try {
-    for (const conv of conversationHistory.value) {
-      await pharmacyApi.deleteConversation(conv.conversation_id)
-    }
-    conversationHistory.value = []
-    historyMessages.value = []
-    selectedConversation.value = null
-    toast.success('Historial eliminado completamente')
-  } catch {
-    toast.error('Error al eliminar historial')
-  } finally {
-    isDeletingHistory.value = false
-    showDeleteConfirm.value = false
-  }
-}
-
-function formatDateTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleString('es-ES', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-onMounted(() => {
-  // Load webhook config from localStorage
-  const saved = localStorage.getItem('pharmacy-webhook-config')
-  if (saved) {
-    try {
-      webhookConfig.value = JSON.parse(saved)
-    } catch (e) {
-      console.warn('Failed to parse pharmacy webhook config')
-    }
-  }
-  fetchPharmacies()
-})
-
-// Persist webhook config to localStorage
-watch(webhookConfig, (val) => {
-  localStorage.setItem('pharmacy-webhook-config', JSON.stringify(val))
-}, { deep: true })
-
-// Clear history when phone changes
-watch(() => webhookConfig.value.phoneNumber, () => {
-  conversationHistory.value = []
-  historyMessages.value = []
-  selectedConversation.value = null
-})
 </script>
 
 <template>
@@ -378,7 +189,7 @@ watch(() => webhookConfig.value.phoneNumber, () => {
               />
               <Button
                 icon="pi pi-send"
-                @click="sendMessage"
+                @click="handleSendMessage"
                 :loading="isSending"
                 :disabled="!inputMessage.trim() || !selectedPharmacy"
               />
@@ -453,7 +264,7 @@ watch(() => webhookConfig.value.phoneNumber, () => {
                     :config="webhookConfig"
                     :has-session="hasSession"
                     :default-phone="DEFAULT_PHONE"
-                    @update="(c) => webhookConfig = { ...webhookConfig, ...c }"
+                    @update="updateWebhookConfig"
                   />
                 </TabPanel>
 
@@ -647,37 +458,37 @@ watch(() => webhookConfig.value.phoneNumber, () => {
                 label="Hola"
                 size="small"
                 severity="secondary"
-                @click="inputMessage = 'Hola, buenos dias'"
+                @click="setQuickMessage('Hola, buenos dias')"
               />
               <Button
                 label="Productos"
                 size="small"
                 severity="secondary"
-                @click="inputMessage = 'Que productos tienen?'"
+                @click="setQuickMessage('Que productos tienen?')"
               />
               <Button
                 label="Precio"
                 size="small"
                 severity="secondary"
-                @click="inputMessage = 'Cuanto cuesta el paracetamol?'"
+                @click="setQuickMessage('Cuanto cuesta el paracetamol?')"
               />
               <Button
                 label="Pedido"
                 size="small"
                 severity="secondary"
-                @click="inputMessage = 'Quiero hacer un pedido'"
+                @click="setQuickMessage('Quiero hacer un pedido')"
               />
               <Button
                 label="Ubicacion"
                 size="small"
                 severity="secondary"
-                @click="inputMessage = 'Donde estan ubicados?'"
+                @click="setQuickMessage('Donde estan ubicados?')"
               />
               <Button
                 label="Horario"
                 size="small"
                 severity="secondary"
-                @click="inputMessage = 'Cual es su horario de atencion?'"
+                @click="setQuickMessage('Cual es su horario de atencion?')"
               />
             </div>
           </template>
