@@ -10,8 +10,9 @@
         <p class="text-muted">Configura intents de detección y respuestas por dominio</p>
       </div>
       <div class="header-right">
-        <!-- Domain Selector -->
+        <!-- Domain Selector (only for tabs 0-1 that use domain filtering) -->
         <Select
+          v-if="['0', '1'].includes(activeTab)"
           v-model="selectedDomain"
           :options="availableDomains"
           optionLabel="name"
@@ -34,6 +35,12 @@
           </template>
         </Select>
 
+        <!-- Organization indicator for tabs 2-6 -->
+        <div v-if="!['0', '1'].includes(activeTab)" class="org-indicator">
+          <i class="pi pi-building"></i>
+          <span>{{ authStore.currentOrganization?.name || 'Organización actual' }}</span>
+        </div>
+
         <!-- Action buttons based on active tab -->
         <template v-if="activeTab === '0'">
           <Button
@@ -44,7 +51,7 @@
             :disabled="!selectedDomain"
           />
         </template>
-        <template v-else>
+        <template v-else-if="activeTab === '1'">
           <Button
             label="Nueva Config"
             icon="pi pi-plus"
@@ -53,8 +60,34 @@
             :disabled="!selectedDomain"
           />
         </template>
+        <template v-else-if="activeTab === '2'">
+          <Button
+            label="Nuevo Mapping"
+            icon="pi pi-plus"
+            severity="success"
+            @click="agentMappingsPanel?.openCreateDialog()"
+          />
+        </template>
+        <template v-else-if="activeTab === '3'">
+          <Button
+            label="Nuevo Flow Agent"
+            icon="pi pi-plus"
+            severity="success"
+            @click="flowAgentsPanel?.openCreateDialog()"
+          />
+        </template>
+        <template v-else-if="activeTab === '4'">
+          <Button
+            label="Agregar Keywords"
+            icon="pi pi-plus"
+            severity="success"
+            @click="keywordMappingsPanel?.openBulkDialog()"
+          />
+        </template>
 
+        <!-- Seed button (tabs 0, 1, 2-4) -->
         <Button
+          v-if="['0', '1'].includes(activeTab)"
           label="Seed"
           icon="pi pi-database"
           severity="secondary"
@@ -64,6 +97,18 @@
           v-tooltip="'Cargar datos por defecto'"
         />
         <Button
+          v-if="['2', '3', '4'].includes(activeTab)"
+          label="Seed Mappings"
+          icon="pi pi-database"
+          severity="secondary"
+          outlined
+          @click="handleSeedIntentConfigs"
+          v-tooltip="'Importar desde valores hardcodeados'"
+        />
+
+        <!-- Export/Import for legacy tabs -->
+        <Button
+          v-if="['0', '1'].includes(activeTab)"
           label="Exportar"
           icon="pi pi-download"
           severity="secondary"
@@ -73,6 +118,7 @@
           v-tooltip="'Exportar a JSON'"
         />
         <Button
+          v-if="['0', '1'].includes(activeTab)"
           label="Importar"
           icon="pi pi-upload"
           severity="secondary"
@@ -80,6 +126,14 @@
           @click="handleImport"
           :disabled="!selectedDomain"
           v-tooltip="'Importar desde JSON'"
+        />
+        <Button
+          icon="pi pi-question-circle"
+          severity="info"
+          text
+          rounded
+          @click="showHelpDialog = true"
+          v-tooltip="'¿Cómo funciona?'"
         />
         <Button
           icon="pi pi-chart-bar"
@@ -96,7 +150,7 @@
           text
           rounded
           @click="handleInvalidateCache"
-          :disabled="!selectedDomain"
+          :disabled="['0', '1'].includes(activeTab) ? !selectedDomain : !organizationId"
           v-tooltip="'Invalidar cache'"
         />
       </div>
@@ -112,6 +166,26 @@
         <Tab value="1">
           <i class="pi pi-comment mr-2"></i>
           Configuración de Respuestas
+        </Tab>
+        <Tab value="2">
+          <i class="pi pi-link mr-2"></i>
+          Agent Mappings
+        </Tab>
+        <Tab value="3">
+          <i class="pi pi-sitemap mr-2"></i>
+          Flow Agents
+        </Tab>
+        <Tab value="4">
+          <i class="pi pi-tag mr-2"></i>
+          Keywords
+        </Tab>
+        <Tab value="5">
+          <i class="pi pi-share-alt mr-2"></i>
+          Visualización
+        </Tab>
+        <Tab value="6">
+          <i class="pi pi-play mr-2"></i>
+          Testing
         </Tab>
       </TabList>
       <TabPanels>
@@ -130,6 +204,40 @@
             ref="configsPanel"
             :domain="selectedDomain"
           />
+        </TabPanel>
+
+        <!-- Agent Mappings Panel -->
+        <TabPanel value="2">
+          <AgentMappingsPanel
+            ref="agentMappingsPanel"
+            :domain-key="selectedDomain"
+          />
+        </TabPanel>
+
+        <!-- Flow Agents Panel -->
+        <TabPanel value="3">
+          <FlowAgentsPanel
+            ref="flowAgentsPanel"
+          />
+        </TabPanel>
+
+        <!-- Keywords Panel -->
+        <TabPanel value="4">
+          <KeywordMappingsPanel
+            ref="keywordMappingsPanel"
+          />
+        </TabPanel>
+
+        <!-- Visualization Panel -->
+        <TabPanel value="5">
+          <IntentFlowVisualization
+            ref="visualizationPanel"
+          />
+        </TabPanel>
+
+        <!-- Testing Panel -->
+        <TabPanel value="6">
+          <IntentTestPanel />
         </TabPanel>
       </TabPanels>
     </Tabs>
@@ -187,14 +295,21 @@
       </template>
     </Dialog>
 
+    <!-- Help Dialog -->
+    <IntentSystemExplanation v-model="showHelpDialog" />
+
     <!-- Toast -->
     <Toast />
+
+    <!-- Confirm Dialog for new panels -->
+    <ConfirmDialog />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useToast } from 'primevue/usetoast'
+import { useConfirm } from 'primevue/useconfirm'
 import Button from 'primevue/button'
 import Select from 'primevue/select'
 import Dialog from 'primevue/dialog'
@@ -204,22 +319,43 @@ import TabList from 'primevue/tablist'
 import Tab from 'primevue/tab'
 import TabPanels from 'primevue/tabpanels'
 import TabPanel from 'primevue/tabpanel'
+import ConfirmDialog from 'primevue/confirmdialog'
 
 import DomainIntentsPanel from './DomainIntentsPanel.vue'
 import ResponseConfigsPanel from './ResponseConfigsPanel.vue'
+import AgentMappingsPanel from '@/components/intent-configs/AgentMappingsPanel.vue'
+import FlowAgentsPanel from '@/components/intent-configs/FlowAgentsPanel.vue'
+import KeywordMappingsPanel from '@/components/intent-configs/KeywordMappingsPanel.vue'
+import IntentFlowVisualization from '@/components/intent-configs/IntentFlowVisualization.vue'
+import IntentTestPanel from '@/components/intent-configs/IntentTestPanel.vue'
+import IntentSystemExplanation from '@/components/intent-configs/IntentSystemExplanation.vue'
 
 import { domainIntentsApi } from '@/api/domainIntents.api'
 import { responseConfigsApi } from '@/api/responseConfigs.api'
+import { useIntentConfig } from '@/composables/useIntentConfig'
 import { useAuthStore } from '@/stores/auth.store'
 import type { DomainKey, CacheStatsResponse } from '@/types/domainIntents.types'
 import { AVAILABLE_DOMAINS } from '@/types/domainIntents.types'
 
 const toast = useToast()
+const confirm = useConfirm()
 const authStore = useAuthStore()
+
+// Intent Config composable for new panels
+const {
+  seedFromDefaults,
+  invalidateCache: invalidateIntentConfigCache,
+  fetchCacheStats: fetchIntentConfigCacheStats,
+  cacheStats: intentConfigCacheStats,
+} = useIntentConfig()
 
 // Refs to child panels
 const intentsPanel = ref<InstanceType<typeof DomainIntentsPanel> | null>(null)
 const configsPanel = ref<InstanceType<typeof ResponseConfigsPanel> | null>(null)
+const agentMappingsPanel = ref<InstanceType<typeof AgentMappingsPanel> | null>(null)
+const flowAgentsPanel = ref<InstanceType<typeof FlowAgentsPanel> | null>(null)
+const keywordMappingsPanel = ref<InstanceType<typeof KeywordMappingsPanel> | null>(null)
+const visualizationPanel = ref<InstanceType<typeof IntentFlowVisualization> | null>(null)
 
 // State
 const selectedDomain = ref<DomainKey | null>(null)
@@ -229,6 +365,9 @@ const activeTab = ref<string>('0')
 const cacheStats = ref<CacheStatsResponse | null>(null)
 const loadingCacheStats = ref(false)
 const showCacheStatsDialog = ref(false)
+
+// Help dialog
+const showHelpDialog = ref(false)
 
 // Constants
 const availableDomains = AVAILABLE_DOMAINS
@@ -287,14 +426,23 @@ async function fetchCacheStats() {
 }
 
 async function handleInvalidateCache() {
-  if (!selectedDomain.value || !organizationId.value) return
+  // For tabs 0-1 we need domain, for tabs 2-6 we only need organization
+  const isLegacyTab = ['0', '1'].includes(activeTab.value)
+
+  if (isLegacyTab && (!selectedDomain.value || !organizationId.value)) return
+  if (!isLegacyTab && !organizationId.value) return
 
   try {
-    // Invalidate both caches
-    await Promise.all([
-      domainIntentsApi.invalidateCache(selectedDomain.value, organizationId.value),
-      responseConfigsApi.invalidateCache(organizationId.value, selectedDomain.value)
-    ])
+    if (isLegacyTab) {
+      // Legacy tabs - invalidate domain intents and response configs cache
+      await Promise.all([
+        domainIntentsApi.invalidateCache(selectedDomain.value!, organizationId.value!),
+        responseConfigsApi.invalidateCache(organizationId.value!, selectedDomain.value!)
+      ])
+    } else {
+      // New tabs - invalidate intent config cache
+      await invalidateIntentConfigCache()
+    }
 
     toast.add({
       severity: 'success',
@@ -336,6 +484,33 @@ function handleImport() {
   } else {
     configsPanel.value?.openImportDialog()
   }
+}
+
+// Seed intent config mappings from hardcoded values
+function handleSeedIntentConfigs() {
+  confirm.require({
+    message: '¿Importar los mappings desde los valores hardcodeados en intent_validator.py? Esto creará nuevos registros pero no sobrescribirá existentes.',
+    header: 'Confirmar Seed',
+    icon: 'pi pi-database',
+    rejectClass: 'p-button-secondary p-button-outlined',
+    rejectLabel: 'Cancelar',
+    acceptLabel: 'Importar',
+    accept: async () => {
+      try {
+        await seedFromDefaults()
+        // Refresh the active panel
+        if (activeTab.value === '2') {
+          agentMappingsPanel.value?.refresh()
+        } else if (activeTab.value === '3') {
+          flowAgentsPanel.value?.refresh()
+        } else if (activeTab.value === '4') {
+          keywordMappingsPanel.value?.refresh()
+        }
+      } catch (error) {
+        // Error handled in composable
+      }
+    },
+  })
 }
 </script>
 
@@ -380,6 +555,21 @@ function handleImport() {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.org-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--surface-ground);
+  border-radius: 6px;
+  color: var(--text-color-secondary);
+  font-size: 0.875rem;
+}
+
+.org-indicator i {
+  color: var(--primary-color);
 }
 
 .main-tabs {
