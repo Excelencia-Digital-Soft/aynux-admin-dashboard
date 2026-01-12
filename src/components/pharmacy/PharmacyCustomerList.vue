@@ -9,6 +9,8 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
+import IconField from 'primevue/iconfield'
+import InputIcon from 'primevue/inputicon'
 import Paginator from 'primevue/paginator'
 import Skeleton from 'primevue/skeleton'
 import Tag from 'primevue/tag'
@@ -100,11 +102,14 @@ onMounted(() => {
   <div class="pharmacy-customer-list">
     <!-- Search -->
     <div class="mb-4">
-      <InputText
-        placeholder="Buscar por telefono..."
-        class="w-full md:w-80"
-        @input="handleSearch"
-      />
+      <IconField class="w-full md:w-80">
+        <InputIcon class="pi pi-search" />
+        <InputText
+          placeholder="Buscar por telefono..."
+          class="w-full"
+          @input="handleSearch"
+        />
+      </IconField>
     </div>
 
     <!-- Loading -->

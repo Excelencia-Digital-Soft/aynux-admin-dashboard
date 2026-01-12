@@ -19,10 +19,11 @@
           label="Volver"
           severity="secondary"
         />
-        <Button 
-          @click="goHome" 
-          icon="pi pi-home" 
+        <Button
+          @click="goHome"
+          icon="pi pi-home"
           label="Ir al Inicio"
+          severity="primary"
         />
       </div>
       

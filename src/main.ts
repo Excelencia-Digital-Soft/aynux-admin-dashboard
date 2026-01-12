@@ -12,6 +12,8 @@ import router from './router'
 
 // Styles
 import 'primeicons/primeicons.css'
+import '@vue-flow/core/dist/style.css'
+import '@vue-flow/core/dist/theme-default.css'
 import './assets/main.css'
 
 const app = createApp(App)

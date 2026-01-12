@@ -345,7 +345,7 @@ onMounted(() => {
           :loading="seeding"
           @click="seedBuiltin"
         />
-        <Button label="Nuevo Agente" icon="pi pi-plus" @click="openCreateDialog" />
+        <Button label="Nuevo Agente" icon="pi pi-plus" severity="primary" @click="openCreateDialog" />
       </div>
     </div>
 
@@ -608,7 +608,7 @@ onMounted(() => {
 
       <template #footer>
         <Button label="Cancelar" severity="secondary" text @click="editDialogVisible = false" />
-        <Button label="Guardar" icon="pi pi-check" @click="saveAgent" />
+        <Button label="Guardar" icon="pi pi-check" severity="success" @click="saveAgent" />
       </template>
     </Dialog>
 
@@ -699,7 +699,7 @@ onMounted(() => {
 
       <template #footer>
         <Button label="Cancelar" severity="secondary" text @click="createDialogVisible = false" />
-        <Button label="Crear" icon="pi pi-plus" @click="createAgent" />
+        <Button label="Crear" icon="pi pi-plus" severity="success" @click="createAgent" />
       </template>
     </Dialog>
 

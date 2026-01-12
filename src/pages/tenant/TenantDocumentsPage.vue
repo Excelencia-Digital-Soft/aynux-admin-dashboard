@@ -459,6 +459,7 @@ onMounted(() => {
         <Button label="Cancelar" severity="secondary" @click="closeDocDialog" />
         <Button
           :label="isEditing ? 'Guardar' : 'Crear'"
+          severity="success"
           @click="handleSaveDoc"
           :loading="isLoading"
           :disabled="!docForm.title || !docForm.content || !docForm.document_type"

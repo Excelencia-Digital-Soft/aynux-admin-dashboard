@@ -208,6 +208,7 @@ function handleEdit() {
       <Button
         label="Editar Regla"
         icon="pi pi-pencil"
+        severity="secondary"
         class="w-full"
         @click="handleEdit"
       />

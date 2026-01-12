@@ -10,7 +10,7 @@ import type {
   WebhookSimulationConfig
 } from '@/types/chat.types'
 
-interface ChatState {
+export interface ChatState {
   // Conversations
   threads: Map<string, ConversationThread>
   activeThreadId: string | null

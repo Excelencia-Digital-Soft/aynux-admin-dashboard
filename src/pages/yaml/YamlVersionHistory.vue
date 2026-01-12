@@ -84,9 +84,20 @@
       </template>
       
       <template #content>
-        <DataTable 
-          :value="versions" 
-          :loading="loading" 
+        <!-- Empty state when no versions -->
+        <div v-if="!loading && versions.length === 0" class="text-center py-8">
+          <i class="pi pi-history text-4xl text-muted mb-4"></i>
+          <h4 class="text-muted">Sin historial de versiones</h4>
+          <p class="text-sm text-muted">
+            Este template aún no tiene versiones anteriores registradas.
+            Las versiones se crean automáticamente al guardar cambios.
+          </p>
+        </div>
+
+        <DataTable
+          v-else
+          :value="versions"
+          :loading="loading"
           responsiveLayout="scroll"
           dataKey="id"
           selectionMode="single"
@@ -121,13 +132,13 @@
             </template>
           </Column>
           
-          <Column field="change_description" header="Descripción del Cambio">
+          <Column field="notes" header="Notas">
             <template #body="{data}">
-              <div v-if="data.change_description">
-                {{ data.change_description }}
+              <div v-if="data.notes">
+                {{ data.notes }}
               </div>
               <div v-else class="text-muted text-italic">
-                Sin descripción
+                Sin notas
               </div>
             </template>
           </Column>
@@ -195,9 +206,9 @@
               </div>
             </div>
             
-            <div v-if="selectedVersion.change_description" class="mt-4">
-              <strong>Descripción:</strong>
-              <p class="mt-2">{{ selectedVersion.change_description }}</p>
+            <div v-if="selectedVersion.notes" class="mt-4">
+              <strong>Notas:</strong>
+              <p class="mt-2">{{ selectedVersion.notes }}</p>
             </div>
           </template>
         </Card>
@@ -206,9 +217,9 @@
           <template #title>Contenido del Template</template>
           <template #content>
             <div class="template-content">
-              <pre class="template-text">{{ formatYamlContent(selectedVersion.content) }}</pre>
-              <Button 
-                @click="copyToClipboard(selectedVersion.content)" 
+              <pre class="template-text">{{ formatYamlContent(selectedVersion.template) }}</pre>
+              <Button
+                @click="copyToClipboard(selectedVersion.template)" 
                 icon="pi pi-copy" 
                 size="small"
                 severity="secondary"
@@ -244,7 +255,7 @@
         <div class="compare-content">
           <div class="compare-side">
             <h5>Contenido Anterior</h5>
-            <pre class="compare-text">{{ formatYamlContent(selectedVersion.content) }}</pre>
+            <pre class="compare-text">{{ formatYamlContent(selectedVersion.template) }}</pre>
           </div>
           
           <div class="compare-side">
@@ -281,10 +292,11 @@
           label="Cancelar"
           severity="secondary"
         />
-        <Button 
-          @click="handleCreateVersion" 
+        <Button
+          @click="handleCreateVersion"
           label="Crear Versión"
           icon="pi pi-check"
+          severity="success"
           :loading="creatingVersion"
         />
       </template>

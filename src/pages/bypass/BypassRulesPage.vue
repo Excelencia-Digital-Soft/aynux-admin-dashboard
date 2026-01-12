@@ -63,7 +63,7 @@ function cancelDelete() {
           severity="secondary"
           @click="openTestDialog"
         />
-        <Button label="Nueva Regla" icon="pi pi-plus" @click="openRuleDialog(null)" />
+        <Button label="Nueva Regla" icon="pi pi-plus" severity="primary" @click="openRuleDialog(null)" />
       </div>
     </div>
 

@@ -392,7 +392,7 @@ onMounted(() => {
       </div>
 
       <template #footer>
-        <Button label="Entendido" @click="showApiKeyDialog = false; newApiKey = null" />
+        <Button label="Entendido" severity="primary" @click="showApiKeyDialog = false; newApiKey = null" />
       </template>
     </Dialog>
   </div>

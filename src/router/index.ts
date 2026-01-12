@@ -260,6 +260,44 @@ const router = createRouter({
             icon: 'pi-whatsapp',
             requiresAdmin: true
           }
+        },
+
+        // Institution Configs (Page 23) - CRUD for institution configurations
+        {
+          path: 'institution-configs',
+          name: 'InstitutionConfigs',
+          component: () => import('@/pages/institution/InstitutionConfigPage.vue'),
+          meta: {
+            title: 'Configuracion Instituciones',
+            icon: 'pi-building',
+            requiresOrg: true,
+            requiresAdmin: true
+          }
+        },
+
+        // Pharmacy Intent Patterns - REDIRECT to Intent Configs
+        {
+          path: 'pharmacy-intents',
+          redirect: '/intent-configs'
+        },
+
+        // Domain Intents - REDIRECT to Intent Configs (compatibility)
+        {
+          path: 'domain-intents',
+          redirect: '/intent-configs'
+        },
+
+        // Intent Configs - Multi-domain intent and response config management
+        {
+          path: 'intent-configs',
+          name: 'IntentConfigs',
+          component: () => import('@/pages/admin/IntentConfigsPage.vue'),
+          meta: {
+            title: 'Gestión de Intents y Respuestas',
+            icon: 'pi-cog',
+            requiresOrg: true,
+            requiresAdmin: true
+          }
         }
       ]
     },

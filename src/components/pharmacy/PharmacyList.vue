@@ -16,6 +16,8 @@ import Column from 'primevue/column'
 import Button from 'primevue/button'
 import Tag from 'primevue/tag'
 import InputText from 'primevue/inputtext'
+import IconField from 'primevue/iconfield'
+import InputIcon from 'primevue/inputicon'
 import Select from 'primevue/select'
 import Paginator from 'primevue/paginator'
 import Skeleton from 'primevue/skeleton'
@@ -73,11 +75,14 @@ onMounted(() => {
     <!-- Filters -->
     <div class="flex gap-4 mb-4">
       <div class="flex-1">
-        <InputText
-          placeholder="Buscar farmacias..."
-          class="w-full"
-          @input="handleSearch"
-        />
+        <IconField class="w-full">
+          <InputIcon class="pi pi-search" />
+          <InputText
+            placeholder="Buscar farmacias..."
+            class="w-full"
+            @input="handleSearch"
+          />
+        </IconField>
       </div>
       <Select
         :options="mpOptions"

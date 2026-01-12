@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { analyticsApi } from '@/api/analytics.api'
+import { ref } from 'vue'
+import { useRagDashboard } from '@/composables/useRagDashboard'
 import RagAnalytics from '@/components/analytics/RagAnalytics.vue'
-import type { RagQueryLog } from '@/types/document.types'
 
 import Card from 'primevue/card'
 import Button from 'primevue/button'
@@ -15,87 +14,24 @@ import Tab from 'primevue/tab'
 import TabPanels from 'primevue/tabpanels'
 import TabPanel from 'primevue/tabpanel'
 import Dialog from 'primevue/dialog'
-import ProgressSpinner from 'primevue/progressspinner'
 
 const activeTab = ref('0')
-const queryLogs = ref<RagQueryLog[]>([])
-const totalLogs = ref(0)
-const logsPage = ref(1)
-const logsLoading = ref(false)
-const selectedQuery = ref<RagQueryLog | null>(null)
-const showDetailDialog = ref(false)
 
-async function loadQueryLogs() {
-  logsLoading.value = true
-  try {
-    const result = await analyticsApi.getRagQueryLogs({
-      page: logsPage.value,
-      pageSize: 25
-    })
-    queryLogs.value = result.logs
-    totalLogs.value = result.total
-  } catch (error) {
-    console.error('Error loading query logs:', error)
-  } finally {
-    logsLoading.value = false
-  }
-}
-
-function onLogsPageChange(event: { page: number }) {
-  logsPage.value = event.page + 1
-  loadQueryLogs()
-}
-
-function viewQueryDetail(query: RagQueryLog) {
-  selectedQuery.value = query
-  showDetailDialog.value = true
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleString('es-ES', {
-    dateStyle: 'short',
-    timeStyle: 'medium'
-  })
-}
-
-function formatLatency(ms: number): string {
-  if (ms < 1000) return `${ms}ms`
-  return `${(ms / 1000).toFixed(2)}s`
-}
-
-function getFeedbackSeverity(feedback: string | null | undefined): 'success' | 'danger' | 'secondary' {
-  if (feedback === 'positive') return 'success'
-  if (feedback === 'negative') return 'danger'
-  return 'secondary'
-}
-
-function getFeedbackLabel(feedback: string | null | undefined): string {
-  if (feedback === 'positive') return 'Positivo'
-  if (feedback === 'negative') return 'Negativo'
-  return 'Sin feedback'
-}
-
-async function handleExport(format: 'csv' | 'json') {
-  try {
-    const blob = await analyticsApi.exportData({
-      type: 'rag_queries',
-      format
-    })
-
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `rag_queries.${format}`
-    a.click()
-    URL.revokeObjectURL(url)
-  } catch (error) {
-    console.error('Error exporting data:', error)
-  }
-}
-
-onMounted(() => {
-  loadQueryLogs()
-})
+const {
+  queryLogs,
+  totalLogs,
+  logsLoading,
+  selectedQuery,
+  showDetailDialog,
+  loadQueryLogs,
+  onLogsPageChange,
+  viewQueryDetail,
+  handleExport,
+  formatDate,
+  formatLatency,
+  getFeedbackSeverity,
+  getFeedbackLabel
+} = useRagDashboard()
 </script>
 
 <template>

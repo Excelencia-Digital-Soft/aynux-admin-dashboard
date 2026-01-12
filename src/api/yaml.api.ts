@@ -22,7 +22,8 @@ class YamlApi {
 
   // CRUD Operations
   async list(params: YamlListParams = {}): Promise<PaginatedYamlResponse> {
-    const response = await apiClient.get(this.basePath, { params })
+    // Note: Backend expects trailing slash for list endpoint
+    const response = await apiClient.get(`${this.basePath}/`, { params })
     return response.data
   }
 
@@ -32,7 +33,8 @@ class YamlApi {
   }
 
   async create(prompt: CreateYamlRequest): Promise<YamlPrompt> {
-    const response = await apiClient.post(this.basePath, prompt)
+    // Note: Backend expects trailing slash for create endpoint
+    const response = await apiClient.post(`${this.basePath}/`, prompt)
     return response.data
   }
 

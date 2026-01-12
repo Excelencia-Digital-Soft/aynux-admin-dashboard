@@ -1,9 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { useKnowledge } from '@/composables/useKnowledge'
-import { useAuthStore } from '@/stores/auth.store'
-import { agentKnowledgeApi } from '@/api/agentKnowledge.api'
+import { useKnowledgeBasePage } from '@/composables/useKnowledgeBasePage'
 import { KNOWLEDGE_SOURCE_OPTIONS } from '@/utils/constants'
 import DocumentBrowser from '@/components/documents/DocumentBrowser.vue'
 import AdvancedSearch from '@/components/documents/AdvancedSearch.vue'
@@ -19,85 +15,18 @@ import Button from 'primevue/button'
 import Select from 'primevue/select'
 import ProgressSpinner from 'primevue/progressspinner'
 
-const router = useRouter()
-const route = useRoute()
-const authStore = useAuthStore()
-const { fetchDocuments } = useKnowledge()
-
-const activeTab = ref('0')
-
-// Source filtering - Initialize from URL query params
-const selectedSource = ref((route.query.source as string) || 'all')
-const selectedAgentKey = ref((route.query.agent as string) || '')
-const availableAgents = ref<Array<{ value: string; label: string }>>([])
-const loadingAgents = ref(false)
-
-// Sync filter changes to URL
-watch([selectedSource, selectedAgentKey], ([source, agent]) => {
-  const query: Record<string, string> = {}
-  if (source && source !== 'all') query.source = source
-  if (agent) query.agent = agent
-  router.replace({ query })
-})
-
-// Computed
-const currentOrgId = computed(() => authStore.currentOrganization?.id || '')
-const showAgentSelector = computed(() => selectedSource.value === 'agent')
-
-// Format agent key to display label
-function formatAgentLabel(agentKey: string): string {
-  return agentKey.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-}
-
-// Fetch available agents
-async function fetchAgents() {
-  if (availableAgents.value.length > 0) return
-
-  loadingAgents.value = true
-  try {
-    const response = await agentKnowledgeApi.getAvailableAgents()
-    availableAgents.value = response.agents.map((agentKey) => ({
-      value: agentKey,
-      label: formatAgentLabel(agentKey)
-    }))
-  } catch (error) {
-    console.error('Error fetching agents:', error)
-  } finally {
-    loadingAgents.value = false
-  }
-}
-
-// Watch for source changes
-watch(selectedSource, (newSource) => {
-  if (newSource === 'agent') {
-    fetchAgents()
-  } else {
-    selectedAgentKey.value = ''
-  }
-})
-
-function handleSearchSelect(docId: string) {
-  // Switch to browse tab and highlight document
-  activeTab.value = '0'
-}
-
-function handleSelectAgentFromDashboard(agentKey: string) {
-  selectedSource.value = 'agent'
-  selectedAgentKey.value = agentKey
-  activeTab.value = '0' // Switch to Explorar tab
-}
-
-function goToUpload() {
-  router.push('/upload-documents')
-}
-
-onMounted(() => {
-  fetchDocuments()
-  // If source is 'agent' from URL, load agents
-  if (selectedSource.value === 'agent') {
-    fetchAgents()
-  }
-})
+const {
+  activeTab,
+  selectedSource,
+  selectedAgentKey,
+  availableAgents,
+  loadingAgents,
+  currentOrgId,
+  showAgentSelector,
+  handleSearchSelect,
+  handleSelectAgentFromDashboard,
+  goToUpload
+} = useKnowledgeBasePage()
 </script>
 
 <template>

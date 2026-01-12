@@ -190,6 +190,7 @@ async function handleSave() {
       <Button label="Cancelar" severity="secondary" @click="handleClose" />
       <Button
         label="Guardar"
+        severity="success"
         @click="handleSave"
         :loading="isLoading"
         :disabled="!canSave"

@@ -179,6 +179,7 @@ watch(() => streamingContent.value, scrollToBottom)
       />
       <Button
         icon="pi pi-send"
+        severity="primary"
         :disabled="!messageInput.trim() || isLoading"
         :loading="isLoading"
         @click="handleSend"

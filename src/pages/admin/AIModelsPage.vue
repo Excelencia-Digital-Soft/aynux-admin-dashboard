@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useToast } from 'primevue/usetoast'
-import { aiModelsApi, type AIModel, type AIModelFilters } from '@/api/aiModels.api'
+import { useAIModelsAdmin } from '@/composables/useAIModelsAdmin'
 
 import Card from 'primevue/card'
 import Button from 'primevue/button'
@@ -17,167 +15,23 @@ import Textarea from 'primevue/textarea'
 import Message from 'primevue/message'
 import ProgressSpinner from 'primevue/progressspinner'
 
-const toast = useToast()
-
-// State
-const models = ref<AIModel[]>([])
-const loading = ref(false)
-const seeding = ref(false)
-const editDialogVisible = ref(false)
-const editingModel = ref<AIModel | null>(null)
-
-// Filters
-const filters = ref<AIModelFilters>({
-  provider: undefined,
-  model_type: undefined,
-  enabled_only: false
-})
-
-// Stats
-const stats = computed(() => ({
-  total: models.value.length,
-  enabled: models.value.filter(m => m.is_enabled).length,
-  disabled: models.value.filter(m => !m.is_enabled).length
-}))
-
-// Provider options for filter
-const providerOptions = [
-  { value: undefined, label: 'Todos los proveedores' },
-  { value: 'vllm', label: 'vLLM (Local)' },
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'anthropic', label: 'Anthropic' },
-  { value: 'deepseek', label: 'DeepSeek' },
-  { value: 'groq', label: 'Groq' }
-]
-
-// Type options for filter
-const typeOptions = [
-  { value: undefined, label: 'Todos los tipos' },
-  { value: 'llm', label: 'LLM' },
-  { value: 'embedding', label: 'Embedding' }
-]
-
-// Provider colors for tags
-function providerSeverity(provider: string): 'success' | 'info' | 'warn' | 'danger' | 'secondary' {
-  const colors: Record<string, 'success' | 'info' | 'warn' | 'danger' | 'secondary'> = {
-    vllm: 'success',
-    openai: 'info',
-    anthropic: 'warn',
-    deepseek: 'secondary',
-    groq: 'danger'
-  }
-  return colors[provider] || 'secondary'
-}
-
-// Fetch models
-async function fetchModels() {
-  loading.value = true
-  try {
-    const response = await aiModelsApi.list(filters.value)
-    models.value = response.models
-  } catch (error) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'No se pudieron cargar los modelos',
-      life: 3000
-    })
-  } finally {
-    loading.value = false
-  }
-}
-
-// Seed external models
-async function seedExternal() {
-  seeding.value = true
-  try {
-    const result = await aiModelsApi.seedExternal()
-    toast.add({
-      severity: 'success',
-      summary: 'Modelos externos agregados',
-      detail: `${result.added} nuevos, ${result.skipped} ya existian`,
-      life: 5000
-    })
-    await fetchModels()
-  } catch (error) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'No se pudieron agregar los modelos externos',
-      life: 3000
-    })
-  } finally {
-    seeding.value = false
-  }
-}
-
-// Toggle model enabled
-async function toggleModel(model: AIModel) {
-  try {
-    const updated = await aiModelsApi.toggle(model.id)
-    const index = models.value.findIndex(m => m.id === model.id)
-    if (index !== -1) {
-      models.value[index] = updated
-    }
-    toast.add({
-      severity: 'info',
-      summary: updated.is_enabled ? 'Modelo habilitado' : 'Modelo deshabilitado',
-      detail: model.display_name,
-      life: 2000
-    })
-  } catch (error) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'No se pudo actualizar el modelo',
-      life: 3000
-    })
-  }
-}
-
-// Edit model
-function openEditDialog(model: AIModel) {
-  editingModel.value = { ...model }
-  editDialogVisible.value = true
-}
-
-async function saveModel() {
-  if (!editingModel.value) return
-
-  try {
-    const updated = await aiModelsApi.update(editingModel.value.id, {
-      display_name: editingModel.value.display_name,
-      description: editingModel.value.description ?? undefined,
-      sort_order: editingModel.value.sort_order,
-      is_default: editingModel.value.is_default
-    })
-
-    const index = models.value.findIndex(m => m.id === editingModel.value?.id)
-    if (index !== -1) {
-      models.value[index] = updated
-    }
-
-    toast.add({
-      severity: 'success',
-      summary: 'Modelo actualizado',
-      detail: updated.display_name,
-      life: 2000
-    })
-
-    editDialogVisible.value = false
-    editingModel.value = null
-  } catch (error) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'No se pudo guardar el modelo',
-      life: 3000
-    })
-  }
-}
-
-// Initialize
-onMounted(fetchModels)
+const {
+  models,
+  loading,
+  seeding,
+  editDialogVisible,
+  editingModel,
+  filters,
+  stats,
+  providerOptions,
+  typeOptions,
+  providerSeverity,
+  fetchModels,
+  seedExternal,
+  toggleModel,
+  openEditDialog,
+  saveModel
+} = useAIModelsAdmin()
 </script>
 
 <template>
@@ -401,7 +255,7 @@ onMounted(fetchModels)
 
       <template #footer>
         <Button label="Cancelar" severity="secondary" text @click="editDialogVisible = false" />
-        <Button label="Guardar" icon="pi pi-check" @click="saveModel" />
+        <Button label="Guardar" icon="pi pi-check" severity="success" @click="saveModel" />
       </template>
     </Dialog>
   </div>

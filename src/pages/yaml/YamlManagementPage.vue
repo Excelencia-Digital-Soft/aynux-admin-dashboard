@@ -11,23 +11,25 @@
         </p>
       </div>
       <div class="header-actions">
-        <Button 
-          @click="navigateToCreate" 
-          icon="pi pi-plus" 
+        <Button
+          @click="navigateToCreate"
+          icon="pi pi-plus"
           label="Nuevo Template"
-          class="p-button-outlined"
+          severity="primary"
         />
-        <Button 
-          @click="exportTemplates" 
-          icon="pi pi-download" 
+        <Button
+          @click="exportTemplates"
+          icon="pi pi-download"
           label="Exportar"
-          class="p-button-secondary"
+          severity="secondary"
+          variant="outlined"
         />
-        <Button 
-          @click="importTemplates" 
-          icon="pi pi-upload" 
+        <Button
+          @click="importTemplates"
+          icon="pi pi-upload"
           label="Importar"
-          class="p-button-secondary"
+          severity="secondary"
+          variant="outlined"
         />
       </div>
     </div>
@@ -84,30 +86,27 @@
           
           <div class="field">
             <label for="search" class="block text-sm font-medium mb-2">Buscar</label>
-            <span class="p-input-icon-left w-full">
-              <i class="pi pi-search" />
-              <InputText 
+            <IconField class="w-full">
+              <InputIcon class="pi pi-search" />
+              <InputText
                 id="search"
-                v-model="filters.search" 
-                placeholder="Buscar por nombre, key o descripción..." 
+                v-model="filters.search"
+                placeholder="Buscar por nombre, key o descripción..."
                 class="w-full"
               />
-            </span>
+            </IconField>
           </div>
         </div>
         
-        <div class="flex justify-end mt-4 space-x-2">
-          <Button 
-            @click="clearFilters" 
-            icon="pi pi-times" 
+        <div class="flex justify-between items-center mt-4">
+          <span class="text-sm text-muted">
+            Mostrando {{ prompts.length }} de {{ pagination.total }} templates
+          </span>
+          <Button
+            @click="clearFilters"
+            icon="pi pi-times"
             label="Limpiar Filtros"
             severity="secondary"
-            size="small"
-          />
-          <Button 
-            @click="applyFilters" 
-            icon="pi pi-search" 
-            label="Aplicar Filtros"
             size="small"
           />
         </div>
@@ -268,37 +267,39 @@
             <template #body="{data}">
               <div class="flex space-x-1">
                 <Button
-                  @click="editPrompt(data.key)"
+                  @click.exact="editPrompt(data.key)"
+                  @click.ctrl="editPromptInNewTab(data.key)"
+                  @click.meta="editPromptInNewTab(data.key)"
                   icon="pi pi-pencil"
                   size="small"
                   severity="secondary"
                   :disabled="!!isPromptLocked(data.key)"
-                  v-tooltip="'Editar'"
+                  v-tooltip="'Editar (Ctrl+click: nueva pestaña)'"
                 />
-                <Button 
-                  @click="previewPrompt(data.key)" 
-                  icon="pi pi-eye" 
+                <Button
+                  @click="previewPrompt(data.key)"
+                  icon="pi pi-eye"
                   size="small"
                   severity="info"
                   v-tooltip="'Vista previa'"
                 />
-                <Button 
-                  @click="testPrompt(data.key)" 
-                  icon="pi pi-play" 
+                <Button
+                  @click="testPrompt(data.key)"
+                  icon="pi pi-play"
                   size="small"
                   severity="help"
                   v-tooltip="'Test'"
                 />
-                <Button 
-                  @click="viewVersions(data.key)" 
-                  icon="pi pi-history" 
+                <Button
+                  @click="viewVersions(data.key)"
+                  icon="pi pi-history"
                   size="small"
                   severity="secondary"
-                  v-tooltip="'Versiones'"
+                  v-tooltip="'Historial'"
                 />
-                <Button 
-                  @click="togglePrompt(data.key, !data.active)" 
-                  :icon="data.active ? 'pi pi-eye-slash' : 'pi pi-eye'" 
+                <Button
+                  @click="togglePrompt(data.key, !data.active)"
+                  :icon="data.active ? 'pi pi-eye-slash' : 'pi pi-eye'"
                   size="small"
                   :severity="data.active ? 'danger' : 'success'"
                   v-tooltip="data.active ? 'Desactivar' : 'Activar'"
@@ -352,35 +353,53 @@
     />
 
     <!-- Test Dialog -->
-    <Dialog 
-      v-model:visible="showTestDialog" 
+    <Dialog
+      v-model:visible="showTestDialog"
       header="Test Prompt"
-      :style="{ width: '90vw' }"
+      :style="{ width: '90vw', maxWidth: '1200px' }"
       :maximizable="true"
       modal
       @update:visible="showTestDialog = false"
     >
-      <YamlTestDialog 
+      <YamlTestDialog
         v-if="showTestDialog && testPromptKey"
         :visible="showTestDialog"
         :promptKey="testPromptKey"
         @close="showTestDialog = false"
       />
     </Dialog>
+
+    <!-- Preview Dialog -->
+    <Dialog
+      v-model:visible="showPreviewDialog"
+      header="Vista Previa del Template"
+      :style="{ width: '80vw', maxWidth: '900px' }"
+      :maximizable="true"
+      modal
+      @update:visible="showPreviewDialog = false"
+    >
+      <YamlPreview
+        v-if="showPreviewDialog && previewTemplate"
+        :template="previewTemplate"
+        @close="showPreviewDialog = false"
+      />
+    </Dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import { storeToRefs } from 'pinia'
 import { useYamlStore } from '@/stores/yaml.store'
 import { useAuthStore } from '@/stores/auth.store'
 import YamlTestDialog from './components/YamlTestDialog.vue'
+import YamlPreview from './components/YamlPreview.vue'
 import type { YamlPrompt } from '@/types/yaml.types'
 import dayjs from 'dayjs'
 import { useConfirm } from '@/composables/useConfirm'
+import { useDebounceFn } from '@vueuse/core'
 
 // PrimeVue components
 import Button from 'primevue/button'
@@ -391,6 +410,8 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Tag from 'primevue/tag'
 import Dialog from 'primevue/dialog'
+import IconField from 'primevue/iconfield'
+import InputIcon from 'primevue/inputicon'
 
 const router = useRouter()
 const toast = useToast()
@@ -403,6 +424,9 @@ const selectedPrompts = ref<YamlPrompt[]>([])
 const fileInput = ref<HTMLInputElement>()
 const showTestDialog = ref(false)
 const testPromptKey = ref('')
+const showPreviewDialog = ref(false)
+const previewPromptKey = ref('')
+const previewTemplate = ref<any>(null)
 
 // Store state (use storeToRefs for reactivity)
 const {
@@ -500,8 +524,37 @@ function editPrompt(key: string) {
   router.push(`/yaml-management/edit/${key}`)
 }
 
-function previewPrompt(key: string) {
-  router.push(`/yaml-management/preview/${key}`)
+function editPromptInNewTab(key: string) {
+  window.open(`/yaml-management/edit/${key}`, '_blank')
+}
+
+async function previewPrompt(key: string) {
+  previewPromptKey.value = key
+  // Find the prompt in the list
+  const prompt = prompts.value.find(p => p.key === key)
+  if (prompt) {
+    // Parse the template YAML to create a structure for YamlPreview
+    try {
+      previewTemplate.value = {
+        prompts: [{
+          key: prompt.key,
+          name: prompt.name,
+          description: prompt.description,
+          version: prompt.version,
+          template: prompt.template,
+          metadata: prompt.metadata
+        }]
+      }
+      showPreviewDialog.value = true
+    } catch (e) {
+      toast.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'No se pudo cargar la vista previa',
+        life: 3000
+      })
+    }
+  }
 }
 
 function testPrompt(key: string) {
@@ -541,10 +594,19 @@ async function togglePrompt(key: string, active: boolean) {
   }
 }
 
-// Filter operations
-function applyFilters() {
+// Filter operations with debounce for reactive filtering
+const debouncedFetchPrompts = useDebounceFn(() => {
   yamlStore.fetchPrompts()
-}
+}, 300)
+
+// Watch filters for automatic fetching
+watch(
+  () => [filters.value.domain, filters.value.source, filters.value.active, filters.value.search],
+  () => {
+    debouncedFetchPrompts()
+  },
+  { deep: true }
+)
 
 function clearFilters() {
   yamlStore.setFilters({
@@ -553,9 +615,6 @@ function clearFilters() {
     active: null,
     search: '',
     tags: []
-  })
-  nextTick(() => {
-    yamlStore.fetchPrompts()
   })
 }
 

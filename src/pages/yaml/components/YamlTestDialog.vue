@@ -1,6 +1,6 @@
 <template>
-  <Dialog 
-    v-model:visible="visible" 
+  <Dialog
+    v-model:visible="visible"
     header="Test Prompt"
     :style="{ width: '90vw', maxWidth: '1200px' }"
     :maximizable="true"
@@ -12,21 +12,25 @@
       <Card class="mb-4">
         <template #title>
           <i class="pi pi-info-circle"></i>
-          Información del Prompt
+          Informacion del Prompt
         </template>
         <template #content>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <strong>Key:</strong>
               <Tag :value="promptKey" severity="secondary" class="ml-2" />
             </div>
             <div>
-              <strong>Modelo:</strong>
-              <Tag :value="currentPrompt?.metadata.model" class="ml-2" />
+              <strong>Dominio:</strong>
+              <Tag :value="promptDomain" severity="info" class="ml-2" />
             </div>
             <div>
-              <strong>Tokens máximos:</strong>
-              <span class="ml-2">{{ currentPrompt?.metadata.max_tokens }}</span>
+              <strong>Modelo:</strong>
+              <Tag :value="currentPrompt?.metadata?.model || 'default'" class="ml-2" />
+            </div>
+            <div>
+              <strong>Tokens maximos:</strong>
+              <span class="ml-2">{{ currentPrompt?.metadata?.max_tokens || 2048 }}</span>
             </div>
           </div>
         </template>
@@ -35,65 +39,85 @@
       <!-- Test Variables -->
       <Card class="mb-4">
         <template #title>
-          <i class="pi pi-sliders-h"></i>
-          Variables de Prueba
+          <div class="flex items-center justify-between w-full">
+            <span>
+              <i class="pi pi-sliders-h"></i>
+              Variables de Prueba
+              <Tag
+                v-if="availableVariables.length > 0"
+                :value="`${availableVariables.length} variables`"
+                severity="secondary"
+                class="ml-2"
+              />
+            </span>
+            <Button
+              v-if="availableVariables.length > 0"
+              @click="autoFillAllVariables"
+              icon="pi pi-bolt"
+              label="Auto-completar"
+              severity="success"
+              size="small"
+            />
+          </div>
         </template>
         <template #content>
           <div v-if="availableVariables.length > 0">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div 
-                v-for="variable in availableVariables" 
+              <div
+                v-for="variable in availableVariables"
                 :key="variable.name"
                 class="variable-field"
               >
                 <label :for="variable.name" class="block text-sm font-medium mb-2">
                   {{ variable.name }}
                   <span v-if="variable.required" class="text-red-500">*</span>
-                  <Tag 
+                  <Tag
                     v-if="variable.type"
-                    :value="variable.type" 
-                    severity="info" 
+                    :value="variable.type"
+                    severity="info"
                     size="small"
                     class="ml-2"
                   />
                 </label>
-                
-                <div v-if="variable.name.includes('template') || variable.name.includes('text')">
-                  <Textarea 
+
+                <div v-if="isLargeTextField(variable)">
+                  <Textarea
                     :id="variable.name"
-                    v-model="testData.variables[variable.name]" 
-                    :placeholder="getPlaceholder(variable)"
+                    v-model="testData.variables[variable.name]"
+                    :placeholder="variable.example"
                     rows="4"
                     class="w-full"
                   />
                 </div>
-                
+
                 <div v-else>
-                  <InputText 
+                  <InputText
                     :id="variable.name"
-                    v-model="testData.variables[variable.name]" 
-                    :placeholder="getPlaceholder(variable)"
+                    v-model="testData.variables[variable.name]"
+                    :placeholder="variable.example"
                     class="w-full"
                   />
                 </div>
-                
-                <small v-if="variable.example" class="text-muted">
-                  Ejemplo: {{ variable.example }}
-                </small>
-                
-                <Button 
-                  @click="setExampleValue(variable)" 
-                  icon="pi pi-lightbulb" 
-                  size="small"
-                  severity="secondary"
-                  label="Usar ejemplo"
-                  class="mt-1"
-                />
+
+                <div class="flex items-center gap-2 mt-1">
+                  <small v-if="variable.example" class="text-muted flex-1">
+                    Ej: {{ truncateExample(variable.example) }}
+                  </small>
+                  <Button
+                    @click="setExampleValue(variable)"
+                    icon="pi pi-lightbulb"
+                    size="small"
+                    severity="secondary"
+                    text
+                    v-tooltip="'Usar ejemplo'"
+                  />
+                </div>
               </div>
             </div>
           </div>
-          
+
           <div v-else class="text-muted text-center py-4">
+            <i class="pi pi-info-circle mr-2"></i>
             No se detectaron variables en este template
           </div>
         </template>
@@ -103,10 +127,10 @@
       <Card class="mb-4">
         <template #title>
           <i class="pi pi-cog"></i>
-          Configuración de Test
+          Configuracion de Test
         </template>
         <template #content>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="field">
               <label for="model">Modelo para test</label>
               <Select
@@ -115,39 +139,40 @@
                 :options="modelOptions"
                 optionLabel="label"
                 optionValue="value"
+                placeholder="Seleccionar modelo"
                 class="w-full"
               />
             </div>
-            
+
             <div class="field">
               <label for="temperature">Temperature</label>
-              <InputNumber 
+              <InputNumber
                 id="temperature"
-                v-model="testConfig.temperature" 
-                :min="0" 
-                :max="2" 
+                v-model="testConfig.temperature"
+                :min="0"
+                :max="2"
                 :step="0.1"
                 class="w-full"
               />
             </div>
-            
+
             <div class="field">
               <label for="max_tokens">Max Tokens</label>
-              <InputNumber 
+              <InputNumber
                 id="max_tokens"
-                v-model="testConfig.max_tokens" 
-                :min="1" 
+                v-model="testConfig.max_tokens"
+                :min="1"
                 :max="4000"
                 class="w-full"
               />
             </div>
-            
+
             <div class="field">
               <label for="timeout">Timeout (segundos)</label>
-              <InputNumber 
+              <InputNumber
                 id="timeout"
-                v-model="testConfig.timeout" 
-                :min="5" 
+                v-model="testConfig.timeout"
+                :min="5"
                 :max="120"
                 class="w-full"
               />
@@ -158,21 +183,21 @@
 
       <!-- Test Actions -->
       <div class="test-actions mb-4">
-        <Button 
-          @click="loadPresetValues" 
-          icon="pi pi-refresh" 
+        <Button
+          @click="loadPresetValues"
+          icon="pi pi-refresh"
           label="Cargar preset"
           severity="secondary"
         />
-        <Button 
-          @click="clearAllValues" 
-          icon="pi pi-times" 
+        <Button
+          @click="clearAllValues"
+          icon="pi pi-times"
           label="Limpiar valores"
           severity="secondary"
         />
-        <Button 
-          @click="executeTest" 
-          icon="pi pi-play" 
+        <Button
+          @click="executeTest"
+          icon="pi pi-play"
           label="Ejecutar Test"
           :loading="testing"
           :disabled="!canTest"
@@ -192,26 +217,26 @@
               <div class="summary-grid">
                 <div>
                   <strong>Estado:</strong>
-                  <Tag 
-                    :value="testResult.success ? 'Exitoso' : 'Fallido'" 
+                  <Tag
+                    :value="testResult.success ? 'Exitoso' : 'Fallido'"
                     :severity="testResult.success ? 'success' : 'danger'"
                     class="ml-2"
                   />
                 </div>
                 <div>
-                  <strong>Tiempo de ejecución:</strong>
-                  <span class="ml-2">{{ testResult.execution_time }}ms</span>
+                  <strong>Tiempo de ejecucion:</strong>
+                  <span class="ml-2">{{ Math.round(testResult.execution_time) }}ms</span>
                 </div>
                 <div v-if="testResult.token_usage">
                   <strong>Tokens usados:</strong>
                   <span class="ml-2">{{ testResult.token_usage.total_tokens }}</span>
                   <small class="text-muted">
-                    ({{ testResult.token_usage.prompt_tokens }} prompt + 
+                    ({{ testResult.token_usage.prompt_tokens }} prompt +
                     {{ testResult.token_usage.completion_tokens }} completion)
                   </small>
                 </div>
               </div>
-              
+
               <div v-if="testResult.errors && testResult.errors.length > 0" class="errors mt-3">
                 <Message severity="error" :closable="false">
                   <div v-for="error in testResult.errors" :key="error" class="mb-1">
@@ -232,9 +257,9 @@
           <template #content>
             <div class="rendered-template">
               <pre>{{ testResult.rendered_prompt }}</pre>
-              <Button 
-                @click="copyToClipboard(testResult.rendered_prompt)" 
-                icon="pi pi-copy" 
+              <Button
+                @click="copyToClipboard(testResult.rendered_prompt)"
+                icon="pi pi-copy"
                 size="small"
                 severity="secondary"
                 label="Copiar"
@@ -253,9 +278,9 @@
           <template #content>
             <div class="model-response">
               <pre>{{ testResult.model_response }}</pre>
-              <Button 
-                @click="copyToClipboard(testResult.model_response)" 
-                icon="pi pi-copy" 
+              <Button
+                @click="copyToClipboard(testResult.model_response)"
+                icon="pi pi-copy"
                 size="small"
                 severity="secondary"
                 label="Copiar"
@@ -268,8 +293,8 @@
     </div>
 
     <template #footer>
-      <Button 
-        @click="handleClose" 
+      <Button
+        @click="handleClose"
         label="Cerrar"
         severity="secondary"
         icon="pi pi-times"
@@ -280,10 +305,28 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useToast } from 'primevue/usetoast'
 import { useYamlStore } from '@/stores/yaml.store'
 import { useAIModels } from '@/composables/useAIModels'
-import type { PromptVersion, TestResult } from '@/types/yaml.types'
+
+// PrimeVue components
+import Dialog from 'primevue/dialog'
+import Card from 'primevue/card'
+import Button from 'primevue/button'
+import InputText from 'primevue/inputtext'
+import Textarea from 'primevue/textarea'
+import Select from 'primevue/select'
+import InputNumber from 'primevue/inputnumber'
+import Tag from 'primevue/tag'
+import Message from 'primevue/message'
+
+interface VariableDefinition {
+  name: string
+  required: boolean
+  type: string
+  example: string
+}
 
 interface Props {
   visible: boolean
@@ -298,19 +341,19 @@ const emit = defineEmits<{
 const toast = useToast()
 const yamlStore = useYamlStore()
 
-// AI Models from database (replaces hardcoded list)
-const { simpleOptions: modelOptions, defaultModel } = useAIModels()
+// AI Models from database
+const { simpleOptions: modelOptions } = useAIModels()
 
-// Store getters
-const { currentPrompt, versions, testResult } = yamlStore
+// Store getters - use storeToRefs for reactivity
+const { currentPrompt, testResult } = storeToRefs(yamlStore)
 
 // Component state
 const visible = ref(props.visible)
 const testing = ref(false)
-const availableVariables = ref<Array<{ name: string; required: boolean; type?: string; example?: string }>>([])
+const availableVariables = ref<VariableDefinition[]>([])
 
 const testData = ref({
-  variables: {} as Record<string, any>,
+  variables: {} as Record<string, string>,
   context: {
     user_id: 'test-user',
     tenant_id: 'test-tenant',
@@ -319,130 +362,328 @@ const testData = ref({
 })
 
 const testConfig = ref({
-  model: 'gpt-3.5-turbo',
+  model: 'default',
   temperature: 0.7,
   max_tokens: 1000,
   timeout: 30
 })
 
-// modelOptions is now provided by useAIModels() composable above
-
 // Computed
-const canTest = computed(() => {
-  // Check if all required variables have values
-  const requiredVariables = availableVariables.value.filter(v => v.required)
-  return requiredVariables.every(v => testData.value.variables[v.name])
+const promptDomain = computed(() => {
+  return currentPrompt.value?.metadata?.domain || props.promptKey.split('.')[0] || 'core'
 })
 
-// Methods
+const canTest = computed(() => {
+  const requiredVariables = availableVariables.value.filter(v => v.required)
+  return requiredVariables.every(v => testData.value.variables[v.name]?.trim())
+})
+
+// ============================================
+// INTELLIGENT VARIABLE TYPE INFERENCE
+// ============================================
+function inferVariableType(varName: string, domain: string): string {
+  const name = varName.toLowerCase()
+
+  // Pattern-based type detection
+  const patterns: Record<string, string[]> = {
+    email: ['email', 'mail', 'correo'],
+    phone: ['phone', 'telefono', 'celular', 'mobile', 'whatsapp'],
+    date: ['date', 'fecha', 'due_date', 'created_at', 'updated_at', 'expiry'],
+    time: ['time', 'hora', 'timestamp'],
+    number: ['amount', 'quantity', 'count', 'total', 'balance', 'limit', 'price', 'cantidad', 'monto', 'saldo', 'debt', 'credit'],
+    currency: ['currency', 'moneda'],
+    boolean: ['is_', 'has_', 'can_', 'should_', 'awaiting_', 'identified', 'enabled', 'active'],
+    json: ['_json', '_context', '_info', '_data', 'history', 'results', 'options', 'config', 'schema', 'intent'],
+    text: ['message', 'description', 'query', 'template', 'content', 'summary', 'text', 'response', 'prompt']
+  }
+
+  for (const [type, keywords] of Object.entries(patterns)) {
+    if (keywords.some(kw => name.includes(kw))) {
+      return type
+    }
+  }
+
+  // Domain-specific inference
+  if (domain === 'credit' && (name.includes('debt') || name.includes('payment'))) return 'number'
+  if (domain === 'pharmacy' && name.includes('medication')) return 'text'
+  if (domain === 'ecommerce' && name.includes('product')) return 'json'
+
+  return 'string'
+}
+
+// ============================================
+// SMART EXAMPLE GENERATOR
+// ============================================
+function generateSmartExample(varName: string, domain: string): string {
+  const name = varName.toLowerCase()
+  const type = inferVariableType(varName, domain)
+
+  // Exact name matches (highest priority)
+  const exactExamples: Record<string, string> = {
+    // Identity
+    'customer_name': 'Maria Garcia',
+    'user_name': 'Carlos Lopez',
+    'name': 'Juan Perez',
+    'pharmacy_name': 'Farmacia Central',
+    'company': 'Empresa S.A.',
+    'agent_name': 'Asistente Virtual',
+
+    // Contact
+    'email': 'cliente@ejemplo.com',
+    'phone': '+54 11 1234-5678',
+    'whatsapp': '+5491112345678',
+
+    // Financial
+    'balance': '15,420.50',
+    'total_debt': '3,250.00',
+    'credit_limit': '50,000.00',
+    'available': '34,579.50',
+    'amount': '1,500.00',
+    'price': '299.99',
+
+    // Dates
+    'due_date': formatDate(7),
+    'date': formatDate(0),
+    'expiry_date': formatDate(30),
+
+    // Counters
+    'item_count': '3',
+    'max_results': '10',
+    'quantity': '5',
+
+    // Messages
+    'user_message': 'Hola, necesito ayuda con mi pedido',
+    'user_query': 'Cual es el precio del producto X?',
+    'message': 'Su solicitud ha sido procesada correctamente.',
+    'greeting': 'Bienvenido! En que puedo ayudarte?',
+    'response': 'Gracias por tu consulta. Aqui esta la informacion que solicitaste.',
+
+    // Context and JSON
+    'conversation_history': '[{"role":"user","content":"Hola"},{"role":"assistant","content":"En que puedo ayudarte?"}]',
+    'intent_context': '{"intent":"consulta_producto","confidence":0.95}',
+    'schema_context': '{"tables":["products","categories"],"columns":["id","name","price"]}',
+    'options_reminder': '1. Opcion A\\n2. Opcion B\\n3. Opcion C',
+    'capabilities': '["consulta_precio", "estado_pedido", "soporte_tecnico"]',
+
+    // Status and flags
+    'customer_identified': 'true',
+    'awaiting_confirmation': 'false',
+    'debt_status': 'al_dia',
+    'status': 'activo',
+
+    // Pharmacy specific
+    'medication': 'Paracetamol 500mg',
+    'dosage': '1 comprimido cada 8 horas',
+    'prescription': 'Receta medica #12345',
+
+    // E-commerce specific
+    'product_name': 'Laptop HP 15.6"',
+    'category': 'Tecnologia',
+    'sku': 'PROD-001234',
+    'order_id': 'ORD-2024-001234',
+    'tracking_number': 'TRK-789456123',
+
+    // IDs
+    'customer_id': 'CUST-001234',
+    'session_id': 'SES-' + Date.now(),
+    'tenant_id': 'TEN-001',
+
+    // Summaries
+    'items_summary': '- Producto A (x2): $500\\n- Producto B (x1): $250\\n- Total: $1,250',
+    'order_summary': 'Pedido #12345 - 3 productos - Total: $1,500'
+  }
+
+  // Check exact match
+  if (exactExamples[name]) {
+    return exactExamples[name]
+  }
+
+  // Check partial match (name contains key or vice versa)
+  for (const [key, value] of Object.entries(exactExamples)) {
+    if (name.includes(key) || key.includes(name)) {
+      return value
+    }
+  }
+
+  // Generate based on inferred type
+  const typeGenerators: Record<string, () => string> = {
+    email: () => `${varName.replace(/_/g, '.')}@ejemplo.com`,
+    phone: () => `+54 11 ${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`,
+    date: () => formatDate(0),
+    time: () => new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+    number: () => String(Math.floor(100 + Math.random() * 9900)),
+    currency: () => 'ARS',
+    boolean: () => 'true',
+    json: () => '{}',
+    text: () => `Contenido de ejemplo para ${varName.replace(/_/g, ' ')}`
+  }
+
+  if (typeGenerators[type]) {
+    return typeGenerators[type]()
+  }
+
+  // Domain-specific fallback examples
+  const domainExamples: Record<string, Record<string, string>> = {
+    pharmacy: {
+      'medication': 'Ibuprofeno 400mg',
+      'prescription': 'RX-2024-001',
+      'patient': 'Paciente de ejemplo'
+    },
+    credit: {
+      'account': 'CTA-001234',
+      'payment': '2,500.00',
+      'interest': '12.5%'
+    },
+    ecommerce: {
+      'product': 'Producto de ejemplo',
+      'category': 'Categoria general',
+      'price': '999.99'
+    },
+    excelencia: {
+      'module': 'Inventario',
+      'software': 'Excelencia ERP',
+      'feature': 'Gestion de Stock'
+    },
+    agents: {
+      'objective': 'Ayudar al cliente con su consulta',
+      'personality': 'Amable y profesional',
+      'language': 'espanol'
+    }
+  }
+
+  if (domainExamples[domain]) {
+    for (const [key, value] of Object.entries(domainExamples[domain])) {
+      if (name.includes(key)) {
+        return value
+      }
+    }
+  }
+
+  // Final fallback
+  return `Ejemplo de ${varName.replace(/_/g, ' ')}`
+}
+
+function formatDate(daysFromNow: number): string {
+  const date = new Date()
+  date.setDate(date.getDate() + daysFromNow)
+  return date.toLocaleDateString('es-ES')
+}
+
+// ============================================
+// VARIABLE EXTRACTION (Metadata-first approach)
+// ============================================
 async function extractVariables() {
-  if (!currentPrompt) return
-  
-  const variables: typeof availableVariables.value = []
-  
-  // Extract variables from template content
-  const template = currentPrompt.template
-  const regex = /\{(\w+)\}/g
-  const matches = template.match(regex)
-  
-  if (matches) {
-    const uniqueVars = Array.from(new Set(matches))
-    uniqueVars.forEach((varMatch: string) => {
-      const varName = varMatch.slice(1, -1) // Remove { and }
-      const required = !varName.includes('?')
-      const cleanName = varName.replace('?', '')
-      
+  if (!currentPrompt.value) return
+
+  const variables: VariableDefinition[] = []
+  const domain = promptDomain.value
+
+  // 1. First, use variables from metadata (authoritative source)
+  const metaVars = currentPrompt.value.metadata?.variables || { required: [], optional: [] }
+
+  // Add required variables from metadata
+  if (Array.isArray(metaVars.required)) {
+    metaVars.required.forEach((varName: string) => {
       variables.push({
-        name: cleanName,
-        required,
-        type: inferVariableType(cleanName),
-        example: getExampleValue(cleanName)
+        name: varName,
+        required: true,
+        type: inferVariableType(varName, domain),
+        example: generateSmartExample(varName, domain)
       })
     })
   }
-  
+
+  // Add optional variables from metadata
+  if (Array.isArray(metaVars.optional)) {
+    metaVars.optional.forEach((varName: string) => {
+      variables.push({
+        name: varName,
+        required: false,
+        type: inferVariableType(varName, domain),
+        example: generateSmartExample(varName, domain)
+      })
+    })
+  }
+
+  // 2. If no variables in metadata, extract from template (fallback)
+  if (variables.length === 0 && currentPrompt.value.template) {
+    const template = currentPrompt.value.template
+    const regex = /\{([^{}]+)\}/g
+    const matches = [...template.matchAll(regex)]
+    const seenVars = new Set<string>()
+
+    matches.forEach(match => {
+      const varName = match[1].trim()
+
+      // Skip invalid or duplicate variables
+      if (seenVars.has(varName)) return
+      if (varName.startsWith('"') || varName.includes(':') || varName.includes('.')) return
+
+      seenVars.add(varName)
+
+      const isOptional = varName.includes('?')
+      const cleanName = varName.replace('?', '')
+
+      variables.push({
+        name: cleanName,
+        required: !isOptional,
+        type: inferVariableType(cleanName, domain),
+        example: generateSmartExample(cleanName, domain)
+      })
+    })
+  }
+
   availableVariables.value = variables
-  
-  // Initialize test variables
-  variables.forEach(variable => {
-    if (!testData.value.variables[variable.name]) {
-      testData.value.variables[variable.name] = variable.example || ''
+
+  // Initialize test data with smart examples
+  variables.forEach(v => {
+    if (!testData.value.variables[v.name]) {
+      testData.value.variables[v.name] = v.example
     }
   })
 }
 
-function inferVariableType(variableName: string): string {
-  const name = variableName.toLowerCase()
-  
-  if (name.includes('email') || name.includes('mail')) return 'email'
-  if (name.includes('phone') || name.includes('telefono')) return 'phone'
-  if (name.includes('date') || name.includes('fecha')) return 'date'
-  if (name.includes('time') || name.includes('hora')) return 'time'
-  if (name.includes('number') || name.includes('cantidad') || name.includes('amount')) return 'number'
-  if (name.includes('template') || name.includes('text') || name.includes('description')) return 'text'
-  
-  return 'string'
+// ============================================
+// UI HELPER FUNCTIONS
+// ============================================
+function isLargeTextField(variable: VariableDefinition): boolean {
+  const name = variable.name.toLowerCase()
+  const largeFieldPatterns = ['template', 'text', 'description', 'message', 'content', 'history', 'context', 'summary', 'json', 'prompt', 'response', 'query']
+  return largeFieldPatterns.some(p => name.includes(p)) || variable.type === 'json' || variable.type === 'text'
 }
 
-function getExampleValue(variableName: string): string {
-  const name = variableName.toLowerCase()
-  
-  const examples: Record<string, string> = {
-    'name': 'Juan Pérez',
-    'email': 'juan.perez@ejemplo.com',
-    'phone': '+54 11 1234-5678',
-    'company': 'Empresa S.A.',
-    'product': 'Producto Premium',
-    'objective': 'Ayudar al cliente a resolver su problema técnico',
-    'context': 'El cliente está llamando sobre un problema con su cuenta',
-    'tone': 'profesional y amigable',
-    'language': 'español',
-    'topic': 'Soporte técnico',
-    'question': 'No puedo acceder a mi cuenta, ¿qué debo hacer?',
-    'answer': 'Para acceder a su cuenta, siga estos pasos...',
-    'date': new Date().toLocaleDateString('es-ES'),
-    'time': new Date().toLocaleTimeString('es-ES'),
-    'location': 'Buenos Aires, Argentina',
-    'address': 'Calle Falsa 123, CABA',
-    'order_id': 'ORD-2024-001234',
-    'customer_id': 'CUST-001234',
-    'amount': '1,234.56',
-    'currency': 'ARS',
-    'status': 'activo',
-    'template': 'Este es un ejemplo de template con {variable} para testing.',
-    'description': 'Descripción detallada del producto o servicio.'
-  }
-  
-  return examples[name] || `Valor de ejemplo para ${variableName}`
+function truncateExample(example: string, maxLength = 50): string {
+  if (example.length <= maxLength) return example
+  return example.substring(0, maxLength) + '...'
 }
 
-function getPlaceholder(variable: { name: string; required: boolean }): string {
-  const prefix = variable.required ? 'Requerido: ' : 'Opcional: '
-  return prefix + getExampleValue(variable.name)
+function setExampleValue(variable: VariableDefinition) {
+  testData.value.variables[variable.name] = variable.example
 }
 
-function setExampleValue(variable: { name: string; example?: string }) {
-  testData.value.variables[variable.name] = variable.example || getExampleValue(variable.name)
+function autoFillAllVariables() {
+  const domain = promptDomain.value
+  availableVariables.value.forEach(variable => {
+    testData.value.variables[variable.name] = generateSmartExample(variable.name, domain)
+  })
+
+  toast.add({
+    severity: 'success',
+    summary: 'Completado',
+    detail: `Se han generado ${availableVariables.value.length} valores de ejemplo`,
+    life: 3000
+  })
 }
 
 function loadPresetValues() {
-  availableVariables.value.forEach(variable => {
-    testData.value.variables[variable.name] = getExampleValue(variable.name)
-  })
-  
-  toast.add({
-    severity: 'success',
-    summary: 'Valores cargados',
-    detail: 'Se han cargado valores de ejemplo para todas las variables',
-    life: 3000
-  })
+  autoFillAllVariables()
 }
 
 function clearAllValues() {
   availableVariables.value.forEach(variable => {
     testData.value.variables[variable.name] = ''
   })
-  
+
   toast.add({
     severity: 'info',
     summary: 'Valores limpiados',
@@ -452,16 +693,16 @@ function clearAllValues() {
 }
 
 async function executeTest() {
-  if (!currentPrompt) return
-  
+  if (!currentPrompt.value) return
+
   testing.value = true
-  
+
   try {
     await yamlStore.testPrompt(props.promptKey, {
       variables: testData.value.variables,
       context: testData.value.context
     })
-    
+
     toast.add({
       severity: 'success',
       summary: 'Test ejecutado',
@@ -515,16 +756,16 @@ watch(visible, (newVal) => {
 
 // Lifecycle
 onMounted(async () => {
-  if (props.promptKey && !currentPrompt) {
+  if (props.promptKey && !currentPrompt.value) {
     await yamlStore.fetchPromptByKey(props.promptKey)
   }
-  
-  if (currentPrompt) {
-    // Set default test config from prompt metadata
-    testConfig.value.model = currentPrompt.metadata.model
-    testConfig.value.temperature = currentPrompt.metadata.temperature
-    testConfig.value.max_tokens = currentPrompt.metadata.max_tokens
-    
+
+  if (currentPrompt.value) {
+    // Set default test config from prompt metadata with fallbacks
+    testConfig.value.model = currentPrompt.value.metadata?.model || 'default'
+    testConfig.value.temperature = currentPrompt.value.metadata?.temperature ?? 0.7
+    testConfig.value.max_tokens = currentPrompt.value.metadata?.max_tokens ?? 1000
+
     await extractVariables()
   }
 })
@@ -534,6 +775,13 @@ onMounted(async () => {
 .yaml-test-dialog {
   max-height: 80vh;
   overflow-y: auto;
+}
+
+.variable-field {
+  padding: 0.75rem;
+  background: var(--surface-50);
+  border-radius: 6px;
+  border: 1px solid var(--surface-200);
 }
 
 .variable-field label {
@@ -557,7 +805,8 @@ onMounted(async () => {
   gap: 1rem;
 }
 
-.errors {
+.errors,
+.warnings {
   margin-top: 1rem;
 }
 
@@ -588,7 +837,7 @@ onMounted(async () => {
   .test-actions {
     flex-direction: column;
   }
-  
+
   .test-actions button {
     width: 100%;
   }
