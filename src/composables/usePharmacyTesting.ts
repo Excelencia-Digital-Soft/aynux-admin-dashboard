@@ -5,7 +5,9 @@ import type {
   PharmacyTestMessage,
   PharmacyWebhookConfig,
   ConversationContext,
-  ConversationMessage
+  ConversationMessage,
+  InteractiveButton,
+  InteractiveListItem
 } from '@/api/pharmacy.api'
 import { useToast } from '@/composables/useToast'
 
@@ -89,9 +91,17 @@ export function usePharmacyTesting(options: UsePharmacyTestingOptions = {}) {
 
   /**
    * Send a test message.
+   * Mirrors original webhook: DID determines pharmacy via bypass routing.
    */
   async function sendMessage(): Promise<void> {
     if (!inputMessage.value.trim() || !selectedPharmacy.value) return
+
+    // DID is required - use webhook config did, or fall back to pharmacy's code
+    const did = webhookConfig.value.did || selectedPharmacy.value.code
+    if (!did) {
+      toast.error('Se requiere un DID (número de WhatsApp del negocio)')
+      return
+    }
 
     const userMessage: PharmacyTestMessage = {
       id: `user-${Date.now()}`,
@@ -107,10 +117,11 @@ export function usePharmacyTesting(options: UsePharmacyTestingOptions = {}) {
     isSending.value = true
     try {
       const response = await pharmacyApi.sendTestMessage({
-        pharmacy_id: selectedPharmacy.value.id,
+        whatsapp_phone_number_id: did,
+        phone_number: webhookConfig.value.phoneNumber,
         message: messageText,
         session_id: sessionId.value || undefined,
-        phone_number: webhookConfig.value.phoneNumber
+        pharmacy_id: selectedPharmacy.value.id  // Optional override
       })
 
       if (response) {
@@ -121,7 +132,11 @@ export function usePharmacyTesting(options: UsePharmacyTestingOptions = {}) {
           role: 'assistant',
           content: response.response,
           timestamp: new Date().toISOString(),
-          metadata: response.metadata
+          metadata: response.metadata,
+          // Interactive message data
+          responseType: response.response_type,
+          buttons: response.response_buttons,
+          listItems: response.response_list_items
         }
 
         messages.value.push(assistantMessage)
@@ -140,6 +155,92 @@ export function usePharmacyTesting(options: UsePharmacyTestingOptions = {}) {
     } finally {
       isSending.value = false
     }
+  }
+
+  /**
+   * Send an interactive response (button click or list selection).
+   * Mirrors original webhook: DID determines pharmacy via bypass routing.
+   */
+  async function sendInteractiveResponse(
+    type: 'button_reply' | 'list_reply',
+    id: string,
+    title: string
+  ): Promise<void> {
+    if (!selectedPharmacy.value) return
+
+    // DID is required - use webhook config did, or fall back to pharmacy's code
+    const did = webhookConfig.value.did || selectedPharmacy.value.code
+    if (!did) {
+      toast.error('Se requiere un DID (número de WhatsApp del negocio)')
+      return
+    }
+
+    // Create user message showing the selection
+    const userMessage: PharmacyTestMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: title,
+      timestamp: new Date().toISOString(),
+      interactiveResponse: { type, id, title }
+    }
+
+    messages.value.push(userMessage)
+
+    isSending.value = true
+    try {
+      const response = await pharmacyApi.sendTestMessage({
+        whatsapp_phone_number_id: did,
+        phone_number: webhookConfig.value.phoneNumber,
+        interactive_response: { type, id, title },
+        session_id: sessionId.value || undefined,
+        pharmacy_id: selectedPharmacy.value.id  // Optional override
+      })
+
+      if (response) {
+        sessionId.value = response.session_id
+
+        const assistantMessage: PharmacyTestMessage = {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: response.response,
+          timestamp: new Date().toISOString(),
+          metadata: response.metadata,
+          // Interactive message data
+          responseType: response.response_type,
+          buttons: response.response_buttons,
+          listItems: response.response_list_items
+        }
+
+        messages.value.push(assistantMessage)
+
+        if (response.execution_steps) {
+          executionSteps.value = response.execution_steps
+        }
+        if (response.graph_state) {
+          graphState.value = response.graph_state
+        }
+      }
+    } catch (err) {
+      toast.error('Error al enviar respuesta')
+      messages.value.pop() // Remove user message on error
+      console.error('Error sending interactive response:', err)
+    } finally {
+      isSending.value = false
+    }
+  }
+
+  /**
+   * Handle button click from WhatsApp-style buttons.
+   */
+  async function handleButtonClick(button: InteractiveButton): Promise<void> {
+    await sendInteractiveResponse('button_reply', button.id, button.titulo)
+  }
+
+  /**
+   * Handle list item selection from WhatsApp-style list.
+   */
+  async function handleListSelect(item: InteractiveListItem): Promise<void> {
+    await sendInteractiveResponse('list_reply', item.id, item.titulo)
   }
 
   /**
@@ -330,6 +431,9 @@ export function usePharmacyTesting(options: UsePharmacyTestingOptions = {}) {
     // Actions
     fetchPharmacies,
     sendMessage,
+    sendInteractiveResponse,
+    handleButtonClick,
+    handleListSelect,
     clearSession,
     setQuickMessage,
     updateWebhookConfig,

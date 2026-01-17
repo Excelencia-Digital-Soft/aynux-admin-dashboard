@@ -2,7 +2,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useChatStore } from '@/stores/chat.store'
 import { chatApi } from '@/api/chat.api'
 import { useToast } from '@/composables/useToast'
-import type { ConversationMessage } from '@/types/chat.types'
+import type { ConversationMessage, InteractiveButton, InteractiveListItem } from '@/types/chat.types'
 
 /**
  * Composable for chat visualizer page.
@@ -97,7 +97,11 @@ export function useChatVisualizer(options: UseChatVisualizerOptions = {}) {
       id: result.session_id || crypto.randomUUID(),
       role: 'assistant',
       content: result.response,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      // Include interactive message fields if present
+      responseType: result.response_type,
+      buttons: result.response_buttons,
+      listItems: result.response_list_items
     }
     store.addMessage(assistantMessage)
 
@@ -200,6 +204,42 @@ export function useChatVisualizer(options: UseChatVisualizerOptions = {}) {
   }
 
   /**
+   * Handle click on an interactive button.
+   */
+  async function handleButtonClick(button: InteractiveButton): Promise<void> {
+    await sendInteractiveResponse('button_reply', button.id, button.titulo)
+  }
+
+  /**
+   * Handle selection from an interactive list.
+   */
+  async function handleListSelect(item: InteractiveListItem): Promise<void> {
+    await sendInteractiveResponse('list_reply', item.id, item.titulo)
+  }
+
+  /**
+   * Send an interactive response (button click or list selection).
+   */
+  async function sendInteractiveResponse(
+    type: 'button_reply' | 'list_reply',
+    id: string,
+    title: string
+  ): Promise<void> {
+    // Create a user message showing the selection
+    const userMessage: ConversationMessage = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: title,
+      timestamp: new Date().toISOString(),
+      interactiveResponse: { type, id, title }
+    }
+    store.addMessage(userMessage)
+
+    // Send the message to continue the conversation
+    await sendMessage(title)
+  }
+
+  /**
    * Clear all chat data.
    */
   function clearChat(): void {
@@ -274,6 +314,8 @@ export function useChatVisualizer(options: UseChatVisualizerOptions = {}) {
     sendMessage,
     handleMessageClick,
     handleNodeClick,
+    handleButtonClick,
+    handleListSelect,
     clearChat,
     newThread,
     loadMetrics,

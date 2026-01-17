@@ -231,6 +231,21 @@ export const domainIntentsApi = {
   },
 
   /**
+   * Remove confirmation patterns from an intent
+   */
+  async removeConfirmations(
+    domainKey: DomainKey,
+    intentId: string,
+    patterns: string[]
+  ): Promise<{ success: boolean; count: number; message: string }> {
+    const response = await api.delete<{ success: boolean; count: number; message: string }>(
+      domainPath(domainKey, 'intents', intentId, 'confirmation'),
+      { data: { patterns } }
+    )
+    return response.data
+  },
+
+  /**
    * Seed default intents for a domain (admin operation)
    */
   async seedDefaults(

@@ -36,10 +36,10 @@ function initExpandedState() {
   if (route.path.startsWith('/organizations') || route.path.startsWith('/tenant') || route.path.startsWith('/institution')) {
     expandedKeys.value['multitenant'] = true
   }
-  if (route.path.startsWith('/pharmacy') || route.path.startsWith('/bypass') || route.path.startsWith('/yaml') || route.path.startsWith('/chattigo') || route.path.startsWith('/ai-models') || route.path.startsWith('/agent-catalog') || route.path.startsWith('/domains') || route.path.startsWith('/intent-configs')) {
+  if (route.path.startsWith('/pharmacy') || route.path.startsWith('/bypass') || route.path.startsWith('/yaml') || route.path.startsWith('/chattigo') || route.path.startsWith('/ai-models') || route.path.startsWith('/agent-catalog') || route.path.startsWith('/domains') || route.path.startsWith('/intent-configs') || route.path.startsWith('/workflow-editor')) {
     expandedKeys.value['config'] = true
   }
-  if (route.path.startsWith('/pharmacy-testing') || route.path.startsWith('/chat-visualizer')) {
+  if (route.path.startsWith('/pharmacy-testing') || route.path.startsWith('/medical-testing') || route.path.startsWith('/chat-visualizer')) {
     expandedKeys.value['testing'] = true
   }
 }
@@ -171,6 +171,11 @@ const menuItems = computed<MenuItem[]>(() => {
             label: 'Intents y Respuestas',
             icon: 'pi pi-cog',
             route: '/intent-configs'
+          },
+          {
+            label: 'Editor Workflows',
+            icon: 'pi pi-sitemap',
+            route: '/workflow-editor'
           }
         ] : [])
       ]
@@ -185,6 +190,11 @@ const menuItems = computed<MenuItem[]>(() => {
           label: 'Pharmacy Testing',
           icon: 'pi pi-heart',
           route: '/pharmacy-testing'
+        },
+        {
+          label: 'Medical Testing',
+          icon: 'pi pi-calendar-plus',
+          route: '/medical-testing'
         },
         {
           label: 'Chat Visualizer',

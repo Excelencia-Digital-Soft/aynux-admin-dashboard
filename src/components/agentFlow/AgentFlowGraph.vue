@@ -10,7 +10,7 @@
  * - Supervisor (response evaluation)
  * - End node (response output)
  */
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
@@ -64,8 +64,18 @@ const { fitView, zoomIn, zoomOut } = useVueFlow()
 
 // Local state
 const isInitialized = ref(false)
+const viewportReady = ref(false)
 const selectedRule = ref<BypassRuleVisualization | null>(null)
 const showDetailPanel = ref(false)
+
+// Handle Vue Flow initialization (viewport ready)
+function onVueFlowInit() {
+  viewportReady.value = true
+  // If data is already loaded, fit view now
+  if (isInitialized.value && store.nodes.length > 0) {
+    nextTick(() => fitView({ padding: 0.2 }))
+  }
+}
 
 // Computed
 const nodes = computed(() => {
@@ -224,8 +234,12 @@ async function fetchData() {
     store.setVisualizationData(data)
     isInitialized.value = true
 
-    // Fit view after data loads
-    setTimeout(() => fitView({ padding: 0.2 }), 100)
+    // Fit view after data loads (only if viewport is ready)
+    if (viewportReady.value) {
+      await nextTick()
+      fitView({ padding: 0.2 })
+    }
+    // If viewport not ready, onVueFlowInit will handle fitView
   } catch (error) {
     console.error('Failed to fetch agent flow data:', error)
     store.setError('Error al cargar datos de visualizacion')
@@ -239,17 +253,20 @@ watch(
   () => props.organizationId,
   (newOrgId) => {
     console.log('[AgentFlowGraph] organizationId changed:', newOrgId)
+    // Reset viewport ready since VueFlow will remount after data loads
+    viewportReady.value = false
     fetchData()
   },
   { immediate: true }
 )
 
-// Auto-fit when nodes change
+// Auto-fit when nodes change (only if viewport is ready)
 watch(
   () => store.nodes.length,
-  () => {
-    if (store.nodes.length > 0 && isInitialized.value) {
-      setTimeout(() => fitView({ padding: 0.2 }), 100)
+  async () => {
+    if (store.nodes.length > 0 && isInitialized.value && viewportReady.value) {
+      await nextTick()
+      fitView({ padding: 0.2 })
     }
   }
 )
@@ -288,7 +305,7 @@ watch(
       :default-viewport="{ zoom: 0.8, x: 50, y: 50 }"
       :min-zoom="0.2"
       :max-zoom="2"
-      fit-view-on-init
+      @init="onVueFlowInit"
       @nodeClick="onNodeClick"
     >
       <!-- Background -->

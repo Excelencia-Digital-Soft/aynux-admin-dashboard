@@ -128,6 +128,14 @@ const router = createRouter({
           meta: { title: 'Pruebas Farmacia', icon: 'pi-heart' }
         },
 
+        // Medical Appointments Testing
+        {
+          path: 'medical-testing',
+          name: 'MedicalTesting',
+          component: () => import('@/pages/testing/MedicalTestingPage.vue'),
+          meta: { title: 'Pruebas Turnos', icon: 'pi-calendar-plus' }
+        },
+
         // Pharmacy Config (Page 12b) - Admin CRUD
         {
           path: 'pharmacy',
@@ -295,6 +303,19 @@ const router = createRouter({
           meta: {
             title: 'Gestión de Intents y Respuestas',
             icon: 'pi-cog',
+            requiresOrg: true,
+            requiresAdmin: true
+          }
+        },
+
+        // Workflow Editor - Visual workflow builder
+        {
+          path: 'workflow-editor',
+          name: 'WorkflowEditor',
+          component: () => import('@/pages/admin/WorkflowEditorPage.vue'),
+          meta: {
+            title: 'Editor de Workflows',
+            icon: 'pi-sitemap',
             requiresOrg: true,
             requiresAdmin: true
           }

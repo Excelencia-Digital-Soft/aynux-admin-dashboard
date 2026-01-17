@@ -9,12 +9,36 @@ export interface Pharmacy {
   active: boolean
 }
 
+// Interactive message types (WhatsApp style)
+export interface InteractiveButton {
+  id: string
+  titulo: string
+}
+
+export interface InteractiveListItem {
+  id: string
+  titulo: string
+  descripcion?: string
+}
+
+export interface InteractiveResponseInput {
+  type: 'button_reply' | 'list_reply'
+  id: string
+  title: string
+}
+
 export interface PharmacyTestMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
   timestamp: string
   metadata?: Record<string, unknown>
+  // Interactive message data (for assistant messages)
+  responseType?: 'text' | 'buttons' | 'list'
+  buttons?: InteractiveButton[]
+  listItems?: InteractiveListItem[]
+  // Interactive response data (for user messages from button/list selection)
+  interactiveResponse?: InteractiveResponseInput
 }
 
 export interface PharmacyTestSession {
@@ -27,15 +51,22 @@ export interface PharmacyTestSession {
 }
 
 export interface PharmacyTestRequest {
-  pharmacy_id: string
-  message: string
+  whatsapp_phone_number_id: string  // Business phone (DID) - REQUIRED for bypass routing
+  phone_number: string              // Customer phone - REQUIRED
+  message?: string
+  interactive_response?: InteractiveResponseInput
   session_id?: string
-  phone_number?: string
+  pharmacy_id?: string              // Optional override (normally determined via bypass)
 }
 
 export interface PharmacyTestResponse {
   session_id: string
   response: string
+  // Interactive message data
+  response_type: 'text' | 'buttons' | 'list'
+  response_buttons?: InteractiveButton[]
+  response_list_items?: InteractiveListItem[]
+  // Execution metadata
   execution_steps?: unknown[]
   graph_state?: unknown
   metadata?: Record<string, unknown>
