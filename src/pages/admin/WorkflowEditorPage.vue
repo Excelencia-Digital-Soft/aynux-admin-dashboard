@@ -4,7 +4,7 @@
  *
  * Refactored to use sub-components for better maintainability.
  */
-import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useVueFlow } from '@vue-flow/core'
 import { useConfirm } from 'primevue/useconfirm'
 import ConfirmDialog from 'primevue/confirmdialog'
@@ -95,7 +95,7 @@ const {
 const workflowStore = useWorkflowStore()
 
 // Clipboard composable
-const { copy, paste, cut, duplicate } = useWorkflowClipboard()
+const { copy, paste, cut, duplicate, hasClipboard } = useWorkflowClipboard()
 
 // Export/Import composable
 const { exportToFile, importFromFile, isExporting, isImporting } = useWorkflowExportImport()
@@ -105,7 +105,7 @@ const importFileInput = ref<HTMLInputElement | null>(null)
 const { openSearch: openNodeSearch } = useWorkflowNodeSearch()
 
 // History composable
-const { undo, redo } = useWorkflowHistory()
+const { undo, redo, canUndo, canRedo } = useWorkflowHistory()
 
 // Connection validation
 const { isValidConnection } = useConnectionValidation()
@@ -129,6 +129,18 @@ const {
 const showSimulationPanel = ref(false)
 const showSimulationContextDialog = ref(false)
 const confirm = useConfirm()
+
+// Computed for toolbar selection state
+const hasSelection = computed(() => selectedNode.value !== null || selectedEdge.value !== null)
+
+// Handle delete from toolbar (decides between node or edge deletion)
+function handleDelete() {
+  if (selectedNode.value) {
+    confirmDeleteNode(selectedNode.value)
+  } else if (selectedEdge.value) {
+    confirmDeleteTransition(selectedEdge.value.id)
+  }
+}
 // Note: useVueFlow must be used inside VueFlowProvider. 
 // Since we wrap the template in VueFlowProvider, we can't use it in setup() directly for the whole page unless we are a child.
 // However, we can use a separate component or just rely on the store/events.
@@ -297,6 +309,10 @@ function addAnnotation() {
         :isSimulating="isSimulating"
         :isSaving="isSaving"
         :isDirty="isDirty"
+        :canUndo="canUndo"
+        :canRedo="canRedo"
+        :hasClipboard="hasClipboard"
+        :hasSelection="hasSelection"
         v-model:showSimulationPanel="showSimulationPanel"
         @update:showWorkflowDialog="showWorkflowDialog = $event"
         @export="exportToFile"
@@ -305,6 +321,14 @@ function addAnnotation() {
         @save="saveWorkflow"
         @publish="publishWorkflow"
         @newWorkflow="showWorkflowDialog = true"
+        @undo="undo"
+        @redo="redo"
+        @copy="copy"
+        @paste="paste"
+        @cut="cut"
+        @duplicate="duplicate"
+        @delete="handleDelete"
+        @search="openNodeSearch"
       />
 
       <input

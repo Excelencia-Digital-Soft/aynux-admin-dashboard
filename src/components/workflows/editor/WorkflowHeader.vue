@@ -13,6 +13,11 @@ const props = defineProps<{
   isSaving: boolean
   isDirty: boolean
   showSimulationPanel: boolean
+  // Toolbar props
+  canUndo?: boolean
+  canRedo?: boolean
+  hasClipboard?: boolean
+  hasSelection?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -24,6 +29,15 @@ const emit = defineEmits<{
   (e: 'save'): void
   (e: 'publish'): void
   (e: 'newWorkflow'): void
+  // Toolbar events
+  (e: 'undo'): void
+  (e: 'redo'): void
+  (e: 'copy'): void
+  (e: 'paste'): void
+  (e: 'cut'): void
+  (e: 'duplicate'): void
+  (e: 'delete'): void
+  (e: 'search'): void
 }>()
 
 // Layout logic
@@ -49,7 +63,90 @@ const layoutMenuItems = ref([
       <h1 class="text-2xl font-bold text-gray-800">Editor de Workflows</h1>
       <p class="text-gray-500 mt-1">Diseña flujos de conversación visuales para tus instituciones</p>
     </div>
-    <div class="flex gap-2">
+    <div class="flex gap-2 items-center">
+      <!-- History buttons (Undo/Redo) -->
+      <div v-if="currentWorkflow" class="flex gap-1">
+        <Button
+          icon="pi pi-undo"
+          severity="secondary"
+          text
+          :disabled="!canUndo"
+          title="Deshacer (Ctrl+Z)"
+          @click="emit('undo')"
+        />
+        <Button
+          icon="pi pi-replay"
+          severity="secondary"
+          text
+          :disabled="!canRedo"
+          title="Rehacer (Ctrl+Y)"
+          @click="emit('redo')"
+        />
+      </div>
+
+      <span v-if="currentWorkflow" class="border-l border-gray-300 h-6"></span>
+
+      <!-- Clipboard buttons (Copy/Paste/Cut/Duplicate) -->
+      <div v-if="currentWorkflow" class="flex gap-1">
+        <Button
+          icon="pi pi-copy"
+          severity="secondary"
+          text
+          :disabled="!hasSelection"
+          title="Copiar (Ctrl+C)"
+          @click="emit('copy')"
+        />
+        <Button
+          icon="pi pi-clipboard"
+          severity="secondary"
+          text
+          :disabled="!hasClipboard"
+          title="Pegar (Ctrl+V)"
+          @click="emit('paste')"
+        />
+        <Button
+          icon="pi pi-file-export"
+          severity="secondary"
+          text
+          :disabled="!hasSelection"
+          title="Cortar (Ctrl+X)"
+          @click="emit('cut')"
+        />
+        <Button
+          icon="pi pi-clone"
+          severity="secondary"
+          text
+          :disabled="!hasSelection"
+          title="Duplicar (Ctrl+D)"
+          @click="emit('duplicate')"
+        />
+      </div>
+
+      <span v-if="currentWorkflow" class="border-l border-gray-300 h-6"></span>
+
+      <!-- Delete button -->
+      <Button
+        v-if="currentWorkflow"
+        icon="pi pi-trash"
+        severity="secondary"
+        text
+        :disabled="!hasSelection"
+        title="Eliminar (Del)"
+        @click="emit('delete')"
+      />
+
+      <!-- Search button -->
+      <Button
+        v-if="currentWorkflow"
+        icon="pi pi-search"
+        severity="secondary"
+        text
+        title="Buscar (Ctrl+F)"
+        @click="emit('search')"
+      />
+
+      <span v-if="currentWorkflow" class="border-l border-gray-300 h-6"></span>
+
       <!-- Export/Import buttons -->
       <Button
         v-if="currentWorkflow"

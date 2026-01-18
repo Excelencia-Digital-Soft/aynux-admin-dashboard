@@ -377,6 +377,13 @@ export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}) {
   async function onConnect(params: { source: string; target: string; sourceHandle?: string | null; targetHandle?: string | null }) {
     if (!currentWorkflow.value) return
 
+    // Log connection attempt for debugging
+    console.log('[Workflow] Creating connection:', {
+      source: params.source,
+      target: params.target,
+      workflowId: currentWorkflow.value.id
+    })
+
     try {
       await store.addTransition({
         source_node_id: params.source,
@@ -386,8 +393,20 @@ export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}) {
         priority: 0
       })
       toast.info('Conexion creada')
-    } catch (e) {
-      toast.error('Error al crear conexion')
+    } catch (e: unknown) {
+      // Extract detailed error message from axios response
+      const axiosError = e as { response?: { data?: { detail?: string | { msg: string }[] } } }
+      const detail = axiosError.response?.data?.detail
+      let errorMsg = 'Error al crear conexion'
+
+      if (typeof detail === 'string') {
+        errorMsg = detail
+      } else if (Array.isArray(detail) && detail.length > 0) {
+        errorMsg = detail.map(d => d.msg).join(', ')
+      }
+
+      console.error('[Workflow] Connection error:', axiosError.response?.data)
+      toast.error(errorMsg)
     }
   }
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, watch, markRaw } from 'vue'
-import { VueFlow } from '@vue-flow/core'
+import { VueFlow, Handle, Position } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { MiniMap } from '@vue-flow/minimap'
@@ -155,56 +155,68 @@ function onDragOver(event: DragEvent) {
         <!-- Custom Node Templates -->
         <template #node-conversation="{ data }">
           <div class="workflow-node conversation-node">
+            <!-- Input handle (top) - hidden for entry point -->
+            <Handle v-if="!data.isEntryPoint" type="target" :position="Position.Top" class="handle-target" />
             <div class="node-header" :style="{ backgroundColor: '#dbeafe' }">
               <i :class="['pi', data.icon || 'pi-comments']" style="color: #3b82f6" />
               <span class="node-label">{{ data.label }}</span>
               <Tag v-if="data.isEntryPoint" value="Entry" severity="success" class="text-xs" />
             </div>
             <div v-if="data.description" class="node-description">{{ data.description }}</div>
+            <!-- Output handle (bottom) -->
+            <Handle type="source" :position="Position.Bottom" class="handle-source" />
           </div>
         </template>
 
         <template #node-routing="{ data }">
           <div class="workflow-node routing-node">
+            <Handle v-if="!data.isEntryPoint" type="target" :position="Position.Top" class="handle-target" />
             <div class="node-header" :style="{ backgroundColor: '#ede9fe' }">
               <i :class="['pi', data.icon || 'pi-sitemap']" style="color: #8b5cf6" />
               <span class="node-label">{{ data.label }}</span>
               <Tag v-if="data.isEntryPoint" value="Entry" severity="success" class="text-xs" />
             </div>
             <div v-if="data.description" class="node-description">{{ data.description }}</div>
+            <Handle type="source" :position="Position.Bottom" class="handle-source" />
           </div>
         </template>
 
         <template #node-integration="{ data }">
           <div class="workflow-node integration-node">
+            <Handle v-if="!data.isEntryPoint" type="target" :position="Position.Top" class="handle-target" />
             <div class="node-header" :style="{ backgroundColor: '#d1fae5' }">
               <i :class="['pi', data.icon || 'pi-cloud']" style="color: #10b981" />
               <span class="node-label">{{ data.label }}</span>
               <Tag v-if="data.isEntryPoint" value="Entry" severity="success" class="text-xs" />
             </div>
             <div v-if="data.description" class="node-description">{{ data.description }}</div>
+            <Handle type="source" :position="Position.Bottom" class="handle-source" />
           </div>
         </template>
 
         <template #node-utility="{ data }">
           <div class="workflow-node utility-node">
+            <Handle v-if="!data.isEntryPoint" type="target" :position="Position.Top" class="handle-target" />
             <div class="node-header" :style="{ backgroundColor: '#f1f5f9' }">
               <i :class="['pi', data.icon || 'pi-cog']" style="color: #64748b" />
               <span class="node-label">{{ data.label }}</span>
               <Tag v-if="data.isEntryPoint" value="Entry" severity="success" class="text-xs" />
             </div>
             <div v-if="data.description" class="node-description">{{ data.description }}</div>
+            <Handle type="source" :position="Position.Bottom" class="handle-source" />
           </div>
         </template>
 
         <template #node-default="{ data }">
           <div class="workflow-node default-node">
+            <Handle v-if="!data.isEntryPoint" type="target" :position="Position.Top" class="handle-target" />
             <div class="node-header">
               <i :class="['pi', data.icon || 'pi-circle']" />
               <span class="node-label">{{ data.label }}</span>
               <Tag v-if="data.isEntryPoint" value="Entry" severity="success" class="text-xs" />
             </div>
             <div v-if="data.description" class="node-description">{{ data.description }}</div>
+            <Handle type="source" :position="Position.Bottom" class="handle-source" />
           </div>
         </template>
       </VueFlow>
@@ -274,6 +286,40 @@ function onDragOver(event: DragEvent) {
 .routing-node { border-color: #8b5cf6; }
 .integration-node { border-color: #10b981; }
 .utility-node { border-color: #64748b; }
+
+/* Handle Styles */
+.handle-target,
+.handle-source {
+  width: 12px !important;
+  height: 12px !important;
+  background: #64748b !important;
+  border: 2px solid white !important;
+  border-radius: 50% !important;
+}
+
+.handle-target {
+  top: -6px !important;
+}
+
+.handle-source {
+  bottom: -6px !important;
+}
+
+.handle-target:hover,
+.handle-source:hover {
+  background: #8b5cf6 !important;
+  transform: scale(1.3);
+  transition: all 0.15s ease;
+}
+
+/* Connecting state */
+:deep(.vue-flow__handle.connecting) {
+  background: #10b981 !important;
+}
+
+:deep(.vue-flow__handle.valid) {
+  background: #10b981 !important;
+}
 
 /* Selected state */
 :deep(.vue-flow__node.selected) {
