@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { ValidationResult } from '@/types/workflow.types' // Assuming ValidationResult type exists or I'll infer it
-
 defineProps<{
   validationErrors: any[] // Using any for now or I need to find the type definition for validation errors
 }>()
