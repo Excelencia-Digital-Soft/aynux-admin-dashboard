@@ -29,7 +29,7 @@ function handleKeyPress(event: KeyboardEvent) {
       <div class="flex-1 relative">
         <InputText
           :modelValue="modelValue"
-          @update:modelValue="(v) => emit('update:modelValue', v)"
+          @update:modelValue="(v) => emit('update:modelValue', v ?? '')"
           placeholder="Escribe un mensaje..."
           class="w-full pr-10"
           @keypress="handleKeyPress"
