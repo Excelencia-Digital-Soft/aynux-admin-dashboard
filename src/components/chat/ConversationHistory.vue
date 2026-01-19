@@ -2,10 +2,12 @@
 import { ref, computed, nextTick, watch } from 'vue'
 import { useChatStore } from '@/stores/chat.store'
 import { marked } from 'marked'
-import type { ConversationMessage } from '@/types/chat.types'
+import type { ConversationMessage, InteractiveButton, InteractiveListItem } from '@/types/chat.types'
 
 import Button from 'primevue/button'
 import Textarea from 'primevue/textarea'
+import WhatsAppButtons from '@/components/pharmacy/WhatsAppButtons.vue'
+import WhatsAppList from '@/components/pharmacy/WhatsAppList.vue'
 
 interface Props {
   readonly?: boolean
@@ -20,6 +22,8 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   (e: 'send', message: string): void
   (e: 'messageClick', message: ConversationMessage): void
+  (e: 'buttonClick', button: InteractiveButton): void
+  (e: 'listSelect', item: InteractiveListItem): void
 }>()
 
 const store = useChatStore()
@@ -75,6 +79,34 @@ function scrollToBottom() {
 // Auto-scroll when new messages arrive
 watch(() => messages.value.length, scrollToBottom)
 watch(() => streamingContent.value, scrollToBottom)
+
+// Check if this message is the latest assistant message (for showing buttons)
+function isLatestAssistantMessage(message: ConversationMessage, index: number): boolean {
+  if (message.role !== 'assistant') return false
+  // Find the last assistant message index
+  for (let i = messages.value.length - 1; i >= 0; i--) {
+    if (messages.value[i].role === 'assistant') {
+      return i === index
+    }
+  }
+  return false
+}
+
+// Check if message has interactive elements
+function hasInteractiveElements(message: ConversationMessage): boolean {
+  return (
+    (message.responseType === 'buttons' && !!message.buttons?.length) ||
+    (message.responseType === 'list' && !!message.listItems?.length)
+  )
+}
+
+function handleButtonClick(button: InteractiveButton) {
+  emit('buttonClick', button)
+}
+
+function handleListSelect(item: InteractiveListItem) {
+  emit('listSelect', item)
+}
 </script>
 
 <template>
@@ -99,7 +131,7 @@ watch(() => streamingContent.value, scrollToBottom)
 
       <!-- Messages -->
       <div
-        v-for="message in messages"
+        v-for="(message, index) in messages"
         :key="message.id"
         class="message-bubble"
         :class="[`message-${message.role}`]"
@@ -130,6 +162,22 @@ watch(() => streamingContent.value, scrollToBottom)
             {{ message.metadata.latency_ms }}ms
           </span>
         </div>
+
+        <!-- Interactive elements (buttons/list) - only show on latest assistant message -->
+        <template v-if="isLatestAssistantMessage(message, index) && hasInteractiveElements(message) && !isLoading">
+          <WhatsAppButtons
+            v-if="message.responseType === 'buttons' && message.buttons?.length"
+            :buttons="message.buttons"
+            :disabled="isLoading"
+            @select="handleButtonClick"
+          />
+          <WhatsAppList
+            v-if="message.responseType === 'list' && message.listItems?.length"
+            :items="message.listItems"
+            :disabled="isLoading"
+            @select="handleListSelect"
+          />
+        </template>
       </div>
 
       <!-- Typing indicator (when loading but no streaming content yet) -->

@@ -1,3 +1,21 @@
+// Interactive message types (WhatsApp-style)
+export interface InteractiveButton {
+  id: string
+  titulo: string
+}
+
+export interface InteractiveListItem {
+  id: string
+  titulo: string
+  descripcion?: string
+}
+
+export interface InteractiveResponse {
+  type: 'button_reply' | 'list_reply'
+  id: string
+  title: string
+}
+
 // Conversation types
 export interface ConversationMessage {
   id: string
@@ -9,6 +27,11 @@ export interface ConversationMessage {
     latency_ms?: number
     model?: string
   }
+  // Interactive message fields
+  responseType?: 'text' | 'buttons' | 'list'
+  buttons?: InteractiveButton[]
+  listItems?: InteractiveListItem[]
+  interactiveResponse?: InteractiveResponse
 }
 
 export interface ConversationThread {
@@ -142,7 +165,7 @@ export interface StreamChunk {
 }
 
 // Webhook simulation types
-export type BusinessDomain = 'excelencia' | 'ecommerce' | 'healthcare' | 'credit' | 'pharmacy'
+export type BusinessDomain = 'excelencia' | 'ecommerce' | 'healthcare' | 'credit' | 'pharmacy' | 'medical_appointments'
 
 export interface WebhookSimulationConfig {
   enabled: boolean
@@ -175,6 +198,10 @@ export interface WebhookSimulationResponse {
   response: string
   agent_used: string
   execution_steps?: ExecutionStep[]
+  // Interactive response fields
+  response_type?: 'text' | 'buttons' | 'list'
+  response_buttons?: InteractiveButton[]
+  response_list_items?: InteractiveListItem[]
   debug_info?: {
     response_time_ms: number
     requires_human: boolean

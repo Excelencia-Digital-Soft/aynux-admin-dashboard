@@ -559,6 +559,22 @@ body {
   border-color: var(--aynux-navy-700) !important;
 }
 
+/* PrimeVue Popover */
+.dark-mode .p-popover {
+  background: var(--aynux-navy-800) !important;
+  border-color: var(--aynux-navy-700) !important;
+  color: #e5e7eb !important;
+}
+
+.dark-mode .p-popover-content {
+  background: var(--aynux-navy-800) !important;
+  color: #e5e7eb !important;
+}
+
+.dark-mode .p-popover .p-divider {
+  border-color: var(--aynux-navy-700) !important;
+}
+
 /* PrimeVue ProgressBar */
 .dark-mode .p-progressbar {
   background: var(--aynux-navy-700) !important;

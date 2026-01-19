@@ -5,6 +5,7 @@ import ConversationHistory from '@/components/chat/ConversationHistory.vue'
 import ReasoningDisplay from '@/components/chat/ReasoningDisplay.vue'
 import MetricsPanel from '@/components/chat/MetricsPanel.vue'
 import WebhookSimulationPanel from '@/components/chat/WebhookSimulationPanel.vue'
+import WebhookQuickConfig from '@/components/chat/WebhookQuickConfig.vue'
 
 import Card from 'primevue/card'
 import Button from 'primevue/button'
@@ -29,11 +30,17 @@ const {
   sendMessage,
   handleMessageClick,
   handleNodeClick,
+  handleButtonClick,
+  handleListSelect,
   clearChat,
   newThread,
   closeSettings,
   clearError
 } = useChatVisualizer()
+
+function openWebhookConfig() {
+  activeTab.value = '3'
+}
 </script>
 
 <template>
@@ -47,6 +54,7 @@ const {
         </p>
       </div>
       <div class="flex gap-2">
+        <WebhookQuickConfig @open-full-config="openWebhookConfig" />
         <Button
           icon="pi pi-plus"
           label="Nueva"
@@ -85,6 +93,8 @@ const {
               :max-height="'calc(100vh - 180px)'"
               @send="sendMessage"
               @message-click="handleMessageClick"
+              @button-click="handleButtonClick"
+              @list-select="handleListSelect"
             />
           </template>
         </Card>

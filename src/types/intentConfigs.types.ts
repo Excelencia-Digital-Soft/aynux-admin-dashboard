@@ -7,6 +7,8 @@
  * - KeywordAgentMapping: Keyword-based fallback routing
  */
 
+import type { DomainIntent } from './domainIntents.types'
+
 // =============================================================================
 // Enums
 // =============================================================================
@@ -242,4 +244,113 @@ export interface AllConfigsResponse {
   flow_agents: FlowAgentConfig[]
   keyword_mappings: KeywordAgentMapping[]
   organization_id: string
+}
+
+// =============================================================================
+// Usage Analysis Types (for UI redesign)
+// =============================================================================
+
+/**
+ * Usage status for intent configurations
+ * - active: Config is enabled and has complete relationships
+ * - idle: Config is enabled but may be incomplete
+ * - unused: Config exists but has no relationships or is disabled
+ * - orphaned: Config references non-existent entities
+ */
+export type UsageStatus = 'active' | 'idle' | 'unused' | 'orphaned'
+
+/**
+ * Result of analyzing relationships between all configurations
+ */
+export interface UsageAnalysis {
+  // Intent analysis
+  intentsWithMappings: Set<string>       // intent_keys that have IntentAgentMapping
+  intentsWithoutMappings: Set<string>    // intent_keys with no mapping (orphaned)
+  intentsWithPatterns: Set<string>       // intent_keys that have patterns defined
+  intentsFromRoutes: Set<string>         // intent_keys from OrchestratorRoutes
+  intentsInUse: Set<string>              // Combined: mappings + routes (any source)
+
+  // Agent analysis
+  agentsWithMappings: Set<string>        // agent_keys receiving intents
+  agentsWithKeywords: Set<string>        // agent_keys with fallback keywords
+  agentsWithFlowConfig: Set<string>      // agent_keys configured as flow agents
+
+  // Orphaned/unused detection
+  orphanedMappingIds: string[]           // IntentAgentMapping IDs pointing to non-existent intents
+  orphanedKeywordIds: string[]           // KeywordAgentMapping IDs pointing to non-existent agents
+  unusedFlowAgentKeys: string[]          // FlowAgentConfig keys with no incoming mappings
+
+  // Summary counts
+  totalIntents: number
+  totalMappings: number
+  totalKeywords: number
+  totalFlowAgents: number
+  activeCount: number
+  unusedCount: number
+  orphanedCount: number
+}
+
+/**
+ * Node types for navigation tree
+ */
+export type ConfigNodeType = 'domain' | 'intent' | 'agent' | 'keyword' | 'category'
+
+/**
+ * Navigation tree node for the sidebar
+ */
+export interface ConfigNode {
+  id: string
+  type: ConfigNodeType
+  key: string
+  label: string
+  status: UsageStatus
+  icon?: string
+  badge?: number
+  children?: ConfigNode[]
+  selectable?: boolean
+  expanded?: boolean
+  // Original data reference
+  data?: IntentAgentMapping | FlowAgentConfig | KeywordAgentMapping | DomainIntent | null
+}
+
+/**
+ * Domain health score with breakdown
+ */
+export interface DomainHealth {
+  score: number              // 0-100 percentage
+  activeIntents: number
+  totalIntents: number
+  activeAgents: number
+  totalAgents: number
+  activeKeywords: number
+  totalKeywords: number
+  issues: DomainHealthIssue[]
+}
+
+/**
+ * Individual health issue for a domain
+ */
+export interface DomainHealthIssue {
+  severity: 'warning' | 'error'
+  type: 'orphaned_mapping' | 'orphaned_keyword' | 'unused_flow_agent' | 'intent_no_patterns' | 'agent_no_mappings'
+  message: string
+  affectedKey: string
+  affectedId?: string
+}
+
+/**
+ * Filter options for the navigation sidebar
+ */
+export type UsageFilter = 'all' | 'active' | 'unused' | 'orphaned'
+
+/**
+ * Stats for domain selector cards
+ */
+export interface DomainStats {
+  domainKey: string
+  intentCount: number
+  agentCount: number
+  keywordCount: number
+  healthScore: number
+  hasIssues: boolean
 }

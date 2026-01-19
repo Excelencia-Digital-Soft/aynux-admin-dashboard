@@ -1,20 +1,23 @@
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
-import { usePharmacyTesting } from '@/composables/usePharmacyTesting'
-import PharmacyWebhookPanel from '@/components/pharmacy/PharmacyWebhookPanel.vue'
-
-import Card from 'primevue/card'
-import Button from 'primevue/button'
-import InputText from 'primevue/inputtext'
-import Select from 'primevue/select'
-import Tag from 'primevue/tag'
-import ProgressSpinner from 'primevue/progressspinner'
-import Tabs from 'primevue/tabs'
-import TabList from 'primevue/tablist'
-import Tab from 'primevue/tab'
-import TabPanels from 'primevue/tabpanels'
-import TabPanel from 'primevue/tabpanel'
+import { ref, computed } from 'vue'
 import Dialog from 'primevue/dialog'
+import Button from 'primevue/button'
+import { usePharmacyTesting } from '@/composables/usePharmacyTesting'
+import {
+  usePharmacyStream,
+  type StreamButton,
+  type StreamListItem,
+  type StreamMetadata
+} from '@/composables/usePharmacyStream'
+import { useToast } from '@/composables/useToast'
+import type { PharmacyTestMessage } from '@/api/pharmacy.api'
+
+// Components
+import PharmacyTestHeader from '@/components/testing/pharmacy/PharmacyTestHeader.vue'
+import PharmacyChatWindow from '@/components/testing/pharmacy/PharmacyChatWindow.vue'
+import PharmacyChatInput from '@/components/testing/pharmacy/PharmacyChatInput.vue'
+import PharmacyDebugPanel from '@/components/testing/pharmacy/PharmacyDebugPanel.vue'
+import PharmacyQuickActions from '@/components/testing/pharmacy/PharmacyQuickActions.vue'
 
 const DEFAULT_PHONE = '2645631000'
 
@@ -37,7 +40,7 @@ const {
   showDeleteConfirm,
   hasSession,
   fetchPharmacies,
-  sendMessage,
+  sendMessage: sendMessageNonStream,
   clearSession,
   setQuickMessage,
   updateWebhookConfig,
@@ -45,454 +48,278 @@ const {
   selectConversation,
   deleteConversation,
   deleteAllHistory,
-  formatTime,
-  formatDateTime
+  formatTime
 } = usePharmacyTesting({ defaultPhone: DEFAULT_PHONE })
 
-const chatContainer = ref<HTMLElement | null>(null)
+// Streaming composable with full metadata support
+const {
+  isStreaming,
+  streamContent,
+  streamProgress,
+  currentAgent,
+  currentPhase,
+  streamError,
+  streamMetadata,
+  sendMessageStream,
+  sendInteractiveResponse,
+  resetStream
+} = usePharmacyStream()
 
-async function scrollToBottom() {
-  await nextTick()
-  if (chatContainer.value) {
-    chatContainer.value.scrollTop = chatContainer.value.scrollHeight
+const toast = useToast()
+const useStreaming = ref(true)
+
+// Extended message type with metadata
+interface ExtendedMessage extends PharmacyTestMessage {
+  metadata?: StreamMetadata
+}
+
+// Ensure messages array is treated as ExtendedMessage[]
+const extendedMessages = computed(() => messages.value as ExtendedMessage[])
+
+async function sendMessage() {
+  if (!inputMessage.value.trim() || !selectedPharmacy.value) return
+
+  if (useStreaming.value) {
+    await sendMessageWithStream()
+  } else {
+    await sendMessageNonStream()
   }
 }
 
-function handleKeyPress(event: KeyboardEvent) {
-  if (event.key === 'Enter' && !event.shiftKey) {
-    event.preventDefault()
-    sendMessage().then(scrollToBottom)
+async function sendMessageWithStream() {
+  if (!inputMessage.value.trim() || !selectedPharmacy.value) return
+
+  const did = webhookConfig.value.did || selectedPharmacy.value.code
+  if (!did) {
+    toast.error('Se requiere un DID (número de WhatsApp del negocio)')
+    return
+  }
+
+  // Add user message immediately
+  const userMessage: ExtendedMessage = {
+    id: `user-${Date.now()}`,
+    role: 'user',
+    content: inputMessage.value,
+    timestamp: new Date().toISOString()
+  }
+  messages.value.push(userMessage)
+
+  const messageText = inputMessage.value
+  inputMessage.value = ''
+  resetStream()
+
+  try {
+    const result = await sendMessageStream(messageText, {
+      phoneNumber: webhookConfig.value.phoneNumber,
+      pharmacyId: selectedPharmacy.value.id,
+      pharmacyCode: did,
+      sessionId: sessionId.value || undefined
+    })
+
+    // Add assistant message with metadata
+    const assistantMessage: ExtendedMessage = {
+      id: `assistant-${Date.now()}`,
+      role: 'assistant',
+      content: result.content,
+      timestamp: new Date().toISOString(),
+      metadata: result.metadata
+    }
+    messages.value.push(assistantMessage)
+
+    // Update session ID
+    if (result.metadata.session_id) {
+      sessionId.value = result.metadata.session_id
+    } else if (!sessionId.value) {
+      sessionId.value = `pharmacy_${webhookConfig.value.phoneNumber}`
+    }
+  } catch (err) {
+    toast.error(streamError.value || 'Error al enviar mensaje')
+    messages.value.pop()
+    console.error('Error sending streamed message:', err)
   }
 }
 
-async function handleSendMessage() {
-  await sendMessage()
-  await scrollToBottom()
+// Handle button click from streaming response
+async function handleStreamButtonClick(button: StreamButton) {
+  if (!selectedPharmacy.value) return
+
+  const did = webhookConfig.value.did || selectedPharmacy.value.code
+  if (!did) return
+
+  // Add user's button selection as message
+  const userMessage: ExtendedMessage = {
+    id: `user-${Date.now()}`,
+    role: 'user',
+    content: button.titulo,
+    timestamp: new Date().toISOString()
+  }
+  messages.value.push(userMessage)
+  resetStream()
+
+  try {
+    const result = await sendInteractiveResponse(
+      { type: 'button_reply', id: button.id, title: button.titulo },
+      {
+        phoneNumber: webhookConfig.value.phoneNumber,
+        pharmacyId: selectedPharmacy.value.id,
+        pharmacyCode: did,
+        sessionId: sessionId.value || undefined
+      }
+    )
+
+    const assistantMessage: ExtendedMessage = {
+      id: `assistant-${Date.now()}`,
+      role: 'assistant',
+      content: result.content,
+      timestamp: new Date().toISOString(),
+      metadata: result.metadata
+    }
+    messages.value.push(assistantMessage)
+  } catch (err) {
+    toast.error(streamError.value || 'Error al procesar selección')
+    messages.value.pop()
+  }
+}
+
+// Handle list selection from streaming response
+async function handleStreamListSelect(item: StreamListItem) {
+  if (!selectedPharmacy.value) return
+
+  const did = webhookConfig.value.did || selectedPharmacy.value.code
+  if (!did) return
+
+  const userMessage: ExtendedMessage = {
+    id: `user-${Date.now()}`,
+    role: 'user',
+    content: item.titulo,
+    timestamp: new Date().toISOString()
+  }
+  messages.value.push(userMessage)
+  resetStream()
+
+  try {
+    const result = await sendInteractiveResponse(
+      { type: 'list_reply', id: item.id, title: item.titulo },
+      {
+        phoneNumber: webhookConfig.value.phoneNumber,
+        pharmacyId: selectedPharmacy.value.id,
+        pharmacyCode: did,
+        sessionId: sessionId.value || undefined
+      }
+    )
+
+    const assistantMessage: ExtendedMessage = {
+      id: `assistant-${Date.now()}`,
+      role: 'assistant',
+      content: result.content,
+      timestamp: new Date().toISOString(),
+      metadata: result.metadata
+    }
+    messages.value.push(assistantMessage)
+  } catch (err) {
+    toast.error(streamError.value || 'Error al procesar selección')
+    messages.value.pop()
+  }
+}
+
+async function copyAllChat() {
+  if (messages.value.length === 0) {
+    toast.warn('No hay mensajes para copiar')
+    return
+  }
+
+  const chatText = messages.value
+    .map((msg) => {
+      const time = formatTime(msg.timestamp)
+      const role = msg.role === 'user' ? 'Usuario' : 'Asistente'
+      return `[${time}] ${role}: ${msg.content}`
+    })
+    .join('\n\n')
+
+  try {
+    await navigator.clipboard.writeText(chatText)
+    toast.success('Chat copiado al portapapeles')
+  } catch (err) {
+    console.error('Error copying chat:', err)
+    toast.error('Error al copiar el chat')
+  }
 }
 </script>
 
 <template>
   <div class="pharmacy-testing-page">
-    <!-- Header -->
-    <div class="flex items-center justify-between mb-6">
-      <div>
-        <h1 class="text-2xl font-bold text-gray-800">Pruebas Farmacia</h1>
-        <p class="text-gray-500 mt-1">Simulador de conversacion WhatsApp para el dominio farmacia</p>
-      </div>
-      <div class="flex gap-2">
-        <Button
-          icon="pi pi-refresh"
-          label="Actualizar"
-          severity="secondary"
-          @click="fetchPharmacies"
-          :loading="isLoading"
-        />
-        <Button
-          icon="pi pi-trash"
-          label="Reiniciar"
-          severity="warn"
-          @click="clearSession"
-          :disabled="!hasSession"
-        />
-      </div>
-    </div>
+    <PharmacyTestHeader
+      :is-loading="isLoading"
+      :has-session="hasSession"
+      @refresh="fetchPharmacies"
+      @clear="clearSession"
+    />
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Chat Panel -->
-      <div class="lg:col-span-2">
-        <Card class="h-full">
-          <template #header>
-            <div class="flex items-center justify-between p-4 bg-green-600 text-white rounded-t-lg">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                  <i class="pi pi-whatsapp text-xl" />
-                </div>
-                <div>
-                  <div class="font-medium">
-                    {{ selectedPharmacy?.name || 'Seleccionar Farmacia' }}
-                  </div>
-                  <div class="text-xs text-green-100">
-                    {{ hasSession ? 'Sesion activa' : 'Sin sesion' }}
-                  </div>
-                </div>
-              </div>
-              <Select
-                v-model="selectedPharmacy"
-                :options="pharmacies"
-                optionLabel="name"
-                placeholder="Farmacia"
-                class="w-48"
-                :disabled="hasSession"
-              />
-            </div>
-          </template>
+      <div class="lg:col-span-2 flex flex-col gap-4">
+        <div class="card-wrapper rounded-xl overflow-hidden border dark:border-gray-700 shadow-sm">
+          <PharmacyChatWindow
+            v-model:selected-pharmacy="selectedPharmacy"
+            :messages="extendedMessages"
+            :pharmacies="pharmacies"
+            :has-session="hasSession"
+            :use-streaming="useStreaming"
+            :is-streaming="isStreaming"
+            :is-sending="isSending"
+            :stream-content="streamContent"
+            :stream-progress="streamProgress"
+            :current-phase="currentPhase"
+            :current-agent="currentAgent"
+            :stream-metadata="streamMetadata"
+            @copy-chat="copyAllChat"
+            @button-click="handleStreamButtonClick"
+            @list-select="handleStreamListSelect"
+          />
 
-          <template #content>
-            <!-- Chat Messages -->
-            <div
-              ref="chatContainer"
-              class="chat-messages h-96 overflow-y-auto p-4 bg-gray-100 dark:bg-gray-800"
-            >
-              <!-- No messages -->
-              <div
-                v-if="messages.length === 0"
-                class="h-full flex items-center justify-center text-gray-400 dark:text-gray-500"
-              >
-                <div class="text-center">
-                  <i class="pi pi-comments text-4xl mb-2" />
-                  <p>Inicia una conversacion</p>
-                </div>
-              </div>
-
-              <!-- Messages -->
-              <div v-else class="space-y-3">
-                <div
-                  v-for="msg in messages"
-                  :key="msg.id"
-                  :class="[
-                    'max-w-[80%] p-3 rounded-lg shadow-sm',
-                    msg.role === 'user'
-                      ? 'ml-auto bg-green-100 dark:bg-green-900 rounded-br-none'
-                      : 'mr-auto bg-white dark:bg-gray-700 rounded-bl-none'
-                  ]"
-                >
-                  <div class="text-sm whitespace-pre-wrap text-gray-900 dark:text-gray-100">{{ msg.content }}</div>
-                  <div
-                    :class="[
-                      'text-xs mt-1',
-                      msg.role === 'user' ? 'text-green-600 dark:text-green-400 text-right' : 'text-gray-400 dark:text-gray-500'
-                    ]"
-                  >
-                    {{ formatTime(msg.timestamp) }}
-                  </div>
-                </div>
-
-                <!-- Typing indicator -->
-                <div v-if="isSending" class="mr-auto bg-white dark:bg-gray-700 p-3 rounded-lg rounded-bl-none shadow-sm">
-                  <div class="flex gap-1">
-                    <span class="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style="animation-delay: 0ms" />
-                    <span class="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style="animation-delay: 150ms" />
-                    <span class="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style="animation-delay: 300ms" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Input -->
-            <div class="p-4 border-t flex gap-2">
-              <InputText
-                v-model="inputMessage"
-                placeholder="Escribe un mensaje..."
-                class="flex-1"
-                @keypress="handleKeyPress"
-                :disabled="!selectedPharmacy || isSending"
-              />
-              <Button
-                icon="pi pi-send"
-                @click="handleSendMessage"
-                :loading="isSending"
-                :disabled="!inputMessage.trim() || !selectedPharmacy"
-              />
-            </div>
-          </template>
-        </Card>
+          <PharmacyChatInput
+            v-model="inputMessage"
+            v-model:use-streaming="useStreaming"
+            :is-loading="isSending || isStreaming"
+            :disabled="!selectedPharmacy"
+            @send="sendMessage"
+          />
+        </div>
       </div>
 
-      <!-- Debug Panel -->
+      <!-- Right Sidebar -->
       <div>
-        <Card>
-          <template #title>
-            <div class="flex items-center gap-2">
-              <i class="pi pi-code" />
-              <span>Panel de Debug</span>
-            </div>
-          </template>
+        <PharmacyDebugPanel
+          :webhook-config="webhookConfig"
+          :has-session="hasSession"
+          :default-phone="DEFAULT_PHONE"
+          :session-id="sessionId"
+          :selected-pharmacy="selectedPharmacy"
+          :message-count="messages.length"
+          :use-streaming="useStreaming"
+          :is-streaming="isStreaming"
+          :current-phase="currentPhase"
+          :current-agent="currentAgent"
+          :stream-progress="streamProgress"
+          :stream-metadata="streamMetadata"
+          :execution-steps="executionSteps"
+          :graph-state="graphState"
+          :conversation-history="conversationHistory"
+          :selected-conversation="selectedConversation"
+          :history-messages="historyMessages"
+          :is-loading-history="isLoadingHistory"
+          :is-deleting-history="isDeletingHistory"
+          @update:webhook-config="updateWebhookConfig"
+          @update:use-streaming="useStreaming = $event"
+          @fetch-history="fetchHistory"
+          @select-conversation="selectConversation"
+          @delete-conversation="deleteConversation"
+          @delete-history="showDeleteConfirm = true"
+        />
 
-          <template #content>
-            <Tabs value="0">
-              <TabList>
-                <Tab value="0">
-                  <div class="flex items-center gap-2 text-sm">
-                    <i class="pi pi-bolt" />
-                    <span>Webhook</span>
-                    <Tag
-                      v-if="webhookConfig.enabled"
-                      value="ON"
-                      severity="success"
-                      class="ml-1"
-                      style="font-size: 0.65rem; padding: 0.1rem 0.3rem;"
-                    />
-                  </div>
-                </Tab>
-                <Tab value="1">
-                  <div class="flex items-center gap-2 text-sm">
-                    <i class="pi pi-info-circle" />
-                    <span>Sesion</span>
-                  </div>
-                </Tab>
-                <Tab value="2">
-                  <div class="flex items-center gap-2 text-sm">
-                    <i class="pi pi-list" />
-                    <span>Pasos</span>
-                  </div>
-                </Tab>
-                <Tab value="3">
-                  <div class="flex items-center gap-2 text-sm">
-                    <i class="pi pi-sitemap" />
-                    <span>Estado</span>
-                  </div>
-                </Tab>
-                <Tab value="4">
-                  <div class="flex items-center gap-2 text-sm">
-                    <i class="pi pi-history" />
-                    <span>Historial</span>
-                    <Tag
-                      v-if="conversationHistory.length"
-                      :value="conversationHistory.length"
-                      severity="info"
-                      class="ml-1"
-                      style="font-size: 0.65rem; padding: 0.1rem 0.3rem;"
-                    />
-                  </div>
-                </Tab>
-              </TabList>
-
-              <TabPanels>
-                <!-- Webhook Config -->
-                <TabPanel value="0">
-                  <PharmacyWebhookPanel
-                    :config="webhookConfig"
-                    :has-session="hasSession"
-                    :default-phone="DEFAULT_PHONE"
-                    @update="updateWebhookConfig"
-                  />
-                </TabPanel>
-
-                <!-- Session Info -->
-                <TabPanel value="1">
-                  <div class="space-y-4 p-3">
-                    <div>
-                      <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Session ID</label>
-                      <code class="text-xs break-all">{{ sessionId || 'N/A' }}</code>
-                    </div>
-
-                    <div>
-                      <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Telefono</label>
-                      <code class="text-xs break-all">{{ webhookConfig.phoneNumber }}</code>
-                    </div>
-
-                    <div>
-                      <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Farmacia</label>
-                      <p>{{ selectedPharmacy?.name || 'No seleccionada' }}</p>
-                    </div>
-
-                    <div>
-                      <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Mensajes</label>
-                      <Tag :value="`${messages.length} mensajes`" severity="info" />
-                    </div>
-                  </div>
-                </TabPanel>
-
-                <!-- Execution Steps -->
-                <TabPanel value="2">
-                  <div v-if="executionSteps.length === 0" class="text-center text-gray-400 dark:text-gray-500 py-4">
-                    <i class="pi pi-list text-2xl mb-2" />
-                    <p class="text-sm">Sin pasos de ejecucion</p>
-                  </div>
-
-                  <div v-else class="space-y-2 max-h-64 overflow-y-auto p-3">
-                    <div
-                      v-for="(step, idx) in executionSteps"
-                      :key="idx"
-                      class="p-2 bg-gray-50 dark:bg-gray-800 rounded text-xs"
-                    >
-                      <pre class="overflow-auto">{{ JSON.stringify(step, null, 2) }}</pre>
-                    </div>
-                  </div>
-                </TabPanel>
-
-                <!-- Graph State -->
-                <TabPanel value="3">
-                  <div v-if="!graphState" class="text-center text-gray-400 dark:text-gray-500 py-4">
-                    <i class="pi pi-sitemap text-2xl mb-2" />
-                    <p class="text-sm">Sin estado de grafo</p>
-                  </div>
-
-                  <div v-else class="max-h-64 overflow-y-auto p-3">
-                    <pre class="text-xs bg-gray-50 dark:bg-gray-800 p-2 rounded">{{
-                      JSON.stringify(graphState, null, 2)
-                    }}</pre>
-                  </div>
-                </TabPanel>
-
-                <!-- Message History -->
-                <TabPanel value="4">
-                  <div class="p-3 space-y-4">
-                    <!-- Header with phone and load button -->
-                    <div class="flex items-center justify-between">
-                      <div class="text-sm">
-                        <span class="text-gray-500 dark:text-gray-400">Telefono:</span>
-                        <code class="ml-2 text-xs">{{ webhookConfig.phoneNumber }}</code>
-                      </div>
-                      <Button
-                        icon="pi pi-refresh"
-                        label="Cargar"
-                        size="small"
-                        severity="secondary"
-                        @click="fetchHistory"
-                        :loading="isLoadingHistory"
-                      />
-                    </div>
-
-                    <!-- Conversation list -->
-                    <div v-if="conversationHistory.length > 0" class="space-y-2">
-                      <label class="text-sm font-medium text-gray-500 dark:text-gray-400 block">
-                        Conversaciones ({{ conversationHistory.length }})
-                      </label>
-                      <div class="max-h-32 overflow-y-auto space-y-1">
-                        <div
-                          v-for="conv in conversationHistory"
-                          :key="conv.conversation_id"
-                          :class="[
-                            'flex items-center justify-between p-2 rounded cursor-pointer text-xs',
-                            selectedConversation?.conversation_id === conv.conversation_id
-                              ? 'bg-green-100 dark:bg-green-900 border border-green-300 dark:border-green-700'
-                              : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
-                          ]"
-                          @click="selectConversation(conv)"
-                        >
-                          <div class="flex items-center gap-2 flex-1 min-w-0">
-                            <i class="pi pi-comments text-gray-400" />
-                            <span class="truncate">{{ conv.total_turns }} msgs</span>
-                            <span class="text-gray-400">{{ formatDateTime(conv.last_activity) }}</span>
-                          </div>
-                          <Button
-                            icon="pi pi-times"
-                            size="small"
-                            severity="danger"
-                            text
-                            rounded
-                            @click.stop="deleteConversation(conv)"
-                            v-tooltip.top="'Eliminar conversacion'"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Messages for selected conversation -->
-                    <div v-if="selectedConversation && historyMessages.length > 0" class="space-y-2">
-                      <label class="text-sm font-medium text-gray-500 dark:text-gray-400 block">
-                        Mensajes ({{ historyMessages.length }})
-                      </label>
-                      <div class="max-h-40 overflow-y-auto space-y-1 p-2 bg-gray-50 dark:bg-gray-800 rounded">
-                        <div
-                          v-for="(msg, idx) in historyMessages"
-                          :key="idx"
-                          :class="[
-                            'p-2 rounded text-xs',
-                            msg.sender_type === 'user'
-                              ? 'ml-4 bg-green-100 dark:bg-green-900'
-                              : msg.sender_type === 'assistant'
-                                ? 'mr-4 bg-white dark:bg-gray-700'
-                                : 'mx-auto bg-gray-200 dark:bg-gray-600 text-center'
-                          ]"
-                        >
-                          <div class="flex items-center gap-2 mb-1">
-                            <Tag
-                              :value="msg.sender_type"
-                              :severity="msg.sender_type === 'user' ? 'success' : msg.sender_type === 'assistant' ? 'info' : 'secondary'"
-                              class="text-xs"
-                              style="font-size: 0.6rem; padding: 0.1rem 0.25rem;"
-                            />
-                            <span class="text-gray-400 text-xs">{{ formatDateTime(msg.created_at) }}</span>
-                          </div>
-                          <div class="whitespace-pre-wrap break-words">{{ msg.content }}</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Empty state -->
-                    <div
-                      v-if="!isLoadingHistory && conversationHistory.length === 0"
-                      class="text-center text-gray-400 dark:text-gray-500 py-4"
-                    >
-                      <i class="pi pi-history text-2xl mb-2" />
-                      <p class="text-sm">Presiona "Cargar" para ver historial</p>
-                    </div>
-
-                    <!-- Loading state -->
-                    <div v-if="isLoadingHistory" class="text-center py-4">
-                      <ProgressSpinner style="width: 30px; height: 30px" />
-                    </div>
-
-                    <!-- Delete all button -->
-                    <Button
-                      v-if="conversationHistory.length > 0"
-                      icon="pi pi-trash"
-                      label="Eliminar Todo el Historial"
-                      severity="danger"
-                      size="small"
-                      class="w-full"
-                      @click="showDeleteConfirm = true"
-                      :loading="isDeletingHistory"
-                    />
-                  </div>
-                </TabPanel>
-              </TabPanels>
-            </Tabs>
-          </template>
-        </Card>
-
-        <!-- Quick Actions -->
-        <Card class="mt-4">
-          <template #title>
-            <div class="flex items-center gap-2 text-sm">
-              <i class="pi pi-bolt" />
-              <span>Acciones Rapidas</span>
-            </div>
-          </template>
-
-          <template #content>
-            <div class="grid grid-cols-2 gap-2">
-              <Button
-                label="Hola"
-                size="small"
-                severity="secondary"
-                @click="setQuickMessage('Hola, buenos dias')"
-              />
-              <Button
-                label="Productos"
-                size="small"
-                severity="secondary"
-                @click="setQuickMessage('Que productos tienen?')"
-              />
-              <Button
-                label="Precio"
-                size="small"
-                severity="secondary"
-                @click="setQuickMessage('Cuanto cuesta el paracetamol?')"
-              />
-              <Button
-                label="Pedido"
-                size="small"
-                severity="secondary"
-                @click="setQuickMessage('Quiero hacer un pedido')"
-              />
-              <Button
-                label="Ubicacion"
-                size="small"
-                severity="secondary"
-                @click="setQuickMessage('Donde estan ubicados?')"
-              />
-              <Button
-                label="Horario"
-                size="small"
-                severity="secondary"
-                @click="setQuickMessage('Cual es su horario de atencion?')"
-              />
-            </div>
-          </template>
-        </Card>
+        <PharmacyQuickActions
+          @action="setQuickMessage"
+        />
       </div>
     </div>
 
@@ -507,11 +334,11 @@ async function handleSendMessage() {
         <i class="pi pi-exclamation-triangle text-yellow-500 text-2xl" />
         <div>
           <p class="text-gray-700 dark:text-gray-300">
-            Esta accion eliminara <strong>TODAS</strong> las conversaciones para el telefono
+            Esta acción eliminará <strong>TODAS</strong> las conversaciones para el teléfono
             <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded">{{ webhookConfig.phoneNumber }}</code>.
           </p>
           <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
-            Esta accion no se puede deshacer.
+            Esta acción no se puede deshacer.
           </p>
         </div>
       </div>
@@ -535,24 +362,7 @@ async function handleSendMessage() {
 </template>
 
 <style scoped>
-.pharmacy-testing-page :deep(.p-card-content) {
-  padding: 0;
-}
-
-.pharmacy-testing-page :deep(.p-card-header) {
-  padding: 0;
-}
-
-@keyframes bounce {
-  0%, 60%, 100% {
-    transform: translateY(0);
-  }
-  30% {
-    transform: translateY(-4px);
-  }
-}
-
-.animate-bounce {
-  animation: bounce 1s infinite;
+.pharmacy-testing-page {
+  max-width: 100%;
 }
 </style>
