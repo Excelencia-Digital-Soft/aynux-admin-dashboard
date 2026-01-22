@@ -6,6 +6,7 @@ import AccordionHeader from 'primevue/accordionheader'
 import AccordionContent from 'primevue/accordioncontent'
 import Message from 'primevue/message'
 import ProgressSpinner from 'primevue/progressspinner'
+import Button from 'primevue/button'
 import { nodeTypeColors, nodeTypeIcons } from '@/composables/useWorkflowEditor'
 import type { NodeDefinition } from '@/types/workflow.types'
 
@@ -16,6 +17,7 @@ defineProps<{
 
 const emit = defineEmits<{
   (e: 'addNode', definition: NodeDefinition): void
+  (e: 'manageDefinitions'): void
 }>()
 
 function getNodeColor(nodeType: string): string {
@@ -37,9 +39,20 @@ function onDragStart(event: DragEvent, definition: NodeDefinition) {
 <template>
   <Card class="node-palette">
     <template #title>
-      <div class="flex items-center gap-2">
-        <i class="pi pi-th-large" />
-        <span>Nodos</span>
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i class="pi pi-th-large" />
+          <span>Nodos</span>
+        </div>
+        <Button
+          icon="pi pi-cog"
+          severity="secondary"
+          text
+          rounded
+          size="small"
+          title="Gestionar definiciones de nodos"
+          @click="emit('manageDefinitions')"
+        />
       </div>
     </template>
     <template #content>

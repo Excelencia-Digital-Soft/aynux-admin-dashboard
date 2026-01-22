@@ -51,160 +51,98 @@ export interface SubgraphDefinition {
 // =============================================================================
 
 /**
- * PharmacyGraph - Multi-step customer debt inquiry workflow
+ * PharmacyGraph - Multi-step customer debt inquiry workflow (V2)
  *
  * Flow:
- *   Entry: customer_identification_node
- *   identification → [router | registration | END]
- *   registration → [router | END]
- *   router → [debt_check | confirmation | invoice | payment_link | END]
- *   debt_check → [router | payment_link | END]
- *   confirmation → [router | payment_link | END]
- *   invoice → END
- *   payment_link → END
+ *   Entry: pharmacy_router
+ *   router → [auth_plex | debt_manager | payment_processor | account_switcher | info_node | END]
+ *   auth_plex → [debt_manager | payment_processor | END]
+ *   debt_manager → END
+ *   payment_processor → END
+ *   account_switcher → [debt_manager | END]
+ *   info_node → END
  */
 const PharmacyGraphDefinition: SubgraphDefinition = {
   graphName: 'PharmacyGraph',
-  displayName: 'Flujo de Farmacia',
+  displayName: 'Flujo de Farmacia (V2)',
   description:
-    'Identificación de cliente, consulta de deuda, confirmación y generación de comprobantes',
+    'Autenticación Plex, consulta de deuda, pagos y gestión de cuentas (Arquitectura V2)',
   domainKey: 'pharmacy',
   domainColor: '#14b8a6',
-  entryNode: 'customer_identification_node',
+  entryNode: 'pharmacy_router',
   nodes: [
-    {
-      id: 'customer_identification_node',
-      type: 'entry',
-      label: 'Identificación Cliente',
-      description: 'Identifica al cliente por teléfono o documento',
-      icon: 'pi-id-card'
-    },
-    {
-      id: 'customer_registration_node',
-      type: 'operation',
-      label: 'Registro Cliente',
-      description: 'Registra nuevos clientes en el sistema',
-      icon: 'pi-user-plus'
-    },
     {
       id: 'pharmacy_router',
       type: 'router',
-      label: 'Router Farmacia',
-      description: 'Analiza intención y dirige al nodo correspondiente',
+      label: 'Router Supervisor',
+      description: 'Enrutamiento basado en DB y estado actual',
       icon: 'pi-sitemap'
     },
     {
-      id: 'debt_check_node',
+      id: 'auth_plex',
       type: 'operation',
-      label: 'Consulta Deuda',
-      description: 'Consulta deuda pendiente del cliente',
+      label: 'Autenticación Plex',
+      description: 'Valida identidad contra ERP Plex (DNI/Cuenta)',
+      icon: 'pi-id-card'
+    },
+    {
+      id: 'debt_manager',
+      type: 'operation',
+      label: 'Gestor de Deuda',
+      description: 'Consulta saldos y detalles de facturas',
       icon: 'pi-dollar'
     },
     {
-      id: 'confirmation_node',
+      id: 'payment_processor',
       type: 'operation',
-      label: 'Confirmación',
-      description: 'Solicita confirmación del cliente',
-      icon: 'pi-check-circle'
+      label: 'Procesador Pagos',
+      description: 'Genera links de pago y valida montos',
+      icon: 'pi-credit-card'
     },
     {
-      id: 'invoice_generation_node',
+      id: 'account_switcher',
       type: 'operation',
-      label: 'Generación Recibo',
-      description: 'Genera comprobante de pago',
-      icon: 'pi-file'
+      label: 'Selector Cuenta',
+      description: 'Cambia entre cuentas asociadas o nuevas',
+      icon: 'pi-users'
     },
     {
-      id: 'payment_link_node',
+      id: 'info_node',
       type: 'operation',
-      label: 'Link de Pago',
-      description: 'Genera enlace de pago electrónico',
-      icon: 'pi-link'
+      label: 'Info Farmacia',
+      description: 'Información general, horarios y contacto',
+      icon: 'pi-info-circle'
     },
     {
       id: 'end',
       type: 'end',
-      label: 'Fin',
-      description: 'Finaliza el flujo',
+      label: 'Fin / Respuesta',
+      description: 'Formatea respuesta y termina turno',
       icon: 'pi-check'
     }
   ],
   edges: [
-    // From customer_identification_node
-    {
-      from: 'customer_identification_node',
-      to: 'pharmacy_router',
-      label: 'Cliente identificado',
-      condition: 'customer_identified'
-    },
-    {
-      from: 'customer_identification_node',
-      to: 'customer_registration_node',
-      label: 'Nuevo cliente',
-      condition: 'register_prompt',
-      isConditional: true
-    },
-    {
-      from: 'customer_identification_node',
-      to: 'end',
-      label: 'Esperando datos',
-      isConditional: true
-    },
-    {
-      from: 'customer_identification_node',
-      to: 'customer_identification_node',
-      label: 'Reintento',
-      condition: 'retry_identification',
-      isConditional: true
-    },
-    // From customer_registration_node
-    {
-      from: 'customer_registration_node',
-      to: 'pharmacy_router',
-      label: 'Cliente registrado'
-    },
-    {
-      from: 'customer_registration_node',
-      to: 'end',
-      label: 'Esperando datos',
-      isConditional: true
-    },
-    {
-      from: 'customer_registration_node',
-      to: 'customer_registration_node',
-      label: 'Datos faltantes',
-      condition: 'awaiting_data',
-      isConditional: true
-    },
-    // From pharmacy_router
-    { from: 'pharmacy_router', to: 'debt_check_node', label: 'debt_query' },
-    { from: 'pharmacy_router', to: 'confirmation_node', label: 'confirm' },
-    { from: 'pharmacy_router', to: 'invoice_generation_node', label: 'invoice' },
-    { from: 'pharmacy_router', to: 'payment_link_node', label: 'payment_link' },
-    { from: 'pharmacy_router', to: 'end', label: 'fallback', isConditional: true },
-    // From debt_check_node
-    { from: 'debt_check_node', to: 'pharmacy_router', label: 'Continuar' },
-    {
-      from: 'debt_check_node',
-      to: 'payment_link_node',
-      label: 'Deuda confirmada',
-      condition: 'debt_confirmed',
-      isConditional: true
-    },
-    { from: 'debt_check_node', to: 'end', label: 'Espera', isConditional: true },
-    // From confirmation_node
-    {
-      from: 'confirmation_node',
-      to: 'payment_link_node',
-      label: 'Confirmado',
-      condition: 'confirmed',
-      isConditional: true
-    },
-    { from: 'confirmation_node', to: 'pharmacy_router', label: 'Continuar' },
-    { from: 'confirmation_node', to: 'end', label: 'Espera', isConditional: true },
-    // Terminal nodes
-    { from: 'invoice_generation_node', to: 'end' },
-    { from: 'payment_link_node', to: 'end' }
+    // From Router
+    { from: 'pharmacy_router', to: 'auth_plex', label: 'Requiere auth' },
+    { from: 'pharmacy_router', to: 'debt_manager', label: 'Consultar deuda' },
+    { from: 'pharmacy_router', to: 'payment_processor', label: 'Pagar' },
+    { from: 'pharmacy_router', to: 'account_switcher', label: 'Cambiar cuenta' },
+    { from: 'pharmacy_router', to: 'info_node', label: 'Información' },
+    { from: 'pharmacy_router', to: 'end', label: 'Respuesta directa', isConditional: true },
+
+    // From Auth Plex
+    { from: 'auth_plex', to: 'debt_manager', label: 'Auth OK → Deuda' },
+    { from: 'auth_plex', to: 'payment_processor', label: 'Auth OK → Pago' },
+    { from: 'auth_plex', to: 'end', label: 'Falló / Canceló', isConditional: true },
+
+    // From Account Switcher
+    { from: 'account_switcher', to: 'debt_manager', label: 'Cuenta seleccionada' },
+    { from: 'account_switcher', to: 'end', label: 'Cancelado', isConditional: true },
+
+    // Operation Nodes to End (via Response Formatter)
+    { from: 'debt_manager', to: 'end' },
+    { from: 'payment_processor', to: 'end' },
+    { from: 'info_node', to: 'end' }
   ]
 }
 

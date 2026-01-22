@@ -258,10 +258,33 @@ export const useWorkflowEditorStore = defineStore("workflow-editor", () => {
       });
     }
 
+    // Final validation: ensure all edges have valid source and target that exist in the node list
+    // This catches any edge cases where edges might have been constructed incorrectly
+    const nodeIdSet = new Set(newNodes.filter(n => n.type !== 'annotation').map(n => n.id));
+    const validatedEdges = newEdges.filter(edge => {
+      if (!edge.source || !edge.target) {
+        console.warn(`[Workflow] Final validation: Removing edge ${edge.id} - missing source or target`);
+        return false;
+      }
+      if (!nodeIdSet.has(edge.source)) {
+        console.warn(`[Workflow] Final validation: Removing edge ${edge.id} - source node ${edge.source} not in graph`);
+        return false;
+      }
+      if (!nodeIdSet.has(edge.target)) {
+        console.warn(`[Workflow] Final validation: Removing edge ${edge.id} - target node ${edge.target} not in graph`);
+        return false;
+      }
+      return true;
+    });
+
+    if (validatedEdges.length !== newEdges.length) {
+      console.warn(`[Workflow] Removed ${newEdges.length - validatedEdges.length} invalid edges during final validation`);
+    }
+
     // Set nodes and edges synchronously
     // Vue Flow needs both to be set in the same render cycle to properly validate edges against nodes
     nodes.value = newNodes;
-    edges.value = newEdges;
+    edges.value = validatedEdges;
   }
 
   async function loadGraphData(workflowId: string) {
@@ -490,8 +513,21 @@ export const useWorkflowEditorStore = defineStore("workflow-editor", () => {
       created_at: new Date().toISOString(),
     };
     annotations.value.push(newAnnotation);
+
+    // Add node directly without regenerating entire graph (preserves edges)
+    nodes.value.push({
+      id: newAnnotation.id,
+      type: "annotation",
+      position: newAnnotation.position,
+      data: {
+        label: newAnnotation.content,
+        content: newAnnotation.content,
+        color: newAnnotation.color || "yellow",
+        type: newAnnotation.type || "sticky",
+      },
+    });
+
     isDirty.value = true;
-    generateGraph();
     return newAnnotation;
   }
 
@@ -506,15 +542,28 @@ export const useWorkflowEditorStore = defineStore("workflow-editor", () => {
         ...updates,
         updated_at: new Date().toISOString(),
       };
+
+      // Update node directly without regenerating entire graph (preserves edges)
+      const node = nodes.value.find((n) => n.id === annotationId);
+      if (node) {
+        if (updates.position) node.position = updates.position;
+        if (updates.content !== undefined) {
+          node.data.label = updates.content;
+          node.data.content = updates.content;
+        }
+        if (updates.color !== undefined) node.data.color = updates.color;
+        if (updates.type !== undefined) node.data.type = updates.type;
+      }
+
       isDirty.value = true;
-      generateGraph();
     }
   }
 
   function deleteAnnotation(annotationId: string) {
     annotations.value = annotations.value.filter((a) => a.id !== annotationId);
+    // Remove node directly without regenerating entire graph (preserves edges)
+    nodes.value = nodes.value.filter((n) => n.id !== annotationId);
     isDirty.value = true;
-    generateGraph();
   }
 
   function updateAnnotationPosition(
@@ -525,8 +574,15 @@ export const useWorkflowEditorStore = defineStore("workflow-editor", () => {
     if (annotation) {
       annotation.position = position;
       annotation.updated_at = new Date().toISOString();
-      isDirty.value = true;
     }
+
+    // Also update the node position directly (preserves edges)
+    const node = nodes.value.find((n) => n.id === annotationId);
+    if (node) {
+      node.position = position;
+    }
+
+    isDirty.value = true;
   }
 
   // Import/Export

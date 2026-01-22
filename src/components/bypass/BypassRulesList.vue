@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useBypassRules } from '@/composables/useBypassRules'
 import { useDomains } from '@/composables/useDomains'
 import { pharmacyApi, type Pharmacy } from '@/api/pharmacy.api'
+import { medicalApi, type Institution } from '@/api/medical.api'
 import type { BypassRule, BypassRuleType } from '@/types/bypassRules.types'
 import {
   getRuleTypeLabel,
@@ -41,10 +42,19 @@ const { fetchDomains, getDomainLabel, getDomainColor } = useDomains()
 // Available pharmacies for displaying pharmacy names
 const pharmacies = ref<Pharmacy[]>([])
 
+// Available institutions for displaying institution names
+const institutions = ref<Institution[]>([])
+
 function getPharmacyName(pharmacyId: string | null | undefined): string | null {
   if (!pharmacyId) return null
   const pharmacy = pharmacies.value.find((p) => p.id === pharmacyId)
   return pharmacy?.name || null
+}
+
+function getInstitutionName(institutionId: string | null | undefined): string | null {
+  if (!institutionId) return null
+  const institution = institutions.value.find((i) => i.id === institutionId)
+  return institution?.name || null
 }
 
 // Filter options
@@ -117,6 +127,11 @@ onMounted(async () => {
     pharmacies.value = await pharmacyApi.getPharmacies()
   } catch (error) {
     console.error('Error fetching pharmacies:', error)
+  }
+  try {
+    institutions.value = await medicalApi.getInstitutions()
+  } catch (error) {
+    console.error('Error fetching institutions:', error)
   }
 })
 </script>
@@ -258,6 +273,12 @@ onMounted(async () => {
               class="text-xs text-gray-500"
             >
               {{ getPharmacyName(data.pharmacy_id) }}
+            </span>
+            <span
+              v-if="data.institution_id && getInstitutionName(data.institution_id)"
+              class="text-xs text-gray-500"
+            >
+              {{ getInstitutionName(data.institution_id) }}
             </span>
           </div>
         </template>

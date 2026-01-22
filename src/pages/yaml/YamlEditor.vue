@@ -3,35 +3,42 @@
     <!-- Header -->
     <div class="editor-header">
       <div class="header-left">
-        <Button 
-          @click="goBack" 
-          icon="pi pi-arrow-left" 
+        <Button
+          @click="goBack"
+          icon="pi pi-arrow-left"
           severity="secondary"
           text
           v-tooltip="'Volver a la lista'"
         />
-        <h2 v-if="currentPrompt">
-          {{ isNew ? 'Nuevo Template' : 'Editar Template' }}
-          <Tag :value="currentPrompt.key" severity="secondary" class="ml-2" />
+        <!-- Type indicator tag -->
+        <Tag
+          :value="isFormatter ? 'Formatter' : (isTask ? 'Task' : 'Prompt')"
+          :severity="isFormatter ? 'success' : (isTask ? 'info' : 'primary')"
+          :icon="isFormatter ? 'pi pi-comment' : (isTask ? 'pi pi-list' : 'pi pi-code')"
+          class="mr-2"
+        />
+        <h2 v-if="currentTemplate">
+          {{ isNew ? (isFormatter ? 'Nuevo Formatter' : (isTask ? 'Nuevo Task' : 'Nuevo Template')) : (isFormatter ? 'Editar Formatter' : (isTask ? 'Editar Task' : 'Editar Template')) }}
+          <Tag :value="currentTemplate.key" severity="secondary" class="ml-2" />
         </h2>
-        <h2 v-else>Crear Nuevo Template</h2>
+        <h2 v-else>{{ isFormatter ? 'Crear Nuevo Formatter' : (isTask ? 'Crear Nuevo Task' : 'Crear Nuevo Template') }}</h2>
       </div>
       
       <div class="header-right">
-        <!-- Lock indicator -->
-        <div v-if="currentPrompt && isPromptLocked(currentPrompt.key)" class="lock-indicator mr-3">
+        <!-- Lock indicator (Prompts only) -->
+        <div v-if="!isTask && currentPrompt && isPromptLocked(currentPrompt.key)" class="lock-indicator mr-3">
           <Tag severity="warning" icon="pi pi-lock">
             Bloqueado por {{ lockingUser(currentPrompt.key) }}
           </Tag>
         </div>
-        
+
         <!-- Action buttons -->
-        <Button 
-          @click="openTestDialog" 
-          icon="pi pi-play" 
+        <Button
+          @click="openTestDialog"
+          icon="pi pi-play"
           label="Test"
           severity="info"
-          :disabled="!currentPrompt"
+          :disabled="!currentTemplate"
         />
         <Button 
           @click="validateTemplate" 
@@ -135,9 +142,9 @@
             <div class="form-grid">
               <div class="field">
                 <label for="key">Key *</label>
-                <InputText 
+                <InputText
                   id="key"
-                  v-model="formData.key" 
+                  v-model="currentFormData.key"
                   placeholder="domain.subdomain.action"
                   :disabled="!isNew"
                   class="w-full"
@@ -146,99 +153,236 @@
                   El key no se puede modificar en templates existentes
                 </small>
               </div>
-              
+
               <div class="field">
                 <label for="name">Nombre *</label>
-                <InputText 
+                <InputText
                   id="name"
-                  v-model="formData.name" 
+                  v-model="currentFormData.name"
                   placeholder="Nombre descriptivo"
-                  class="w-full"
-                />
-              </div>
-              
-              <div class="field">
-                <label for="description">Descripción</label>
-                <Textarea 
-                  id="description"
-                  v-model="formData.description" 
-                  placeholder="Describe para qué sirve este template"
-                  rows="3"
-                  class="w-full"
-                />
-              </div>
-              
-              <div class="field">
-                <label for="domain">Dominio *</label>
-                <Select
-                  id="domain"
-                  v-model="formData.metadata.domain"
-                  :options="domainOptions"
-                  optionLabel="label"
-                  optionValue="value"
-                  placeholder="Seleccionar dominio"
                   class="w-full"
                 />
               </div>
 
               <div class="field">
-                <label for="model">Modelo *</label>
-                <Select
-                  id="model"
-                  v-model="formData.metadata.model"
-                  :options="modelOptions"
-                  optionLabel="label"
-                  optionValue="value"
-                  placeholder="Seleccionar modelo"
+                <label for="description">Descripción</label>
+                <Textarea
+                  id="description"
+                  v-model="currentFormData.description"
+                  placeholder="Describe para qué sirve este template"
+                  rows="3"
                   class="w-full"
                 />
               </div>
-              
-              <div class="grid grid-cols-2 gap-2">
+
+              <!-- Prompt-specific fields -->
+              <template v-if="isPrompt">
                 <div class="field">
-                  <label for="temperature">Temperature</label>
-                  <InputNumber 
-                    id="temperature"
-                    v-model="formData.metadata.temperature" 
-                    :min="0" 
-                    :max="2" 
-                    :step="0.1"
+                  <label for="domain">Dominio *</label>
+                  <Select
+                    id="domain"
+                    v-model="formData.metadata.domain"
+                    :options="domainOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Seleccionar dominio"
                     class="w-full"
                   />
                 </div>
-                
+
                 <div class="field">
-                  <label for="max_tokens">Max Tokens</label>
-                  <InputNumber 
-                    id="max_tokens"
-                    v-model="formData.metadata.max_tokens" 
-                    :min="1" 
-                    :max="4096"
+                  <label for="model">Modelo *</label>
+                  <Select
+                    id="model"
+                    v-model="formData.metadata.model"
+                    :options="modelOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Seleccionar modelo"
                     class="w-full"
                   />
                 </div>
-              </div>
-              
+
+                <div class="grid grid-cols-2 gap-2">
+                  <div class="field">
+                    <label for="temperature">Temperature</label>
+                    <InputNumber
+                      id="temperature"
+                      v-model="formData.metadata.temperature"
+                      :min="0"
+                      :max="2"
+                      :step="0.1"
+                      class="w-full"
+                    />
+                  </div>
+
+                  <div class="field">
+                    <label for="max_tokens">Max Tokens</label>
+                    <InputNumber
+                      id="max_tokens"
+                      v-model="formData.metadata.max_tokens"
+                      :min="1"
+                      :max="4096"
+                      class="w-full"
+                    />
+                  </div>
+                </div>
+              </template>
+
+              <!-- Task-specific fields -->
+              <template v-if="isTask">
+                <div class="field">
+                  <div class="flex items-center gap-2 p-3 border rounded-lg" :class="taskFormData.metadata.is_critical ? 'border-red-300 bg-red-50' : 'border-gray-200'">
+                    <Checkbox
+                      id="is_critical"
+                      v-model="taskFormData.metadata.is_critical"
+                      binary
+                    />
+                    <div class="flex flex-col">
+                      <label for="is_critical" class="font-medium cursor-pointer">Task Crítico</label>
+                      <small class="text-muted">Los tasks críticos requieren atención prioritaria</small>
+                    </div>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Formatter-specific fields -->
+              <template v-if="isFormatter">
+                <div class="field">
+                  <label for="response_type">Tipo de Respuesta *</label>
+                  <Select
+                    id="response_type"
+                    v-model="formatterFormData.response_type"
+                    :options="responseTypeOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Seleccionar tipo"
+                    class="w-full"
+                  />
+                </div>
+
+                <div class="field">
+                  <label for="title">Título del Mensaje</label>
+                  <InputText
+                    id="title"
+                    v-model="formatterFormData.title"
+                    placeholder="Título para mensajes interactivos"
+                    class="w-full"
+                  />
+                </div>
+
+                <div class="field">
+                  <label for="body_template">Body Template *</label>
+                  <Textarea
+                    id="body_template"
+                    v-model="formatterFormData.body_template"
+                    placeholder="Plantilla del mensaje con {variables}"
+                    rows="5"
+                    class="w-full font-mono text-sm"
+                  />
+                  <small class="text-muted">Usa {variable} para insertar variables dinámicas</small>
+                </div>
+
+                <!-- Buttons Editor -->
+                <div v-if="formatterFormData.response_type === 'buttons' || formatterFormData.response_type === 'list'" class="field">
+                  <label>Botones / Opciones</label>
+                  <div class="buttons-editor">
+                    <div
+                      v-for="(button, index) in formatterFormData.buttons"
+                      :key="index"
+                      class="button-item"
+                    >
+                      <div class="flex gap-2 items-center">
+                        <InputText
+                          v-model="button.id"
+                          placeholder="ID del botón"
+                          class="flex-1"
+                          size="small"
+                        />
+                        <InputText
+                          v-model="button.titulo"
+                          placeholder="Título del botón"
+                          class="flex-1"
+                          size="small"
+                        />
+                        <Button
+                          icon="pi pi-trash"
+                          severity="danger"
+                          text
+                          rounded
+                          size="small"
+                          @click="removeButton(index)"
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      icon="pi pi-plus"
+                      label="Agregar botón"
+                      severity="secondary"
+                      size="small"
+                      class="w-full mt-2"
+                      @click="addButton"
+                    />
+                  </div>
+                </div>
+
+                <!-- List button text (only for list type) -->
+                <div v-if="formatterFormData.response_type === 'list'" class="field">
+                  <label for="list_button_text">Texto del Botón de Lista</label>
+                  <InputText
+                    id="list_button_text"
+                    v-model="formatterFormData.list_button_text"
+                    placeholder="Ver opciones"
+                    class="w-full"
+                  />
+                </div>
+
+                <div class="field">
+                  <label for="awaiting_input">Awaiting Input</label>
+                  <InputText
+                    id="awaiting_input"
+                    v-model="formatterFormData.awaiting_input"
+                    placeholder="Tipo de input esperado"
+                    class="w-full"
+                  />
+                  <small class="text-muted">Define qué tipo de respuesta espera el bot</small>
+                </div>
+
+                <div class="field">
+                  <div class="flex items-center gap-2 p-3 border rounded-lg" :class="formatterFormData.is_complete ? 'border-green-300 bg-green-50' : 'border-gray-200'">
+                    <Checkbox
+                      id="is_complete"
+                      v-model="formatterFormData.is_complete"
+                      binary
+                    />
+                    <div class="flex flex-col">
+                      <label for="is_complete" class="font-medium cursor-pointer">Mensaje Completo</label>
+                      <small class="text-muted">Indica si este mensaje finaliza el flujo</small>
+                    </div>
+                  </div>
+                </div>
+              </template>
+
               <div class="field">
                 <label for="tags">Tags</label>
                 <AutoComplete
                   id="tags"
-                  v-model="formData.metadata.tags"
+                  v-model="currentFormData.metadata.tags"
                   placeholder="Agregar tags"
                   class="w-full"
                   multiple
                   :typeahead="false"
                 />
               </div>
-              
+
               <div class="field">
                 <div class="flex items-center">
-                  <Checkbox 
+                  <Checkbox
                     id="active"
-                    v-model="formData.active" 
+                    v-model="currentFormData.active"
                     binary
                   />
-                  <label for="active" class="ml-2">Template activo</label>
+                  <label for="active" class="ml-2">{{ isFormatter ? 'Formatter activo' : (isTask ? 'Task activo' : 'Template activo') }}</label>
                 </div>
               </div>
             </div>
@@ -364,11 +508,11 @@
             <i class="pi pi-file"></i>
             Plantillas Rápidas
           </template>
-          
+
           <template #content>
             <div class="quick-templates">
-              <Button 
-                v-for="template in quickTemplates"
+              <Button
+                v-for="template in currentQuickTemplates"
                 :key="template.name"
                 @click="insertQuickTemplate(template)"
                 :label="template.name"
@@ -384,9 +528,10 @@
 
     <!-- Test Dialog -->
     <YamlTestDialog
-      v-if="currentPrompt"
+      v-if="currentTemplate"
       :visible="showTestDialog"
-      :promptKey="currentPrompt.key"
+      :templateKey="currentTemplate.key"
+      :templateType="templateType"
       @close="showTestDialog = false"
     />
   </div>
@@ -423,8 +568,13 @@ const {
   saving,
   editorHeight,
   formData,
+  taskFormData,
+  formatterFormData,
   // Store refs
   currentPrompt,
+  currentTask,
+  currentFormatter,
+  templateType,
   validation,
   isPromptLocked,
   lockingUser,
@@ -437,11 +587,18 @@ const {
   canSave,
   saveDisabledReason,
   canPreview,
+  isTask,
+  isPrompt,
+  isFormatter,
+  currentTemplate,
+  currentFormData,
+  currentQuickTemplates,
   // Options
   domainOptions,
   modelOptions,
   modelsLoading,
   quickTemplates,
+  responseTypeOptions,
   // Monaco
   monacoEditor,
   // Actions
@@ -458,6 +615,18 @@ const {
   openTestDialog,
   closeTestDialog
 } = useYamlEditor(editorContainer, toast)
+
+// Helper functions for button management
+function addButton() {
+  formatterFormData.value.buttons.push({
+    id: `btn_${formatterFormData.value.buttons.length + 1}`,
+    titulo: ''
+  })
+}
+
+function removeButton(index: number) {
+  formatterFormData.value.buttons.splice(index, 1)
+}
 
 // Local state for test dialog
 const testVariables = ref<Record<string, any>>({})
@@ -652,6 +821,28 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+/* Buttons Editor Styles */
+.buttons-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--surface-50);
+  border-radius: 6px;
+  border: 1px solid var(--surface-200);
+}
+
+.button-item {
+  padding: 0.5rem;
+  background: var(--surface-card);
+  border-radius: 4px;
+  border: 1px solid var(--surface-border);
+}
+
+.button-item:hover {
+  border-color: var(--primary-color);
 }
 
 .text-muted {

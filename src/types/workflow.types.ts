@@ -6,6 +6,78 @@
  */
 
 // =============================================================================
+// WHATSAPP RESPONSE CONFIG TYPES
+// =============================================================================
+
+/**
+ * WhatsApp constraints for interactive messages
+ */
+export const WHATSAPP_CONSTRAINTS = {
+  BUTTON_MAX: 3,
+  BUTTON_TITLE_MAX: 20,
+  LIST_ITEMS_MAX: 10,
+  LIST_TITLE_MAX: 24,
+  LIST_DESCRIPTION_MAX: 72,
+  BUTTON_TEXT_MAX: 20,
+} as const;
+
+/**
+ * WhatsApp button configuration
+ */
+export interface WhatsAppButton {
+  id: string;
+  title: string;
+}
+
+/**
+ * WhatsApp list row configuration
+ */
+export interface WhatsAppListRow {
+  id: string;
+  title: string;
+  description?: string;
+}
+
+/**
+ * WhatsApp list section configuration
+ */
+export interface WhatsAppListSection {
+  title: string;
+  rows: WhatsAppListRow[];
+}
+
+/**
+ * WhatsApp list configuration
+ */
+export interface ListConfig {
+  button_text: string;
+  sections: WhatsAppListSection[];
+}
+
+/**
+ * Node response configuration for workflow nodes
+ * Stored in NodeInstance.config.response_config
+ */
+export interface NodeResponseConfig {
+  /** Response generation type: prompt (LLM) or template (fixed text with variables) */
+  response_type: "prompt" | "template";
+  /** WhatsApp message format */
+  message_format: "text" | "buttons" | "list";
+  /** Task description for LLM prompt generation */
+  task_description?: string;
+  /** Template text with {placeholders} for template response type */
+  template_text?: string;
+  /** Button configuration (max 3 buttons) */
+  buttons?: WhatsAppButton[];
+  /** List configuration for list message format */
+  list_config?: ListConfig;
+  /** Optional header text */
+  header?: string;
+  /** Optional footer text */
+  footer?: string;
+}
+
+// =============================================================================
 // NODE DEFINITION TYPES
 // =============================================================================
 
@@ -40,6 +112,39 @@ export interface NodeDefinitionListResponse {
   nodes: NodeDefinition[];
   total: number;
   categories: string[];
+}
+
+/**
+ * Node definition create request
+ */
+export interface NodeDefinitionCreate {
+  node_key: string;
+  node_type?: "conversation" | "routing" | "integration" | "utility";
+  display_name: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  category?: string;
+  config_schema?: Record<string, unknown>;
+  default_config?: Record<string, unknown>;
+  inputs?: string[];
+  outputs?: string[];
+}
+
+/**
+ * Node definition update request
+ */
+export interface NodeDefinitionUpdate {
+  display_name?: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  category?: string;
+  config_schema?: Record<string, unknown>;
+  default_config?: Record<string, unknown>;
+  inputs?: string[];
+  outputs?: string[];
+  is_active?: boolean;
 }
 
 // =============================================================================

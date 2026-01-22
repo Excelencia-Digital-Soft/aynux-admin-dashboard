@@ -1,40 +1,56 @@
 <template>
   <Dialog
     v-model:visible="visible"
-    header="Test Prompt"
+    :header="isTask ? 'Test Task' : (isFormatter ? 'Test Formatter' : 'Test Prompt')"
     :style="{ width: '90vw', maxWidth: '1200px' }"
     :maximizable="true"
     modal
     @update:visible="handleClose"
   >
     <div class="yaml-test-dialog">
-      <!-- Prompt Info -->
+      <!-- Template Info -->
       <Card class="mb-4">
         <template #title>
           <i class="pi pi-info-circle"></i>
-          Informacion del Prompt
+          {{ isTask ? 'Información del Task' : (isFormatter ? 'Información del Formatter' : 'Información del Prompt') }}
         </template>
         <template #content>
           <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <strong>Key:</strong>
-              <Tag :value="promptKey" severity="secondary" class="ml-2" />
+              <Tag :value="templateKey" severity="secondary" class="ml-2" />
             </div>
-            <div>
+            <div v-if="!isTask">
               <strong>Dominio:</strong>
-              <Tag :value="promptDomain" severity="info" class="ml-2" />
+              <Tag :value="templateDomain" severity="info" class="ml-2" />
             </div>
-            <div>
+            <div v-if="!isTask && !isFormatter">
               <strong>Modelo:</strong>
               <Tag :value="currentPrompt?.metadata?.model || 'default'" class="ml-2" />
             </div>
-            <div>
-              <strong>Tokens maximos:</strong>
+            <div v-if="!isTask && !isFormatter">
+              <strong>Tokens máximos:</strong>
               <span class="ml-2">{{ currentPrompt?.metadata?.max_tokens || 2048 }}</span>
             </div>
-          </div>
-        </template>
-      </Card>
+            <div v-if="isTask">
+              <strong>Crítico:</strong>
+              <Tag
+                :value="currentTask?.metadata?.is_critical ? 'Sí' : 'No'"
+                :severity="currentTask?.metadata?.is_critical ? 'danger' : 'secondary'"
+                class="ml-2"
+              />
+            </div>
+    <div v-if="isTask">
+      <strong>Tipo:</strong>
+      <Tag value="Task (solo texto)" severity="info" class="ml-2" />
+    </div>
+    <div v-if="isFormatter">
+      <strong>Tipo:</strong>
+      <Tag value="Formatter (WhatsApp)" severity="success" class="ml-2" />
+    </div>
+  </div>
+</template>
+</Card>
 
       <!-- Test Variables -->
       <Card class="mb-4">
@@ -123,11 +139,11 @@
         </template>
       </Card>
 
-      <!-- Test Configuration -->
-      <Card class="mb-4">
-        <template #title>
-          <i class="pi pi-cog"></i>
-          Configuracion de Test
+<!-- Test Configuration (Prompts only - Tasks and Formatters don't use LLM) -->
+<Card v-if="!isTask && !isFormatter" class="mb-4">
+  <template #title>
+    <i class="pi pi-cog"></i>
+    Configuración de Test
         </template>
         <template #content>
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -181,6 +197,36 @@
         </template>
       </Card>
 
+<!-- Task Info Message -->
+<Card v-if="isTask" class="mb-4">
+  <template #content>
+    <Message severity="info" :closable="false">
+      <div class="flex items-center gap-2">
+        <i class="pi pi-info-circle"></i>
+        <span>
+          Los Tasks son plantillas de texto sin llamada a LLM.
+          El test solo renderiza las variables en el template.
+        </span>
+      </div>
+    </Message>
+  </template>
+</Card>
+
+<!-- Formatter Info Message -->
+<Card v-if="isFormatter" class="mb-4">
+  <template #content>
+    <Message severity="info" :closable="false">
+      <div class="flex items-center gap-2">
+        <i class="pi pi-whatsapp"></i>
+        <span>
+          Los Formatters generan mensajes interactivos de WhatsApp.
+          El test renderiza el cuerpo del mensaje y los botones con las variables aplicadas.
+        </span>
+      </div>
+    </Message>
+  </template>
+</Card>
+
       <!-- Test Actions -->
       <div class="test-actions mb-4">
         <Button
@@ -205,7 +251,7 @@
       </div>
 
       <!-- Test Results -->
-      <div v-if="testResult" class="test-results">
+      <div v-if="currentTestResult" class="test-results">
         <!-- Result Summary -->
         <Card class="mb-4">
           <template #title>
@@ -214,32 +260,32 @@
           </template>
           <template #content>
             <div class="result-summary">
-              <div class="summary-grid">
-                <div>
-                  <strong>Estado:</strong>
-                  <Tag
-                    :value="testResult.success ? 'Exitoso' : 'Fallido'"
-                    :severity="testResult.success ? 'success' : 'danger'"
-                    class="ml-2"
-                  />
-                </div>
-                <div>
-                  <strong>Tiempo de ejecucion:</strong>
-                  <span class="ml-2">{{ Math.round(testResult.execution_time) }}ms</span>
-                </div>
-                <div v-if="testResult.token_usage">
-                  <strong>Tokens usados:</strong>
-                  <span class="ml-2">{{ testResult.token_usage.total_tokens }}</span>
-                  <small class="text-muted">
-                    ({{ testResult.token_usage.prompt_tokens }} prompt +
-                    {{ testResult.token_usage.completion_tokens }} completion)
-                  </small>
-                </div>
-              </div>
+      <div class="summary-grid">
+        <div>
+          <strong>Estado:</strong>
+          <Tag
+            :value="currentTestResult.success ? 'Exitoso' : 'Fallido'"
+            :severity="currentTestResult.success ? 'success' : 'danger'"
+            class="ml-2"
+          />
+        </div>
+        <div>
+          <strong>Tiempo de ejecución:</strong>
+          <span class="ml-2">{{ Math.round(currentTestResult.execution_time) }}ms</span>
+        </div>
+        <div v-if="!isTask && !isFormatter && testResult?.token_usage">
+          <strong>Tokens usados:</strong>
+          <span class="ml-2">{{ testResult.token_usage.total_tokens }}</span>
+          <small class="text-muted">
+            ({{ testResult.token_usage.prompt_tokens }} prompt +
+            {{ testResult.token_usage.completion_tokens }} completion)
+          </small>
+        </div>
+      </div>
 
-              <div v-if="testResult.errors && testResult.errors.length > 0" class="errors mt-3">
+              <div v-if="currentTestResult.errors && currentTestResult.errors.length > 0" class="errors mt-3">
                 <Message severity="error" :closable="false">
-                  <div v-for="error in testResult.errors" :key="error" class="mb-1">
+                  <div v-for="error in currentTestResult.errors" :key="error" class="mb-1">
                     {{ error }}
                   </div>
                 </Message>
@@ -248,29 +294,52 @@
           </template>
         </Card>
 
-        <!-- Rendered Template -->
-        <Card v-if="testResult.rendered_prompt" class="mb-4">
-          <template #title>
-            <i class="pi pi-eye"></i>
-            Template Renderizado
-          </template>
-          <template #content>
-            <div class="rendered-template">
-              <pre>{{ testResult.rendered_prompt }}</pre>
-              <Button
-                @click="copyToClipboard(testResult.rendered_prompt)"
-                icon="pi pi-copy"
-                size="small"
-                severity="secondary"
-                label="Copiar"
-                class="mt-2"
-              />
-            </div>
-          </template>
-        </Card>
+<!-- Rendered Template -->
+<Card v-if="renderedContent" class="mb-4">
+  <template #title>
+    <i class="pi pi-eye"></i>
+    {{ isTask ? 'Task Renderizado' : (isFormatter ? 'Mensaje Renderizado' : 'Template Renderizado') }}
+  </template>
+  <template #content>
+    <div class="rendered-template">
+      <pre>{{ renderedContent }}</pre>
+      <Button
+        @click="copyToClipboard(renderedContent)"
+        icon="pi pi-copy"
+        size="small"
+        severity="secondary"
+        label="Copiar"
+        class="mt-2"
+      />
+    </div>
+  </template>
+</Card>
 
-        <!-- Model Response -->
-        <Card v-if="testResult.model_response" class="mb-4">
+<!-- Formatter Buttons (Formatters only) -->
+<Card v-if="isFormatter && currentTestResult?.rendered_buttons" class="mb-4">
+  <template #title>
+    <i class="pi pi-objects-column"></i>
+    Botones Renderizados
+  </template>
+  <template #content>
+    <div class="rendered-buttons space-y-2">
+      <div 
+        v-for="btn in currentTestResult.rendered_buttons" 
+        :key="btn.id"
+        class="p-3 border border-gray-200 rounded-lg flex justify-between items-center bg-gray-50"
+      >
+        <div>
+          <span class="font-medium text-gray-700">{{ btn.titulo }}</span>
+          <span class="text-xs text-gray-500 ml-2">ID: {{ btn.id }}</span>
+        </div>
+        <Tag value="Button" severity="info" size="small" />
+      </div>
+    </div>
+  </template>
+</Card>
+
+<!-- Model Response (Prompts only) -->
+<Card v-if="!isTask && !isFormatter && testResult?.model_response" class="mb-4">
           <template #title>
             <i class="pi pi-reply"></i>
             Respuesta del Modelo
@@ -328,9 +397,12 @@ interface VariableDefinition {
   example: string
 }
 
+import type { TemplateType } from '@/types/yaml.types'
+
 interface Props {
   visible: boolean
-  promptKey: string
+  templateKey: string
+  templateType: TemplateType
 }
 
 const props = defineProps<Props>()
@@ -345,7 +417,35 @@ const yamlStore = useYamlStore()
 const { simpleOptions: modelOptions } = useAIModels()
 
 // Store getters - use storeToRefs for reactivity
-const { currentPrompt, testResult } = storeToRefs(yamlStore)
+const { currentPrompt, currentTask, currentFormatter, testResult, taskTestResult, formatterTestResult } = storeToRefs(yamlStore)
+
+// Type-aware computed
+const isTask = computed(() => props.templateType === 'task')
+const isFormatter = computed(() => props.templateType === 'formatter')
+
+// Get the current template (prompt, task, or formatter)
+const currentTemplate = computed(() => {
+  if (isTask.value) return currentTask.value
+  if (isFormatter.value) return currentFormatter.value
+  return currentPrompt.value
+})
+
+// Get the appropriate test result
+const currentTestResult = computed(() => {
+  if (isTask.value) return taskTestResult.value
+  if (isFormatter.value) return formatterTestResult.value
+  return testResult.value
+})
+
+// Get the rendered content (different field names for prompts vs tasks vs formatters)
+const renderedContent = computed(() => {
+  if (!currentTestResult.value) return null
+  // Formatters use 'rendered_body', Tasks use 'rendered_template', prompts use 'rendered_prompt'
+  return (currentTestResult.value as any).rendered_body ||
+         (currentTestResult.value as any).rendered_template ||
+         (currentTestResult.value as any).rendered_prompt ||
+         null
+})
 
 // Component state
 const visible = ref(props.visible)
@@ -369,8 +469,11 @@ const testConfig = ref({
 })
 
 // Computed
-const promptDomain = computed(() => {
-  return currentPrompt.value?.metadata?.domain || props.promptKey.split('.')[0] || 'core'
+const templateDomain = computed(() => {
+  if (isTask.value || isFormatter.value) {
+    return props.templateKey.split('.')[0] || 'core'
+  }
+  return currentPrompt.value?.metadata?.domain || props.templateKey.split('.')[0] || 'core'
 })
 
 const canTest = computed(() => {
@@ -573,13 +676,14 @@ function formatDate(daysFromNow: number): string {
 // VARIABLE EXTRACTION (Metadata-first approach)
 // ============================================
 async function extractVariables() {
-  if (!currentPrompt.value) return
+  const template = currentTemplate.value
+  if (!template) return
 
   const variables: VariableDefinition[] = []
-  const domain = promptDomain.value
+  const domain = templateDomain.value
 
   // 1. First, use variables from metadata (authoritative source)
-  const metaVars = currentPrompt.value.metadata?.variables || { required: [], optional: [] }
+  const metaVars = template.metadata?.variables || { required: [], optional: [] }
 
   // Add required variables from metadata
   if (Array.isArray(metaVars.required)) {
@@ -606,10 +710,10 @@ async function extractVariables() {
   }
 
   // 2. If no variables in metadata, extract from template (fallback)
-  if (variables.length === 0 && currentPrompt.value.template) {
-    const template = currentPrompt.value.template
+  if (variables.length === 0 && template.template) {
+    const templateContent = template.template
     const regex = /\{([^{}]+)\}/g
-    const matches = [...template.matchAll(regex)]
+    const matches = [...templateContent.matchAll(regex)]
     const seenVars = new Set<string>()
 
     matches.forEach(match => {
@@ -662,7 +766,7 @@ function setExampleValue(variable: VariableDefinition) {
 }
 
 function autoFillAllVariables() {
-  const domain = promptDomain.value
+  const domain = templateDomain.value
   availableVariables.value.forEach(variable => {
     testData.value.variables[variable.name] = generateSmartExample(variable.name, domain)
   })
@@ -693,22 +797,46 @@ function clearAllValues() {
 }
 
 async function executeTest() {
-  if (!currentPrompt.value) return
+  if (!currentTemplate.value) return
 
   testing.value = true
 
   try {
-    await yamlStore.testPrompt(props.promptKey, {
-      variables: testData.value.variables,
-      context: testData.value.context
-    })
-
-    toast.add({
-      severity: 'success',
-      summary: 'Test ejecutado',
-      detail: 'El test se ha ejecutado exitosamente',
-      life: 3000
-    })
+    if (isTask.value) {
+      // Tasks: Just render template (no LLM call)
+      await yamlStore.testTask(props.templateKey, {
+        variables: testData.value.variables
+      })
+      toast.add({
+        severity: 'success',
+        summary: 'Task renderizado',
+        detail: 'El template se ha renderizado exitosamente',
+        life: 3000
+      })
+    } else if (isFormatter.value) {
+      // Formatters: Render body and buttons
+      await yamlStore.testFormatter(props.templateKey, {
+        variables: testData.value.variables
+      })
+      toast.add({
+        severity: 'success',
+        summary: 'Formatter renderizado',
+        detail: 'El formatter se ha renderizado exitosamente',
+        life: 3000
+      })
+    } else {
+      // Prompts: Full LLM test
+      await yamlStore.testPrompt(props.templateKey, {
+        variables: testData.value.variables,
+        context: testData.value.context
+      })
+      toast.add({
+        severity: 'success',
+        summary: 'Test ejecutado',
+        detail: 'El test se ha ejecutado exitosamente',
+        life: 3000
+      })
+    }
   } catch (error: any) {
     toast.add({
       severity: 'error',
@@ -756,15 +884,30 @@ watch(visible, (newVal) => {
 
 // Lifecycle
 onMounted(async () => {
-  if (props.promptKey && !currentPrompt.value) {
-    await yamlStore.fetchPromptByKey(props.promptKey)
+  // Fetch the appropriate template based on type
+  if (props.templateKey) {
+    if (isTask.value) {
+      if (!currentTask.value) {
+        await yamlStore.fetchTaskByKey(props.templateKey)
+      }
+    } else if (isFormatter.value) {
+      if (!currentFormatter.value) {
+        await yamlStore.fetchFormatterByKey(props.templateKey)
+      }
+    } else {
+      if (!currentPrompt.value) {
+        await yamlStore.fetchPromptByKey(props.templateKey)
+      }
+    }
   }
 
-  if (currentPrompt.value) {
-    // Set default test config from prompt metadata with fallbacks
-    testConfig.value.model = currentPrompt.value.metadata?.model || 'default'
-    testConfig.value.temperature = currentPrompt.value.metadata?.temperature ?? 0.7
-    testConfig.value.max_tokens = currentPrompt.value.metadata?.max_tokens ?? 1000
+  if (currentTemplate.value) {
+    // Set default test config from template metadata (only for prompts)
+    if (!isTask.value && !isFormatter.value && currentPrompt.value) {
+      testConfig.value.model = currentPrompt.value.metadata?.model || 'default'
+      testConfig.value.temperature = currentPrompt.value.metadata?.temperature ?? 0.7
+      testConfig.value.max_tokens = currentPrompt.value.metadata?.max_tokens ?? 1000
+    }
 
     await extractVariables()
   }

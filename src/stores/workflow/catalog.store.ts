@@ -3,6 +3,8 @@ import { ref, computed } from "vue";
 import { workflowApi } from "@/api/workflow.api";
 import type {
   NodeDefinition,
+  NodeDefinitionCreate,
+  NodeDefinitionUpdate,
   RoutingRule,
   RoutingRuleCreate,
   RoutingRuleUpdate,
@@ -70,6 +72,58 @@ export const useWorkflowCatalogStore = defineStore("workflow-catalog", () => {
       throw e;
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  async function createNodeDefinition(
+    data: NodeDefinitionCreate,
+  ): Promise<NodeDefinition> {
+    isSaving.value = true;
+    try {
+      const created = await workflowApi.createNodeDefinition(data);
+      nodeDefinitions.value.push(created);
+      return created;
+    } catch (e: unknown) {
+      error.value =
+        e instanceof Error ? e.message : "Failed to create node definition";
+      throw e;
+    } finally {
+      isSaving.value = false;
+    }
+  }
+
+  async function updateNodeDefinition(
+    nodeDefId: string,
+    updates: NodeDefinitionUpdate,
+  ): Promise<NodeDefinition> {
+    isSaving.value = true;
+    try {
+      const updated = await workflowApi.updateNodeDefinition(nodeDefId, updates);
+      const idx = nodeDefinitions.value.findIndex((n) => n.id === nodeDefId);
+      if (idx !== -1) nodeDefinitions.value[idx] = updated;
+      return updated;
+    } catch (e: unknown) {
+      error.value =
+        e instanceof Error ? e.message : "Failed to update node definition";
+      throw e;
+    } finally {
+      isSaving.value = false;
+    }
+  }
+
+  async function deleteNodeDefinition(nodeDefId: string): Promise<void> {
+    isSaving.value = true;
+    try {
+      await workflowApi.deleteNodeDefinition(nodeDefId);
+      nodeDefinitions.value = nodeDefinitions.value.filter(
+        (n) => n.id !== nodeDefId,
+      );
+    } catch (e: unknown) {
+      error.value =
+        e instanceof Error ? e.message : "Failed to delete node definition";
+      throw e;
+    } finally {
+      isSaving.value = false;
     }
   }
 
@@ -303,6 +357,9 @@ export const useWorkflowCatalogStore = defineStore("workflow-catalog", () => {
     // Actions
     reset,
     loadNodeDefinitions,
+    createNodeDefinition,
+    updateNodeDefinition,
+    deleteNodeDefinition,
     loadRoutingRules,
     createRoutingRule,
     updateRoutingRule,

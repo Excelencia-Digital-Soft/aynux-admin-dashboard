@@ -319,6 +319,19 @@ const router = createRouter({
             requiresOrg: true,
             requiresAdmin: true
           }
+        },
+
+        // Node Definitions - CRUD for workflow node catalog (accessed from workflow editor)
+        {
+          path: 'node-definitions',
+          name: 'NodeDefinitions',
+          component: () => import('@/pages/admin/NodeDefinitionsPage.vue'),
+          meta: {
+            title: 'Definiciones de Nodos',
+            icon: 'pi-box',
+            requiresAdmin: true,
+            hideFromMenu: true
+          }
         }
       ]
     },

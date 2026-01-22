@@ -14,6 +14,8 @@ import type {
   WorkflowListResponse,
   WorkflowPublishResponse,
   NodeDefinition,
+  NodeDefinitionCreate,
+  NodeDefinitionUpdate,
   NodeDefinitionListResponse,
   NodeInstance,
   NodeInstanceCreate,
@@ -58,7 +60,7 @@ export const workflowApi = {
     if (filters?.active_only) params.append('active_only', 'true')
     if (filters?.drafts_only) params.append('drafts_only', 'true')
 
-    const { data } = await apiClient.get<WorkflowListResponse>(`${BASE_URL}?${params}`)
+    const { data } = await apiClient.get<WorkflowListResponse>(`${BASE_URL}/?${params}`)
     return data
   },
 
@@ -123,6 +125,43 @@ export const workflowApi = {
     const url = params.toString() ? `${BASE_URL}/nodes/catalog?${params}` : `${BASE_URL}/nodes/catalog`
     const { data } = await apiClient.get<NodeDefinitionListResponse>(url)
     return data
+  },
+
+  /**
+   * Get a node definition by ID
+   */
+  async getNodeDefinition(nodeDefId: string): Promise<NodeDefinition> {
+    const { data } = await apiClient.get<NodeDefinition>(`${BASE_URL}/nodes/catalog/${nodeDefId}`)
+    return data
+  },
+
+  /**
+   * Create a new custom node definition
+   */
+  async createNodeDefinition(nodeDef: NodeDefinitionCreate): Promise<NodeDefinition> {
+    const { data } = await apiClient.post<NodeDefinition>(`${BASE_URL}/nodes/catalog`, nodeDef)
+    return data
+  },
+
+  /**
+   * Update a node definition
+   */
+  async updateNodeDefinition(
+    nodeDefId: string,
+    nodeDef: NodeDefinitionUpdate
+  ): Promise<NodeDefinition> {
+    const { data } = await apiClient.put<NodeDefinition>(
+      `${BASE_URL}/nodes/catalog/${nodeDefId}`,
+      nodeDef
+    )
+    return data
+  },
+
+  /**
+   * Delete a custom node definition (only if not in use)
+   */
+  async deleteNodeDefinition(nodeDefId: string): Promise<void> {
+    await apiClient.delete(`${BASE_URL}/nodes/catalog/${nodeDefId}`)
   },
 
   // ===========================================================================

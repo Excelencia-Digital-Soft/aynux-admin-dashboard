@@ -1,4 +1,4 @@
-import { ref, computed, type Ref } from 'vue'
+import { ref, computed, watch, type Ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import yaml from 'yaml'
@@ -7,7 +7,17 @@ import { useAuthStore } from '@/stores/auth.store'
 import { useConfirm } from '@/composables/useConfirm'
 import { useAIModels } from '@/composables/useAIModels'
 import { useMonacoEditor } from '@/composables/useMonacoEditor'
-import type { CreateYamlRequest } from '@/types/yaml.types'
+import type {
+  CreateYamlRequest,
+  TemplateType,
+  CreateTaskRequest,
+  UpdateTaskRequest,
+  YamlFormatter,
+  FormatterResponseType,
+  FormatterButton,
+  FormatterCreateRequest,
+  FormatterUpdateRequest
+} from '@/types/yaml.types'
 
 /**
  * Composable for YAML template editor page.
@@ -23,6 +33,35 @@ export interface UseYamlEditorOptions {
 
 interface FormData extends CreateYamlRequest {
   key?: string
+}
+
+interface TaskFormData extends CreateTaskRequest {
+  key?: string
+  version?: string
+  active?: boolean
+  source?: 'file' | 'database'
+  is_critical?: boolean
+}
+
+interface FormatterFormData {
+  key: string
+  name: string
+  description?: string
+  version: string
+  response_type: FormatterResponseType
+  title?: string
+  body_template: string
+  buttons: FormatterButton[]
+  list_button_text?: string
+  awaiting_input?: string
+  is_complete: boolean
+  metadata: {
+    tags: string[]
+    category?: string
+    priority?: number
+  }
+  active: boolean
+  source: 'file' | 'database'
 }
 
 interface ToastInterface {
@@ -116,6 +155,198 @@ const QUICK_TEMPLATES = [
   }
 ]
 
+// ===== TASK TEMPLATES (no LLM params) =====
+
+const DEFAULT_TASK_TEMPLATE = `tasks:
+  - key: domain.flow.action
+    name: Task Name
+    description: Describe what this task does
+    version: "1.0.0"
+    template: |
+      Your text template here with {variables}
+    metadata:
+      tags:
+        - example
+        - task
+      variables:
+        required:
+          - variable1
+        optional:
+          - variable2
+      is_critical: false`
+
+const TASK_QUICK_TEMPLATES = [
+  {
+    name: 'Task Básico',
+    content: `tasks:
+  - key: domain.flow.action
+    name: Task Name
+    description: What this task does
+    version: "1.0.0"
+    template: |
+      Your text template here with {variables}
+    metadata:
+      tags:
+        - tag1
+      variables:
+        required:
+          - variable1
+        optional:
+          - variable2
+      is_critical: false`
+  },
+  {
+    name: 'Greeting Task',
+    content: `tasks:
+  - key: pharmacy.greeting.default
+    name: Pharmacy Greeting
+    description: Saludo inicial para el chatbot de farmacia
+    version: "1.0.0"
+    template: |
+      ¡Hola {user_name}! 👋
+
+      Bienvenido a {pharmacy_name}. Estoy aquí para ayudarte con:
+      - Consultas sobre medicamentos
+      - Disponibilidad de productos
+      - Información sobre pedidos
+
+      ¿En qué puedo ayudarte hoy?
+    metadata:
+      tags:
+        - greeting
+        - pharmacy
+      variables:
+        required:
+          - user_name
+          - pharmacy_name
+        optional:
+          - time_of_day
+      is_critical: false`
+  },
+  {
+    name: 'Error Response Task',
+    content: `tasks:
+  - key: core.error.generic
+    name: Generic Error Response
+    description: Mensaje de error genérico para el chatbot
+    version: "1.0.0"
+    template: |
+      Lo siento, ha ocurrido un error al procesar tu solicitud.
+
+      {error_message}
+
+      Por favor intenta de nuevo o contacta a soporte si el problema persiste.
+    metadata:
+      tags:
+        - error
+        - critical
+      variables:
+        required:
+          - error_message
+        optional: []
+      is_critical: true`
+  }
+]
+
+// ===== FORMATTER TEMPLATES (WhatsApp interactive messages) =====
+
+const DEFAULT_FORMATTER_TEMPLATE = `key: pharmacy.formatter.example
+name: Example Formatter
+description: Template de ejemplo para mensajes WhatsApp interactivos
+version: "1.0.0"
+response_type: buttons
+title: Título del mensaje
+body_template: |
+  Hola {user_name}!
+
+  Este es un mensaje de ejemplo con variables.
+buttons:
+  - id: btn_option_1
+    titulo: Opción 1
+  - id: btn_option_2
+    titulo: Opción 2
+awaiting_input: null
+is_complete: false
+metadata:
+  tags:
+    - example
+    - formatter`
+
+const FORMATTER_QUICK_TEMPLATES = [
+  {
+    name: 'Formatter con Botones',
+    content: `key: pharmacy.formatter.buttons_example
+name: Buttons Formatter
+description: Template con botones interactivos
+version: "1.0.0"
+response_type: buttons
+title: Selecciona una opción
+body_template: |
+  {greeting_message}
+
+  Por favor selecciona una de las siguientes opciones:
+buttons:
+  - id: btn_option_a
+    titulo: Opción A
+  - id: btn_option_b
+    titulo: Opción B
+  - id: btn_cancel
+    titulo: Cancelar
+awaiting_input: user_selection
+is_complete: false
+metadata:
+  tags:
+    - buttons
+    - interactive`
+  },
+  {
+    name: 'Formatter con Lista',
+    content: `key: pharmacy.formatter.list_example
+name: List Formatter
+description: Template con lista de opciones
+version: "1.0.0"
+response_type: list
+title: Menú de opciones
+body_template: |
+  Hola {user_name}!
+
+  Aquí están las opciones disponibles para ti:
+list_button_text: Ver opciones
+buttons:
+  - id: item_1
+    titulo: Primera opción
+  - id: item_2
+    titulo: Segunda opción
+  - id: item_3
+    titulo: Tercera opción
+awaiting_input: list_selection
+is_complete: false
+metadata:
+  tags:
+    - list
+    - menu`
+  },
+  {
+    name: 'Formatter de Texto',
+    content: `key: pharmacy.formatter.text_example
+name: Text Formatter
+description: Template de solo texto
+version: "1.0.0"
+response_type: text
+body_template: |
+  Hola {user_name}!
+
+  {message_content}
+
+  Gracias por tu consulta.
+is_complete: true
+metadata:
+  tags:
+    - text
+    - simple`
+  }
+]
+
 export function useYamlEditor(
   editorContainerRef: Ref<HTMLElement | undefined | null>,
   toast: ToastInterface,
@@ -138,7 +369,40 @@ export function useYamlEditor(
   const { simpleOptions: modelOptions, loading: modelsLoading, defaultModel: defaultAIModel } = useAIModels()
 
   // Store state
-  const { currentPrompt, validation, isPromptLocked, lockingUser } = storeToRefs(yamlStore)
+  const {
+    currentPrompt,
+    currentTask,
+    currentFormatter,
+    templateType,
+    validation,
+    isPromptLocked,
+    lockingUser
+  } = storeToRefs(yamlStore)
+
+  // Template type from route query (defaults to store value or 'prompt')
+  const routeTemplateType = computed<TemplateType>(() => {
+    const queryType = route.query.type as string
+    if (queryType === 'task') return 'task'
+    if (queryType === 'formatter') return 'formatter'
+    return 'prompt'
+  })
+
+  // Sync route type to store on mount and route changes
+  watch(routeTemplateType, (newType) => {
+    yamlStore.setTemplateType(newType)
+  }, { immediate: true })
+
+  // Convenience computed
+  const isTask = computed(() => templateType.value === 'task')
+  const isPrompt = computed(() => templateType.value === 'prompt')
+  const isFormatter = computed(() => templateType.value === 'formatter')
+
+  // Unified template access
+  const currentTemplate = computed(() => {
+    if (isTask.value) return currentTask.value
+    if (isFormatter.value) return currentFormatter.value
+    return currentPrompt.value
+  })
 
   // Component state
   const showTestDialog = ref(false)
@@ -146,7 +410,7 @@ export function useYamlEditor(
   const saving = ref(false)
   const editorHeight = ref(600)
 
-  // Form data
+  // Form data for Prompts
   const formData = ref<FormData>({
     name: '',
     description: '',
@@ -167,13 +431,76 @@ export function useYamlEditor(
     source: 'database'
   })
 
+  // Form data for Tasks (simpler - no LLM params)
+  const taskFormData = ref<TaskFormData>({
+    key: '',
+    name: '',
+    description: '',
+    template: '',
+    version: '1.0.0',
+    metadata: {
+      tags: [],
+      variables: {
+        required: [],
+        optional: []
+      },
+      is_critical: false
+    },
+    active: true,
+    source: 'database',
+    is_critical: false
+  })
+
+  // Form data for Formatters (WhatsApp interactive messages)
+  const formatterFormData = ref<FormatterFormData>({
+    key: '',
+    name: '',
+    description: '',
+    version: '1.0.0',
+    response_type: 'text',
+    title: '',
+    body_template: '',
+    buttons: [],
+    list_button_text: '',
+    awaiting_input: '',
+    is_complete: false,
+    metadata: {
+      tags: [],
+      category: '',
+      priority: 0
+    },
+    active: true,
+    source: 'database'
+  })
+
+  // Dynamic default template based on type
+  const defaultTemplateForType = computed(() => {
+    if (isTask.value) return DEFAULT_TASK_TEMPLATE
+    if (isFormatter.value) return DEFAULT_FORMATTER_TEMPLATE
+    return DEFAULT_TEMPLATE
+  })
+
+  // Unified form data access (returns the active form based on type)
+  const currentFormData = computed(() => {
+    if (isTask.value) return taskFormData.value
+    if (isFormatter.value) return formatterFormData.value
+    return formData.value
+  })
+
+  // Type-aware quick templates
+  const currentQuickTemplates = computed(() => {
+    if (isTask.value) return TASK_QUICK_TEMPLATES
+    if (isFormatter.value) return FORMATTER_QUICK_TEMPLATES
+    return QUICK_TEMPLATES
+  })
+
   // Monaco editor integration
   const monacoEditor = useMonacoEditor(
     editorContainerRef,
     {
       language: 'yaml',
       theme: 'vs-dark',
-      initialValue: yamlStore.editorContent || DEFAULT_TEMPLATE
+      initialValue: yamlStore.editorContent || defaultTemplateForType.value
     },
     handleContentChange
   )
@@ -208,26 +535,56 @@ export function useYamlEditor(
   })
 
   const canSave = computed(() => {
-    return (
-      yamlStore.editorContent &&
-      (isNew.value ? true : formData.value.key) &&
-      formData.value.name &&
-      formData.value.metadata.domain &&
-      formData.value.metadata.model &&
-      yamlStore.editorDirty &&
-      (!currentPrompt.value || !isPromptLocked.value(currentPrompt.value.key))
-    )
+    const hasContent = !!yamlStore.editorContent
+    const isDirty = yamlStore.editorDirty
+
+    if (isTask.value) {
+      // Task validation: simpler - no domain/model required
+      const hasKey = isNew.value ? true : !!taskFormData.value.key
+      const hasName = !!taskFormData.value.name
+      return hasContent && hasKey && hasName && isDirty
+    } else if (isFormatter.value) {
+      // Formatter validation: requires name, response_type, and body_template
+      const hasKey = isNew.value ? true : !!formatterFormData.value.key
+      const hasName = !!formatterFormData.value.name
+      const hasResponseType = !!formatterFormData.value.response_type
+      const hasBodyTemplate = !!formatterFormData.value.body_template
+      return hasKey && hasName && hasResponseType && hasBodyTemplate && isDirty
+    } else {
+      // Prompt validation: requires domain and model
+      const hasKey = isNew.value ? true : !!formData.value.key
+      const hasName = !!formData.value.name
+      const hasDomain = !!formData.value.metadata.domain
+      const hasModel = !!formData.value.metadata.model
+      const notLocked = !currentPrompt.value || !isPromptLocked.value(currentPrompt.value.key)
+      return hasContent && hasKey && hasName && hasDomain && hasModel && isDirty && notLocked
+    }
   })
 
   const saveDisabledReason = computed(() => {
     const reasons: string[] = []
-    if (!yamlStore.editorContent) reasons.push('Editor vacío')
-    if (!isNew.value && !formData.value.key) reasons.push('Falta key')
-    if (!formData.value.name) reasons.push('Falta nombre')
-    if (!formData.value.metadata.domain) reasons.push('Falta dominio')
-    if (!formData.value.metadata.model) reasons.push('Falta modelo')
+    if (!yamlStore.editorContent && !isFormatter.value) reasons.push('Editor vacío')
     if (!yamlStore.editorDirty) reasons.push('Sin cambios')
-    if (currentPrompt.value && isPromptLocked.value(currentPrompt.value.key)) reasons.push('Prompt bloqueado')
+
+    if (isTask.value) {
+      // Task-specific validation
+      if (!isNew.value && !taskFormData.value.key) reasons.push('Falta key')
+      if (!taskFormData.value.name) reasons.push('Falta nombre')
+    } else if (isFormatter.value) {
+      // Formatter-specific validation
+      if (!isNew.value && !formatterFormData.value.key) reasons.push('Falta key')
+      if (!formatterFormData.value.name) reasons.push('Falta nombre')
+      if (!formatterFormData.value.response_type) reasons.push('Falta tipo de respuesta')
+      if (!formatterFormData.value.body_template) reasons.push('Falta body template')
+    } else {
+      // Prompt-specific validation
+      if (!isNew.value && !formData.value.key) reasons.push('Falta key')
+      if (!formData.value.name) reasons.push('Falta nombre')
+      if (!formData.value.metadata.domain) reasons.push('Falta dominio')
+      if (!formData.value.metadata.model) reasons.push('Falta modelo')
+      if (currentPrompt.value && isPromptLocked.value(currentPrompt.value.key)) reasons.push('Prompt bloqueado')
+    }
+
     return reasons.length > 0 ? reasons.join(', ') : ''
   })
 
@@ -453,7 +810,7 @@ export function useYamlEditor(
   }
 
   /**
-   * Save template.
+   * Save template (handles prompts, tasks, and formatters).
    */
   async function saveTemplate(): Promise<void> {
     if (!canSave.value) return
@@ -461,36 +818,126 @@ export function useYamlEditor(
     saving.value = true
 
     try {
-      if (isNew.value) {
-        const newPromptData = {
-          ...formData.value,
-          key: formData.value.name.toLowerCase().replace(/\s+/g, '_')
+      if (isTask.value) {
+        // Save Task
+        if (isNew.value) {
+          const newTaskData: CreateTaskRequest = {
+            key: taskFormData.value.name.toLowerCase().replace(/\s+/g, '_'),
+            name: taskFormData.value.name,
+            description: taskFormData.value.description,
+            template: yamlStore.editorContent,
+            metadata: {
+              tags: taskFormData.value.metadata?.tags || [],
+              variables: taskFormData.value.metadata?.variables || { required: [], optional: [] },
+              is_critical: taskFormData.value.is_critical || false
+            }
+          }
+          await yamlStore.createTask(newTaskData)
+          toast.add({
+            severity: 'success',
+            summary: 'Task creado',
+            detail: 'El task ha sido creado exitosamente',
+            life: 3000
+          })
+        } else {
+          const updateData: UpdateTaskRequest = {
+            name: taskFormData.value.name,
+            description: taskFormData.value.description,
+            template: yamlStore.editorContent,
+            metadata: {
+              tags: taskFormData.value.metadata?.tags || [],
+              variables: taskFormData.value.metadata?.variables || { required: [], optional: [] },
+              is_critical: taskFormData.value.is_critical || false
+            }
+          }
+          await yamlStore.updateTask(currentTask.value!.key, updateData)
+          toast.add({
+            severity: 'success',
+            summary: 'Task actualizado',
+            detail: 'El task ha sido actualizado exitosamente',
+            life: 3000
+          })
         }
-        await yamlStore.createPrompt(newPromptData)
-        toast.add({
-          severity: 'success',
-          summary: 'Template creado',
-          detail: 'El template ha sido creado exitosamente',
-          life: 3000
-        })
+      } else if (isFormatter.value) {
+        // Save Formatter
+        if (isNew.value) {
+          const newFormatterData: FormatterCreateRequest = {
+            key: formatterFormData.value.name.toLowerCase().replace(/\s+/g, '.'),
+            name: formatterFormData.value.name,
+            description: formatterFormData.value.description,
+            version: formatterFormData.value.version || '1.0.0',
+            response_type: formatterFormData.value.response_type,
+            title: formatterFormData.value.title,
+            body_template: formatterFormData.value.body_template,
+            buttons: formatterFormData.value.buttons,
+            list_button_text: formatterFormData.value.list_button_text,
+            awaiting_input: formatterFormData.value.awaiting_input,
+            is_complete: formatterFormData.value.is_complete,
+            metadata: formatterFormData.value.metadata
+          }
+          await yamlStore.createFormatter(newFormatterData)
+          toast.add({
+            severity: 'success',
+            summary: 'Formatter creado',
+            detail: 'El formatter ha sido creado exitosamente',
+            life: 3000
+          })
+        } else {
+          const updateData: FormatterUpdateRequest = {
+            name: formatterFormData.value.name,
+            description: formatterFormData.value.description,
+            version: formatterFormData.value.version,
+            response_type: formatterFormData.value.response_type,
+            title: formatterFormData.value.title,
+            body_template: formatterFormData.value.body_template,
+            buttons: formatterFormData.value.buttons,
+            list_button_text: formatterFormData.value.list_button_text,
+            awaiting_input: formatterFormData.value.awaiting_input,
+            is_complete: formatterFormData.value.is_complete,
+            metadata: formatterFormData.value.metadata
+          }
+          await yamlStore.updateFormatter(currentFormatter.value!.key, updateData)
+          toast.add({
+            severity: 'success',
+            summary: 'Formatter actualizado',
+            detail: 'El formatter ha sido actualizado exitosamente',
+            life: 3000
+          })
+        }
       } else {
-        const updateData = {
-          name: formData.value.name,
-          template: yamlStore.editorContent,
-          description: formData.value.description,
-          metadata: formData.value.metadata
+        // Save Prompt
+        if (isNew.value) {
+          const newPromptData = {
+            ...formData.value,
+            key: formData.value.name.toLowerCase().replace(/\s+/g, '_')
+          }
+          await yamlStore.createPrompt(newPromptData)
+          toast.add({
+            severity: 'success',
+            summary: 'Template creado',
+            detail: 'El template ha sido creado exitosamente',
+            life: 3000
+          })
+        } else {
+          const updateData = {
+            name: formData.value.name,
+            template: yamlStore.editorContent,
+            description: formData.value.description,
+            metadata: formData.value.metadata
+          }
+          await yamlStore.updatePrompt(currentPrompt.value!.key, updateData)
+          toast.add({
+            severity: 'success',
+            summary: 'Template actualizado',
+            detail: 'El template ha sido actualizado exitosamente',
+            life: 3000
+          })
         }
-        await yamlStore.updatePrompt(currentPrompt.value!.key, updateData)
-        toast.add({
-          severity: 'success',
-          summary: 'Template actualizado',
-          detail: 'El template ha sido actualizado exitosamente',
-          life: 3000
-        })
-      }
 
-      if (currentPrompt.value && isPromptLocked.value(currentPrompt.value.key)) {
-        await yamlStore.unlockPrompt(currentPrompt.value.key)
+        // Unlock prompt if locked
+        if (currentPrompt.value && isPromptLocked.value(currentPrompt.value.key)) {
+          await yamlStore.unlockPrompt(currentPrompt.value.key)
+        }
       }
 
       goBack()
@@ -507,7 +954,7 @@ export function useYamlEditor(
   }
 
   /**
-   * Initialize editor with existing prompt data.
+   * Initialize editor with existing prompt, task, or formatter data.
    */
   async function initialize(): Promise<void> {
     // Check permissions
@@ -516,29 +963,95 @@ export function useYamlEditor(
       return
     }
 
-    // Load existing prompt if editing
+    // Load existing template if editing
     if (!isNew.value && promptKey.value) {
-      await yamlStore.fetchPromptByKey(promptKey.value)
+      if (isTask.value) {
+        // Load Task
+        await yamlStore.fetchTaskByKey(promptKey.value)
 
-      if (currentPrompt.value) {
-        await yamlStore.lockPrompt(promptKey.value)
+        if (currentTask.value) {
+          taskFormData.value = {
+            key: currentTask.value.key,
+            name: currentTask.value.name || '',
+            description: currentTask.value.description || '',
+            template: currentTask.value.template || '',
+            version: currentTask.value.version || '1.0.0',
+            metadata: {
+              tags: currentTask.value.metadata?.tags || [],
+              variables: currentTask.value.metadata?.variables || { required: [], optional: [] },
+              is_critical: currentTask.value.metadata?.is_critical || false
+            },
+            active: currentTask.value.active ?? true,
+            source: currentTask.value.source || 'database',
+            is_critical: currentTask.value.metadata?.is_critical || false
+          }
+        }
+      } else if (isFormatter.value) {
+        // Load Formatter
+        await yamlStore.fetchFormatterByKey(promptKey.value)
 
-        formData.value = {
-          key: currentPrompt.value.key,
-          name: currentPrompt.value.name || '',
-          description: currentPrompt.value.description || '',
-          version: currentPrompt.value.version || '1.0.0',
-          template: currentPrompt.value.template || '',
-          metadata: {
-            temperature: currentPrompt.value.metadata?.temperature ?? 0.7,
-            max_tokens: currentPrompt.value.metadata?.max_tokens ?? 1000,
-            model: currentPrompt.value.metadata?.model || 'default',
-            tags: currentPrompt.value.metadata?.tags || [],
-            variables: currentPrompt.value.metadata?.variables || { required: [], optional: [] },
-            domain: currentPrompt.value.metadata?.domain || 'core'
-          },
-          active: currentPrompt.value.active ?? true,
-          source: currentPrompt.value.source || 'database'
+        if (currentFormatter.value) {
+          formatterFormData.value = {
+            key: currentFormatter.value.key,
+            name: currentFormatter.value.name || '',
+            description: currentFormatter.value.description || '',
+            version: currentFormatter.value.version || '1.0.0',
+            response_type: currentFormatter.value.response_type || 'text',
+            title: currentFormatter.value.title || '',
+            body_template: currentFormatter.value.body_template || '',
+            buttons: currentFormatter.value.buttons || [],
+            list_button_text: currentFormatter.value.list_button_text || '',
+            awaiting_input: currentFormatter.value.awaiting_input || '',
+            is_complete: currentFormatter.value.is_complete ?? false,
+            metadata: {
+              tags: currentFormatter.value.metadata?.tags || [],
+              category: currentFormatter.value.metadata?.category || '',
+              priority: currentFormatter.value.metadata?.priority || 0
+            },
+            active: currentFormatter.value.active ?? true,
+            source: currentFormatter.value.source || 'file'
+          }
+
+          // Set editor content for formatter (YAML representation)
+          yamlStore.setEditorContent(yaml.stringify({
+            key: currentFormatter.value.key,
+            name: currentFormatter.value.name,
+            description: currentFormatter.value.description,
+            version: currentFormatter.value.version,
+            response_type: currentFormatter.value.response_type,
+            title: currentFormatter.value.title,
+            body_template: currentFormatter.value.body_template,
+            buttons: currentFormatter.value.buttons,
+            list_button_text: currentFormatter.value.list_button_text,
+            awaiting_input: currentFormatter.value.awaiting_input,
+            is_complete: currentFormatter.value.is_complete,
+            metadata: currentFormatter.value.metadata
+          }, { indent: 2 }))
+        }
+      } else {
+        // Load Prompt
+        await yamlStore.fetchPromptByKey(promptKey.value)
+
+        if (currentPrompt.value) {
+          await yamlStore.lockPrompt(promptKey.value)
+
+          formData.value = {
+            key: currentPrompt.value.key,
+            name: currentPrompt.value.name || '',
+            description: currentPrompt.value.description || '',
+            version: currentPrompt.value.version || '1.0.0',
+            template: currentPrompt.value.template || '',
+            metadata: {
+              temperature: currentPrompt.value.metadata?.temperature ?? 0.7,
+              max_tokens: currentPrompt.value.metadata?.max_tokens ?? 1000,
+              model: currentPrompt.value.metadata?.model || 'default',
+              tags: currentPrompt.value.metadata?.tags || [],
+              variables: currentPrompt.value.metadata?.variables || { required: [], optional: [] },
+              domain: currentPrompt.value.metadata?.domain || 'core'
+            },
+            active: currentPrompt.value.active ?? true,
+            source: currentPrompt.value.source || 'database'
+          }
         }
       }
     }
@@ -572,6 +1085,13 @@ export function useYamlEditor(
     showTestDialog.value = false
   }
 
+  // Response type options for formatters
+  const responseTypeOptions = [
+    { value: 'text', label: 'Texto' },
+    { value: 'buttons', label: 'Botones' },
+    { value: 'list', label: 'Lista' }
+  ]
+
   return {
     // State
     showTestDialog,
@@ -579,8 +1099,13 @@ export function useYamlEditor(
     saving,
     editorHeight,
     formData,
+    taskFormData,
+    formatterFormData,
     // Store refs
     currentPrompt,
+    currentTask,
+    currentFormatter,
+    templateType,
     validation,
     isPromptLocked,
     lockingUser,
@@ -594,11 +1119,21 @@ export function useYamlEditor(
     canSave,
     saveDisabledReason,
     canPreview,
+    isTask,
+    isPrompt,
+    isFormatter,
+    defaultTemplateForType,
+    currentTemplate,
+    currentFormData,
+    currentQuickTemplates,
     // Options
     domainOptions: DOMAIN_OPTIONS,
     modelOptions,
     modelsLoading,
     quickTemplates: QUICK_TEMPLATES,
+    taskQuickTemplates: TASK_QUICK_TEMPLATES,
+    formatterQuickTemplates: FORMATTER_QUICK_TEMPLATES,
+    responseTypeOptions,
     // Monaco
     monacoEditor,
     // Actions

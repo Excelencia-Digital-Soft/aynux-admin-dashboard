@@ -310,10 +310,15 @@ async function handleSecretsSave(secrets: InstitutionConfigSecretsRequest) {
 
     <!-- Secrets Dialog -->
     <SecretsUpdateDialog
-      v-model:visible="showSecretsDialog"
+      :visible="showSecretsDialog"
       :config="secretsConfig"
       :loading="isLoading"
+      @update:visible="(val) => !val && closeSecretsDialog()"
       @save="handleSecretsSave"
+      @configure-auth="() => {
+        closeSecretsDialog()
+        if (secretsConfig) openEditDialog(secretsConfig)
+      }"
     />
   </div>
 </template>

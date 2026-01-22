@@ -33,6 +33,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   'update:visible': [value: boolean]
   save: [secrets: InstitutionConfigSecretsRequest]
+  'configure-auth': []
 }>()
 
 // ============================================================
@@ -182,10 +183,19 @@ function handleClose() {
       </div>
 
       <!-- No auth configured -->
-      <Message v-if="authType === 'none'" severity="warn" :closable="false">
-        Esta institucion no tiene autenticacion configurada.
-        Primero configure el tipo de autenticacion en la seccion "Autenticacion".
-      </Message>
+      <div v-if="authType === 'none'" class="flex flex-col gap-3">
+        <Message severity="warn" :closable="false">
+          Esta institucion no tiene autenticacion configurada.
+          Primero configure el tipo de autenticacion en la seccion "Autenticacion".
+        </Message>
+        <Button
+          label="Configurar Autenticacion"
+          icon="pi pi-cog"
+          outlined
+          size="small"
+          @click="emit('configure-auth')"
+        />
+      </div>
     </div>
 
     <!-- Footer -->

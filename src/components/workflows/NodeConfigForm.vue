@@ -6,7 +6,8 @@
  * Falls back to JSON editor if no schema is defined.
  */
 import { ref, computed, watch } from 'vue'
-import type { NodeDefinition } from '@/types/workflow.types'
+import type { NodeDefinition, NodeResponseConfig } from '@/types/workflow.types'
+import ResponseConfigForm from './ResponseConfigForm.vue'
 
 import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
@@ -15,6 +16,11 @@ import ToggleSwitch from 'primevue/toggleswitch'
 import Select from 'primevue/select'
 import Chips from 'primevue/chips'
 import Message from 'primevue/message'
+import Accordion from 'primevue/accordion'
+import AccordionPanel from 'primevue/accordionpanel'
+import AccordionHeader from 'primevue/accordionheader'
+import AccordionContent from 'primevue/accordioncontent'
+import Divider from 'primevue/divider'
 
 interface Props {
   config: Record<string, unknown>
@@ -58,6 +64,17 @@ const hasSchema = computed(() => {
   return configSchema.value?.properties && Object.keys(configSchema.value.properties).length > 0
 })
 
+// Check if node supports response configuration (conversation nodes)
+const supportsResponseConfig = computed(() => {
+  const nodeType = props.nodeDefinition?.node_type
+  return nodeType === 'conversation'
+})
+
+// Get current response config
+const responseConfig = computed(() => {
+  return localConfig.value.response_config as NodeResponseConfig | undefined
+})
+
 // Initialize local config from props
 watch(
   () => props.config,
@@ -92,6 +109,12 @@ function onJsonChange(value: string) {
   } catch (e) {
     jsonError.value = 'JSON invalido'
   }
+}
+
+// Handle response config changes
+function updateResponseConfig(config: NodeResponseConfig) {
+  localConfig.value.response_config = config
+  emit('update:config', { ...localConfig.value })
 }
 
 // Get field type component
@@ -140,26 +163,143 @@ function getSelectOptions(property: SchemaProperty): Array<{ label: string; valu
 
 <template>
   <div class="node-config-form">
-    <!-- JSON Editor (fallback when no schema) -->
-    <div v-if="!hasSchema" class="json-editor">
-      <label class="block text-xs font-medium text-gray-500 mb-1">Configuracion (JSON)</label>
-      <Textarea
-        :modelValue="jsonConfigString"
-        @update:modelValue="onJsonChange"
-        rows="8"
-        class="w-full font-mono text-sm"
-        placeholder="{}"
-      />
-      <Message v-if="jsonError" severity="error" :closable="false" class="mt-2 text-sm">
-        {{ jsonError }}
-      </Message>
-      <small class="text-gray-400 mt-1 block">
-        Este nodo no tiene un esquema definido. Edita el JSON directamente.
-      </small>
-    </div>
+    <!-- Response Configuration (for conversation nodes) -->
+    <Accordion v-if="supportsResponseConfig" :value="['response', 'config']" multiple class="mb-4">
+      <AccordionPanel value="response">
+        <AccordionHeader>
+          <span class="flex items-center gap-2">
+            <i class="pi pi-comments text-primary"></i>
+            Configuracion de Respuesta
+          </span>
+        </AccordionHeader>
+        <AccordionContent>
+          <ResponseConfigForm
+            :modelValue="responseConfig"
+            @update:modelValue="updateResponseConfig"
+          />
+        </AccordionContent>
+      </AccordionPanel>
 
-    <!-- Schema-based form -->
-    <div v-else class="schema-form space-y-4">
+      <AccordionPanel value="config" v-if="hasSchema">
+        <AccordionHeader>
+          <span class="flex items-center gap-2">
+            <i class="pi pi-cog text-secondary"></i>
+            Configuracion del Nodo
+          </span>
+        </AccordionHeader>
+        <AccordionContent>
+          <!-- Schema-based config form content here -->
+          <div class="schema-form space-y-4">
+            <div
+              v-for="(property, key) in configSchema?.properties"
+              :key="key"
+              class="field"
+            >
+              <label class="block text-xs font-medium text-gray-600 mb-1">
+                {{ property.title || key }}
+                <span v-if="configSchema?.required?.includes(key as string)" class="text-red-500">*</span>
+              </label>
+
+              <!-- String input -->
+              <InputText
+                v-if="getFieldType(property, key as string) === 'text'"
+                :modelValue="String(localConfig[key] ?? property.default ?? '')"
+                @update:modelValue="(v) => updateField(key as string, v)"
+                class="w-full"
+                :placeholder="property.description"
+              />
+
+              <!-- Textarea for messages and long text -->
+              <Textarea
+                v-else-if="getFieldType(property, key as string) === 'textarea'"
+                :modelValue="String(localConfig[key] ?? property.default ?? '')"
+                @update:modelValue="(v) => updateField(key as string, v)"
+                rows="4"
+                class="w-full"
+                :placeholder="property.description"
+                autoResize
+              />
+
+              <!-- Number input -->
+              <InputNumber
+                v-else-if="getFieldType(property, key as string) === 'number'"
+                :modelValue="Number(localConfig[key] ?? property.default ?? 0)"
+                @update:modelValue="(v) => updateField(key as string, v)"
+                class="w-full"
+                :min="property.minimum"
+                :max="property.maximum"
+              />
+
+              <!-- Boolean toggle -->
+              <div v-else-if="getFieldType(property, key as string) === 'toggle'" class="flex items-center gap-2">
+                <ToggleSwitch
+                  :modelValue="Boolean(localConfig[key] ?? property.default ?? false)"
+                  @update:modelValue="(v) => updateField(key as string, v)"
+                />
+                <span class="text-sm text-gray-500">{{ property.description }}</span>
+              </div>
+
+              <!-- Select from enum -->
+              <Select
+                v-else-if="getFieldType(property, key as string) === 'select'"
+                :modelValue="localConfig[key] ?? property.default"
+                @update:modelValue="(v) => updateField(key as string, v)"
+                :options="getSelectOptions(property)"
+                optionLabel="label"
+                optionValue="value"
+                class="w-full"
+                :placeholder="property.description || 'Seleccionar...'"
+              />
+
+              <!-- Array as chips -->
+              <Chips
+                v-else-if="getFieldType(property, key as string) === 'chips'"
+                :modelValue="(localConfig[key] as string[]) ?? (property.default as string[]) ?? []"
+                @update:modelValue="(v) => updateField(key as string, v)"
+                class="w-full"
+                :placeholder="property.description || 'Agregar items...'"
+              />
+
+              <!-- Nested object as JSON -->
+              <Textarea
+                v-else-if="getFieldType(property, key as string) === 'json'"
+                :modelValue="JSON.stringify(localConfig[key] ?? property.default ?? {}, null, 2)"
+                @update:modelValue="(v) => { try { updateField(key as string, JSON.parse(v)) } catch {} }"
+                rows="4"
+                class="w-full font-mono text-sm"
+              />
+
+              <small v-if="property.description && getFieldType(property, key as string) !== 'toggle'" class="text-gray-400 mt-1 block">
+                {{ property.description }}
+              </small>
+            </div>
+          </div>
+        </AccordionContent>
+      </AccordionPanel>
+    </Accordion>
+
+    <!-- Non-conversation nodes: Original behavior -->
+    <template v-else>
+      <!-- JSON Editor (fallback when no schema) -->
+      <div v-if="!hasSchema" class="json-editor">
+        <label class="block text-xs font-medium text-gray-500 mb-1">Configuracion (JSON)</label>
+        <Textarea
+          :modelValue="jsonConfigString"
+          @update:modelValue="onJsonChange"
+          rows="8"
+          class="w-full font-mono text-sm"
+          placeholder="{}"
+        />
+        <Message v-if="jsonError" severity="error" :closable="false" class="mt-2 text-sm">
+          {{ jsonError }}
+        </Message>
+        <small class="text-gray-400 mt-1 block">
+          Este nodo no tiene un esquema definido. Edita el JSON directamente.
+        </small>
+      </div>
+
+      <!-- Schema-based form -->
+      <div v-else class="schema-form space-y-4">
       <div
         v-for="(property, key) in configSchema?.properties"
         :key="key"
@@ -244,10 +384,11 @@ function getSelectOptions(property: SchemaProperty): Array<{ label: string; valu
         </small>
       </div>
 
-      <Message v-if="Object.keys(configSchema?.properties || {}).length === 0" severity="info" :closable="false">
-        Este nodo no tiene opciones configurables.
-      </Message>
-    </div>
+        <Message v-if="Object.keys(configSchema?.properties || {}).length === 0" severity="info" :closable="false">
+          Este nodo no tiene opciones configurables.
+        </Message>
+      </div>
+    </template>
   </div>
 </template>
 

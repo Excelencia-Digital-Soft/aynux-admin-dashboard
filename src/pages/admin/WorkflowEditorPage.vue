@@ -22,6 +22,7 @@ import { useWorkflowSimulation } from '@/composables/useWorkflowSimulation'
 
 // Components
 import WorkflowHeader from '@/components/workflows/editor/WorkflowHeader.vue'
+import WorkflowToolbar from '@/components/workflows/editor/WorkflowToolbar.vue'
 import WorkflowSelector from '@/components/workflows/editor/WorkflowSelector.vue'
 import WorkflowPalette from '@/components/workflows/editor/WorkflowPalette.vue'
 import WorkflowCanvas from '@/components/workflows/editor/WorkflowCanvas.vue'
@@ -30,6 +31,7 @@ import WorkflowValidationBanner from '@/components/workflows/editor/WorkflowVali
 import NewWorkflowDialog from '@/components/workflows/editor/NewWorkflowDialog.vue'
 import AddNodeDialog from '@/components/workflows/editor/AddNodeDialog.vue'
 import WorkflowSimulationContext from '@/components/workflows/WorkflowSimulationContext.vue'
+import NodeDefinitionsDialog from '@/components/workflows/editor/NodeDefinitionsDialog.vue'
 
 // Types
 import type { NodeDefinition, NodeInstance } from '@/types/workflow.types'
@@ -128,10 +130,24 @@ const {
 
 const showSimulationPanel = ref(false)
 const showSimulationContextDialog = ref(false)
+const showNodeDefinitionsDialog = ref(false)
+const showPropertiesDrawer = ref(false)
 const confirm = useConfirm()
 
 // Computed for toolbar selection state
 const hasSelection = computed(() => selectedNode.value !== null || selectedEdge.value !== null)
+
+// Auto-open properties drawer when selecting a node or edge
+watch([selectedNode, selectedEdge], ([node, edge]) => {
+  if (node || edge) {
+    showPropertiesDrawer.value = true
+  }
+})
+
+// Toggle properties drawer
+function togglePropertiesDrawer() {
+  showPropertiesDrawer.value = !showPropertiesDrawer.value
+}
 
 // Handle delete from toolbar (decides between node or edge deletion)
 function handleDelete() {
@@ -296,6 +312,16 @@ function addAnnotation() {
     color: 'yellow'
   })
 }
+
+// Node definitions management
+function openNodeDefinitions() {
+  showNodeDefinitionsDialog.value = true
+}
+
+async function onDefinitionsUpdated() {
+  // Reload node definitions to reflect changes in the palette
+  await workflowStore.loadNodeDefinitions()
+}
 </script>
 
 <template>
@@ -304,31 +330,11 @@ function addAnnotation() {
 
     <WorkflowHeader
         :currentWorkflow="currentWorkflow"
-        :isExporting="isExporting"
-        :isImporting="isImporting"
-        :isSimulating="isSimulating"
-        :isSaving="isSaving"
         :isDirty="isDirty"
-        :canUndo="canUndo"
-        :canRedo="canRedo"
-        :hasClipboard="hasClipboard"
-        :hasSelection="hasSelection"
-        v-model:showSimulationPanel="showSimulationPanel"
-        @update:showWorkflowDialog="showWorkflowDialog = $event"
-        @export="exportToFile"
-        @triggerImport="triggerImport"
-        @addAnnotation="addAnnotation"
+        :isSaving="isSaving"
         @save="saveWorkflow"
         @publish="publishWorkflow"
         @newWorkflow="showWorkflowDialog = true"
-        @undo="undo"
-        @redo="redo"
-        @copy="copy"
-        @paste="paste"
-        @cut="cut"
-        @duplicate="duplicate"
-        @delete="handleDelete"
-        @search="openNodeSearch"
       />
 
       <input
@@ -362,10 +368,37 @@ function addAnnotation() {
           :isLoading="isLoading"
           :nodeDefinitionsByCategory="nodeDefinitionsByCategory"
           @addNode="openAddNodeDialog"
+          @manageDefinitions="openNodeDefinitions"
         />
 
-        <!-- Center: Vue Flow Canvas -->
-        <WorkflowCanvas
+        <!-- Center: Toolbar + Canvas -->
+        <div class="canvas-area">
+          <WorkflowToolbar
+            v-if="currentWorkflow"
+            :canUndo="canUndo"
+            :canRedo="canRedo"
+            :hasClipboard="hasClipboard"
+            :hasSelection="hasSelection"
+            :isExporting="isExporting"
+            :isImporting="isImporting"
+            :isSimulating="isSimulating"
+            :showSimulationPanel="showSimulationPanel"
+            @update:showSimulationPanel="showSimulationPanel = $event"
+            @export="exportToFile"
+            @triggerImport="triggerImport"
+            @addAnnotation="addAnnotation"
+            @undo="undo"
+            @redo="redo"
+            @copy="copy"
+            @paste="paste"
+            @cut="cut"
+            @duplicate="duplicate"
+            @delete="handleDelete"
+            @search="openNodeSearch"
+          />
+
+          <!-- Vue Flow Canvas -->
+          <WorkflowCanvas
           :currentWorkflow="currentWorkflow"
           :nodes="nodes"
           :edges="edges"
@@ -389,19 +422,34 @@ function addAnnotation() {
           @simulationStepForward="simulationStepForward"
           @simulationStepBackward="simulationStepBackward"
           @openSimulationContext="showSimulationContextDialog = true"
-        />
+          />
+        </div>
 
-        <!-- Right Sidebar: Properties Panel -->
-        <WorkflowPropertiesPanel
-          :selectedNode="selectedNode"
-          :selectedEdge="selectedEdge"
-          :getNodeDefinition="workflowStore.getNodeDefinitionById"
-          @updateNode="updateNode"
-          @deleteNode="confirmDeleteNode"
-          @updateTransition="updateTransition"
-          @deleteTransition="confirmDeleteTransition"
+        <!-- Floating Properties Button -->
+        <Button
+          v-if="currentWorkflow"
+          icon="pi pi-sliders-h"
+          class="properties-toggle-btn"
+          severity="secondary"
+          rounded
+          :badge="hasSelection ? '1' : undefined"
+          badgeSeverity="info"
+          v-tooltip.left="'Propiedades'"
+          @click="togglePropertiesDrawer"
         />
       </div>
+
+      <!-- Properties Drawer -->
+      <WorkflowPropertiesPanel
+        v-model:visible="showPropertiesDrawer"
+        :selectedNode="selectedNode"
+        :selectedEdge="selectedEdge"
+        :getNodeDefinition="workflowStore.getNodeDefinitionById"
+        @updateNode="updateNode"
+        @deleteNode="confirmDeleteNode"
+        @updateTransition="updateTransition"
+        @deleteTransition="confirmDeleteTransition"
+      />
 
       <!-- Dialogs -->
       <NewWorkflowDialog
@@ -426,6 +474,12 @@ function addAnnotation() {
       @update:visible="showSimulationContextDialog = $event"
       @update:context="updateSimulationContext"
     />
+
+    <!-- Node Definitions Management Dialog -->
+    <NodeDefinitionsDialog
+      v-model:visible="showNodeDefinitionsDialog"
+      @definitionsUpdated="onDefinitionsUpdated"
+    />
   </div>
 </template>
 
@@ -439,24 +493,73 @@ function addAnnotation() {
 /* Editor Layout */
 .editor-layout {
   display: grid;
-  grid-template-columns: 280px 1fr 300px;
+  grid-template-columns: 280px 1fr;
   gap: 1rem;
   height: calc(100vh - 280px);
   min-height: 500px;
+  position: relative;
+}
+
+/* Floating Properties Button */
+.properties-toggle-btn {
+  position: absolute !important;
+  top: 1rem;
+  right: 1rem;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Canvas Area - Toolbar + Canvas */
+.canvas-area {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: white;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+}
+
+.canvas-area :deep(.flow-canvas-container) {
+  flex: 1;
+  border: none;
+  border-radius: 0;
 }
 
 /* Responsive */
 @media (max-width: 1200px) {
   .editor-layout {
-    grid-template-columns: 240px 1fr 260px;
+    grid-template-columns: 240px 1fr;
   }
 }
 
 @media (max-width: 992px) {
   .editor-layout {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 400px auto;
+    grid-template-rows: auto 400px;
     height: auto;
   }
+
+  .canvas-area {
+    min-height: 400px;
+  }
+
+  .properties-toggle-btn {
+    top: 0.5rem;
+    right: 0.5rem;
+  }
+}
+</style>
+
+<!-- Global dark mode styles (unscoped) -->
+<style>
+/* Canvas Area - Dark Mode */
+.dark-mode .canvas-area {
+  background-color: var(--aynux-navy-800) !important;
+  border-color: var(--aynux-navy-700) !important;
+}
+
+.dark-mode .canvas-area .flow-canvas-container {
+  background-color: var(--aynux-navy-900) !important;
 }
 </style>

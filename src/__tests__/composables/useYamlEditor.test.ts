@@ -11,7 +11,8 @@ vi.mock('vue-router', () => ({
   useRoute: () => ({
     name: 'YamlEdit',
     path: '/yaml-management/test-key',
-    params: { key: 'test-key' }
+    params: { key: 'test-key' },
+    query: { type: 'prompt' }
   })
 }))
 
@@ -28,7 +29,10 @@ const useMockYamlStore = defineStore('yaml', () => {
   const editorContent = ref('test: content')
   const editorDirty = ref(true)
   const currentPrompt = ref<any>(null)
+  const currentTask = ref<any>(null)
+  const currentFormatter = ref<any>(null)
   const validation = ref<any>(null)
+  const templateType = ref<string>('prompt')
 
   const isPromptLocked = computed(() => (_key: string) => false)
   const lockingUser = computed(() => (_key: string) => null)
@@ -37,24 +41,43 @@ const useMockYamlStore = defineStore('yaml', () => {
     editorContent.value = content
   })
   const fetchPromptByKey = vi.fn()
+  const fetchTaskByKey = vi.fn()
+  const fetchFormatterByKey = vi.fn()
   const lockPrompt = vi.fn()
   const unlockPrompt = vi.fn()
   const createPrompt = vi.fn()
   const updatePrompt = vi.fn()
+  const createTask = vi.fn()
+  const updateTask = vi.fn()
+  const createFormatter = vi.fn()
+  const updateFormatter = vi.fn()
+  const setTemplateType = vi.fn((type: string) => {
+    templateType.value = type
+  })
 
   return {
     editorContent,
     editorDirty,
     currentPrompt,
+    currentTask,
+    currentFormatter,
     validation,
+    templateType,
     isPromptLocked,
     lockingUser,
     setEditorContent,
     fetchPromptByKey,
+    fetchTaskByKey,
+    fetchFormatterByKey,
     lockPrompt,
     unlockPrompt,
     createPrompt,
-    updatePrompt
+    updatePrompt,
+    createTask,
+    updateTask,
+    createFormatter,
+    updateFormatter,
+    setTemplateType
   }
 })
 
