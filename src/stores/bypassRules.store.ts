@@ -11,7 +11,7 @@ import type {
   BypassRuleType
 } from '@/types/bypassRules.types'
 
-interface BypassRulesState {
+export interface BypassRulesState {
   // Rules data
   rules: BypassRule[]
   totalRules: number
