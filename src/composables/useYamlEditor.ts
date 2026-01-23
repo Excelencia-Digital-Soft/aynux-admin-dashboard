@@ -870,7 +870,7 @@ export function useYamlEditor(
       } else if (isFormatter.value) {
         // Save Formatter
         if (isNew.value) {
-          const newFormatterData: FormatterCreateRequest = {
+          const newFormatterData = {
             key: formatterFormData.value.name.toLowerCase().replace(/\s+/g, '.'),
             name: formatterFormData.value.name,
             description: formatterFormData.value.description,
@@ -892,7 +892,7 @@ export function useYamlEditor(
             life: 3000
           })
         } else {
-          const updateData: FormatterUpdateRequest = {
+          const updateData = {
             name: formatterFormData.value.name,
             description: formatterFormData.value.description,
             version: formatterFormData.value.version,
