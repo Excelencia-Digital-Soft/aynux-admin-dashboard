@@ -884,7 +884,7 @@ export function useYamlEditor(
             is_complete: formatterFormData.value.is_complete,
             metadata: formatterFormData.value.metadata
           }
-          await yamlStore.createFormatter(newFormatterData)
+          await yamlStore.createFormatter(newFormatterData as any)
           toast.add({
             severity: 'success',
             summary: 'Formatter creado',
@@ -905,7 +905,7 @@ export function useYamlEditor(
             is_complete: formatterFormData.value.is_complete,
             metadata: formatterFormData.value.metadata
           }
-          await yamlStore.updateFormatter(currentFormatter.value!.key, updateData)
+          await yamlStore.updateFormatter(currentFormatter.value!.key, updateData as any)
           toast.add({
             severity: 'success',
             summary: 'Formatter actualizado',
