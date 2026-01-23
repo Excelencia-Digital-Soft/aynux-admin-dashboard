@@ -192,10 +192,7 @@ function onSaveCondition(condition: TransitionCondition | null) {
     <Sheet :open="visible" @update:open="emit('update:visible', $event)">
       <SheetContent
         :side="sheetSide"
-        :class="[
-          'properties-sheet',
-          isFullscreen ? 'properties-sheet--fullscreen' : 'w-full md:w-96'
-        ]"
+        :class="`properties-sheet ${isFullscreen ? 'properties-sheet--fullscreen' : 'w-full md:w-96'}`"
       >
         <SheetHeader class="flex flex-row items-center justify-between space-y-0 pb-4">
           <div class="flex items-center gap-2">

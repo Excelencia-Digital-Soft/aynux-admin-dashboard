@@ -316,7 +316,7 @@
 </Card>
 
 <!-- Formatter Buttons (Formatters only) -->
-<Card v-if="isFormatter && currentTestResult?.rendered_buttons" class="mb-4">
+<Card v-if="isFormatter && (currentTestResult as any)?.rendered_buttons" class="mb-4">
   <template #title>
     <i class="pi pi-objects-column"></i>
     Botones Renderizados
@@ -324,7 +324,7 @@
   <template #content>
     <div class="rendered-buttons space-y-2">
       <div 
-        v-for="btn in currentTestResult.rendered_buttons" 
+        v-for="btn in (currentTestResult as any).rendered_buttons" 
         :key="btn.id"
         class="p-3 border border-gray-200 rounded-lg flex justify-between items-center bg-gray-50"
       >
@@ -710,8 +710,8 @@ async function extractVariables() {
   }
 
   // 2. If no variables in metadata, extract from template (fallback)
-  if (variables.length === 0 && template.template) {
-    const templateContent = template.template
+  if (variables.length === 0 && (template as any).template) {
+    const templateContent = (template as any).template
     const regex = /\{([^{}]+)\}/g
     const matches = [...templateContent.matchAll(regex)]
     const seenVars = new Set<string>()

@@ -358,7 +358,7 @@ const totalListRows = computed(() => {
             <template #body="{ data, index }">
               <InputText
                 :modelValue="data.id"
-                @update:modelValue="(v) => updateButton(index, 'id', v)"
+                @update:modelValue="(v) => updateButton(index, 'id', v ?? '')"
                 class="w-full text-xs"
                 placeholder="btn_id"
               />
@@ -369,7 +369,7 @@ const totalListRows = computed(() => {
               <div class="flex items-center gap-2">
                 <InputText
                   :modelValue="data.title"
-                  @update:modelValue="(v) => updateButton(index, 'title', v)"
+                  @update:modelValue="(v) => updateButton(index, 'title', v ?? '')"
                   class="w-full text-xs"
                   :maxlength="WHATSAPP_CONSTRAINTS.BUTTON_TITLE_MAX"
                   placeholder="Texto del boton"
@@ -434,7 +434,7 @@ const totalListRows = computed(() => {
           </label>
           <InputText
             :modelValue="localConfig.list_config?.button_text ?? ''"
-            @update:modelValue="(v) => { initListConfig(); localConfig.list_config!.button_text = v; emitUpdate(); }"
+            @update:modelValue="(v) => { initListConfig(); localConfig.list_config!.button_text = v ?? ''; emitUpdate(); }"
             class="w-full"
             :maxlength="WHATSAPP_CONSTRAINTS.BUTTON_TEXT_MAX"
             placeholder="Ver opciones"
@@ -450,7 +450,7 @@ const totalListRows = computed(() => {
           <div class="flex items-center justify-between mb-3">
             <InputText
               :modelValue="section.title"
-              @update:modelValue="(v) => updateSectionTitle(sectionIndex, v)"
+              @update:modelValue="(v) => updateSectionTitle(sectionIndex, v ?? '')"
               class="font-medium"
               :maxlength="WHATSAPP_CONSTRAINTS.LIST_TITLE_MAX"
               placeholder="Titulo de seccion"
@@ -473,7 +473,7 @@ const totalListRows = computed(() => {
               <template #body="{ data, index }">
                 <InputText
                   :modelValue="data.id"
-                  @update:modelValue="(v) => updateRow(sectionIndex, index, 'id', v)"
+                  @update:modelValue="(v) => updateRow(sectionIndex, index, 'id', v ?? '')"
                   class="w-full text-xs"
                   placeholder="row_id"
                 />
@@ -483,7 +483,7 @@ const totalListRows = computed(() => {
               <template #body="{ data, index }">
                 <InputText
                   :modelValue="data.title"
-                  @update:modelValue="(v) => updateRow(sectionIndex, index, 'title', v)"
+                  @update:modelValue="(v) => updateRow(sectionIndex, index, 'title', v ?? '')"
                   class="w-full text-xs"
                   :maxlength="WHATSAPP_CONSTRAINTS.LIST_TITLE_MAX"
                   placeholder="Titulo"
@@ -494,7 +494,7 @@ const totalListRows = computed(() => {
               <template #body="{ data, index }">
                 <InputText
                   :modelValue="data.description ?? ''"
-                  @update:modelValue="(v) => updateRow(sectionIndex, index, 'description', v)"
+                  @update:modelValue="(v) => updateRow(sectionIndex, index, 'description', v ?? '')"
                   class="w-full text-xs"
                   :maxlength="WHATSAPP_CONSTRAINTS.LIST_DESCRIPTION_MAX"
                   placeholder="Descripcion opcional"

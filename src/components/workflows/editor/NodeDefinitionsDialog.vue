@@ -160,11 +160,11 @@ async function saveDefinition() {
     } else {
       const updateData: NodeDefinitionUpdate = {
         display_name: editingDefinition.value.display_name,
-        description: editingDefinition.value.description,
+        description: editingDefinition.value.description ?? undefined,
         icon: editingDefinition.value.icon,
         color: editingDefinition.value.color,
         category: editingDefinition.value.category,
-        config_schema: editingDefinition.value.config_schema,
+        config_schema: editingDefinition.value.config_schema ?? undefined,
         default_config: editingDefinition.value.default_config,
         inputs: editingDefinition.value.inputs,
         outputs: editingDefinition.value.outputs,

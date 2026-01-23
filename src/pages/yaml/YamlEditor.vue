@@ -232,10 +232,10 @@
               <!-- Task-specific fields -->
               <template v-if="isTask">
                 <div class="field">
-                  <div class="flex items-center gap-2 p-3 border rounded-lg" :class="taskFormData.metadata.is_critical ? 'border-red-300 bg-red-50' : 'border-gray-200'">
+                  <div class="flex items-center gap-2 p-3 border rounded-lg" :class="taskFormData.metadata?.is_critical ? 'border-red-300 bg-red-50' : 'border-gray-200'">
                     <Checkbox
                       id="is_critical"
-                      v-model="taskFormData.metadata.is_critical"
+                      v-model="taskFormData.metadata!.is_critical"
                       binary
                     />
                     <div class="flex flex-col">
@@ -367,7 +367,7 @@
                 <label for="tags">Tags</label>
                 <AutoComplete
                   id="tags"
-                  v-model="currentFormData.metadata.tags"
+                  v-model="currentFormData.metadata!.tags"
                   placeholder="Agregar tags"
                   class="w-full"
                   multiple
