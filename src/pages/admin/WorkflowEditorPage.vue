@@ -6,8 +6,25 @@
  */
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useVueFlow } from '@vue-flow/core'
-import { useConfirm } from 'primevue/useconfirm'
-import ConfirmDialog from 'primevue/confirmdialog'
+
+// shadcn-vue components
+import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
 
 // Composables
 import { useWorkflowEditor } from '@/composables/useWorkflowEditor'
@@ -32,6 +49,7 @@ import NewWorkflowDialog from '@/components/workflows/editor/NewWorkflowDialog.v
 import AddNodeDialog from '@/components/workflows/editor/AddNodeDialog.vue'
 import WorkflowSimulationContext from '@/components/workflows/WorkflowSimulationContext.vue'
 import NodeDefinitionsDialog from '@/components/workflows/editor/NodeDefinitionsDialog.vue'
+import InstitutionInfoDialog from '@/components/workflows/editor/InstitutionInfoDialog.vue'
 
 // Types
 import type { NodeDefinition, NodeInstance } from '@/types/workflow.types'
@@ -46,6 +64,7 @@ const {
   // Institution state
   institutions,
   selectedInstitutionId,
+  selectedInstitution,
   isLoadingInstitutions,
 
   // State
@@ -132,7 +151,13 @@ const showSimulationPanel = ref(false)
 const showSimulationContextDialog = ref(false)
 const showNodeDefinitionsDialog = ref(false)
 const showPropertiesDrawer = ref(false)
-const confirm = useConfirm()
+const showInstitutionInfoDialog = ref(false)
+
+// Confirm dialog state (replaces PrimeVue useConfirm)
+const showDeleteNodeDialog = ref(false)
+const showDeleteTransitionDialog = ref(false)
+const nodeToDelete = ref<NodeInstance | null>(null)
+const transitionToDelete = ref<string | null>(null)
 
 // Computed for toolbar selection state
 const hasSelection = computed(() => selectedNode.value !== null || selectedEdge.value !== null)
@@ -207,24 +232,44 @@ function onVueFlowInit() {
 
 // Confirm node delete
 function confirmDeleteNode(node: NodeInstance) {
-  confirm.require({
-    message: `¿Estás seguro de eliminar el nodo "${node.display_label}"?`,
-    header: 'Confirmar eliminación',
-    icon: 'pi pi-exclamation-triangle',
-    acceptClass: 'p-button-danger',
-    accept: () => deleteNode(node.id)
-  })
+  nodeToDelete.value = node
+  showDeleteNodeDialog.value = true
+}
+
+// Execute node deletion
+function executeDeleteNode() {
+  if (nodeToDelete.value) {
+    deleteNode(nodeToDelete.value.id)
+    nodeToDelete.value = null
+    showDeleteNodeDialog.value = false
+  }
+}
+
+// Cancel node deletion
+function cancelDeleteNode() {
+  nodeToDelete.value = null
+  showDeleteNodeDialog.value = false
 }
 
 // Confirm transition delete
 function confirmDeleteTransition(edgeId: string) {
-  confirm.require({
-    message: '¿Estás seguro de eliminar esta transición?',
-    header: 'Confirmar eliminación',
-    icon: 'pi pi-exclamation-triangle',
-    acceptClass: 'p-button-danger',
-    accept: () => deleteTransition(edgeId)
-  })
+  transitionToDelete.value = edgeId
+  showDeleteTransitionDialog.value = true
+}
+
+// Execute transition deletion
+function executeDeleteTransition() {
+  if (transitionToDelete.value) {
+    deleteTransition(transitionToDelete.value)
+    transitionToDelete.value = null
+    showDeleteTransitionDialog.value = false
+  }
+}
+
+// Cancel transition deletion
+function cancelDeleteTransition() {
+  transitionToDelete.value = null
+  showDeleteTransitionDialog.value = false
 }
 
 // Keyboard shortcuts handler
@@ -326,7 +371,49 @@ async function onDefinitionsUpdated() {
 
 <template>
   <div class="workflow-editor-page p-6">
-    <ConfirmDialog />
+    <!-- Delete Node Confirmation Dialog -->
+    <AlertDialog :open="showDeleteNodeDialog" @update:open="(val: boolean) => !val && cancelDeleteNode()">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Confirmar eliminacion</AlertDialogTitle>
+          <AlertDialogDescription>
+            ¿Estas seguro de eliminar el nodo "{{ nodeToDelete?.display_label }}"?
+            Esta accion no se puede deshacer.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel @click="cancelDeleteNode">Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            @click="executeDeleteNode"
+            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Eliminar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <!-- Delete Transition Confirmation Dialog -->
+    <AlertDialog :open="showDeleteTransitionDialog" @update:open="(val: boolean) => !val && cancelDeleteTransition()">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Confirmar eliminacion</AlertDialogTitle>
+          <AlertDialogDescription>
+            ¿Estas seguro de eliminar esta transicion?
+            Esta accion no se puede deshacer.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel @click="cancelDeleteTransition">Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            @click="executeDeleteTransition"
+            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Eliminar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <WorkflowHeader
         :currentWorkflow="currentWorkflow"
@@ -350,10 +437,12 @@ async function onDefinitionsUpdated() {
         :workflows="workflows"
         v-model:selectedInstitutionId="selectedInstitutionId"
         v-model:selectedWorkflowId="localSelectedWorkflowId"
+        :selectedInstitution="selectedInstitution"
         :currentWorkflow="currentWorkflow"
         :stats="stats"
         :isLoadingInstitutions="isLoadingInstitutions"
         @selectInstitution="onInstitutionSelect"
+        @showInstitutionInfo="showInstitutionInfoDialog = true"
       />
 
       <WorkflowValidationBanner
@@ -426,17 +515,29 @@ async function onDefinitionsUpdated() {
         </div>
 
         <!-- Floating Properties Button -->
-        <Button
-          v-if="currentWorkflow"
-          icon="pi pi-sliders-h"
-          class="properties-toggle-btn"
-          severity="secondary"
-          rounded
-          :badge="hasSelection ? '1' : undefined"
-          badgeSeverity="info"
-          v-tooltip.left="'Propiedades'"
-          @click="togglePropertiesDrawer"
-        />
+        <TooltipProvider v-if="currentWorkflow">
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                variant="secondary"
+                size="icon"
+                class="properties-toggle-btn"
+                @click="togglePropertiesDrawer"
+              >
+                <i class="pi pi-sliders-h" />
+                <span
+                  v-if="hasSelection"
+                  class="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground"
+                >
+                  1
+                </span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">
+              Propiedades
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       <!-- Properties Drawer -->
@@ -480,6 +581,12 @@ async function onDefinitionsUpdated() {
       v-model:visible="showNodeDefinitionsDialog"
       @definitionsUpdated="onDefinitionsUpdated"
     />
+
+    <!-- Institution Info Dialog -->
+    <InstitutionInfoDialog
+      v-model:visible="showInstitutionInfoDialog"
+      :institution="selectedInstitution"
+    />
   </div>
 </template>
 
@@ -514,9 +621,9 @@ async function onDefinitionsUpdated() {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: white;
+  background-color: hsl(var(--background));
   border-radius: 6px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid hsl(var(--border));
   overflow: hidden;
 }
 
@@ -553,13 +660,8 @@ async function onDefinitionsUpdated() {
 
 <!-- Global dark mode styles (unscoped) -->
 <style>
-/* Canvas Area - Dark Mode */
-.dark-mode .canvas-area {
-  background-color: var(--aynux-navy-800) !important;
-  border-color: var(--aynux-navy-700) !important;
-}
-
+/* Canvas Area - Dark Mode - CSS variables handle this automatically now */
 .dark-mode .canvas-area .flow-canvas-container {
-  background-color: var(--aynux-navy-900) !important;
+  background-color: hsl(var(--background)) !important;
 }
 </style>

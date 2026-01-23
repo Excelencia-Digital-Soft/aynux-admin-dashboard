@@ -1,8 +1,21 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import Button from 'primevue/button'
-import Menu from 'primevue/menu'
 import { useWorkflowLayout } from '@/composables/useWorkflowLayout'
+
+// shadcn-vue components
+import { Button } from '@/components/ui/button'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
 
 defineProps<{
   canUndo: boolean
@@ -32,181 +45,258 @@ const emit = defineEmits<{
 
 // Layout logic
 const { layoutTopToBottom, layoutLeftToRight, isLayouting } = useWorkflowLayout()
-const layoutMenu = ref<InstanceType<typeof Menu> | null>(null)
-const layoutMenuItems = ref([
-  {
-    label: 'Vertical (arriba a abajo)',
-    icon: 'pi pi-arrow-down',
-    command: () => layoutTopToBottom()
-  },
-  {
-    label: 'Horizontal (izquierda a derecha)',
-    icon: 'pi pi-arrow-right',
-    command: () => layoutLeftToRight()
-  }
-])
+const showLayoutMenu = ref(false)
 </script>
 
 <template>
-  <div class="workflow-toolbar">
-    <div class="toolbar-content">
-      <!-- History buttons (Undo/Redo) -->
-      <div class="toolbar-group">
-        <Button
-          icon="pi pi-undo"
-          severity="secondary"
-          text
-          size="small"
-          :disabled="!canUndo"
-          title="Deshacer (Ctrl+Z)"
-          @click="emit('undo')"
-        />
-        <Button
-          icon="pi pi-replay"
-          severity="secondary"
-          text
-          size="small"
-          :disabled="!canRedo"
-          title="Rehacer (Ctrl+Y)"
-          @click="emit('redo')"
-        />
-      </div>
+  <TooltipProvider :delay-duration="300">
+    <div class="workflow-toolbar">
+      <div class="toolbar-content">
+        <!-- History buttons (Undo/Redo) -->
+        <div class="toolbar-group">
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8"
+                :disabled="!canUndo"
+                @click="emit('undo')"
+              >
+                <i class="pi pi-undo text-sm" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Deshacer (Ctrl+Z)</TooltipContent>
+          </Tooltip>
 
-      <span class="toolbar-divider"></span>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8"
+                :disabled="!canRedo"
+                @click="emit('redo')"
+              >
+                <i class="pi pi-replay text-sm" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Rehacer (Ctrl+Y)</TooltipContent>
+          </Tooltip>
+        </div>
 
-      <!-- Clipboard buttons (Copy/Paste/Cut/Duplicate) -->
-      <div class="toolbar-group">
-        <Button
-          icon="pi pi-copy"
-          severity="secondary"
-          text
-          size="small"
-          :disabled="!hasSelection"
-          title="Copiar (Ctrl+C)"
-          @click="emit('copy')"
-        />
-        <Button
-          icon="pi pi-clipboard"
-          severity="secondary"
-          text
-          size="small"
-          :disabled="!hasClipboard"
-          title="Pegar (Ctrl+V)"
-          @click="emit('paste')"
-        />
-        <Button
-          icon="pi pi-file-export"
-          severity="secondary"
-          text
-          size="small"
-          :disabled="!hasSelection"
-          title="Cortar (Ctrl+X)"
-          @click="emit('cut')"
-        />
-        <Button
-          icon="pi pi-clone"
-          severity="secondary"
-          text
-          size="small"
-          :disabled="!hasSelection"
-          title="Duplicar (Ctrl+D)"
-          @click="emit('duplicate')"
-        />
-      </div>
+        <span class="toolbar-divider" />
 
-      <span class="toolbar-divider"></span>
+        <!-- Clipboard buttons (Copy/Paste/Cut/Duplicate) -->
+        <div class="toolbar-group">
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8"
+                :disabled="!hasSelection"
+                @click="emit('copy')"
+              >
+                <i class="pi pi-copy text-sm" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Copiar (Ctrl+C)</TooltipContent>
+          </Tooltip>
 
-      <!-- Delete & Search -->
-      <div class="toolbar-group">
-        <Button
-          icon="pi pi-trash"
-          severity="secondary"
-          text
-          size="small"
-          :disabled="!hasSelection"
-          title="Eliminar (Del)"
-          @click="emit('delete')"
-        />
-        <Button
-          icon="pi pi-search"
-          severity="secondary"
-          text
-          size="small"
-          title="Buscar (Ctrl+F)"
-          @click="emit('search')"
-        />
-      </div>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8"
+                :disabled="!hasClipboard"
+                @click="emit('paste')"
+              >
+                <i class="pi pi-clipboard text-sm" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Pegar (Ctrl+V)</TooltipContent>
+          </Tooltip>
 
-      <span class="toolbar-divider"></span>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8"
+                :disabled="!hasSelection"
+                @click="emit('cut')"
+              >
+                <i class="pi pi-file-export text-sm" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Cortar (Ctrl+X)</TooltipContent>
+          </Tooltip>
 
-      <!-- Export/Import buttons -->
-      <div class="toolbar-group">
-        <Button
-          icon="pi pi-download"
-          severity="secondary"
-          text
-          size="small"
-          :loading="isExporting"
-          title="Exportar workflow"
-          @click="emit('export')"
-        />
-        <Button
-          icon="pi pi-upload"
-          severity="secondary"
-          text
-          size="small"
-          :loading="isImporting"
-          title="Importar workflow"
-          @click="emit('triggerImport')"
-        />
-      </div>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8"
+                :disabled="!hasSelection"
+                @click="emit('duplicate')"
+              >
+                <i class="pi pi-clone text-sm" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Duplicar (Ctrl+D)</TooltipContent>
+          </Tooltip>
+        </div>
 
-      <span class="toolbar-divider"></span>
+        <span class="toolbar-divider" />
 
-      <!-- View tools -->
-      <div class="toolbar-group">
-        <Button
-          icon="pi pi-th-large"
-          severity="secondary"
-          text
-          size="small"
-          :loading="isLayouting"
-          title="Auto-Layout"
-          @click="(e) => layoutMenu?.toggle(e)"
-        />
-        <Menu ref="layoutMenu" :model="layoutMenuItems" :popup="true" />
+        <!-- Delete & Search -->
+        <div class="toolbar-group">
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8"
+                :disabled="!hasSelection"
+                @click="emit('delete')"
+              >
+                <i class="pi pi-trash text-sm" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Eliminar (Del)</TooltipContent>
+          </Tooltip>
 
-        <Button
-          icon="pi pi-bookmark"
-          severity="secondary"
-          text
-          size="small"
-          title="Agregar nota"
-          @click="emit('addAnnotation')"
-        />
-      </div>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8"
+                @click="emit('search')"
+              >
+                <i class="pi pi-search text-sm" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Buscar (Ctrl+F)</TooltipContent>
+          </Tooltip>
+        </div>
 
-      <span class="toolbar-divider"></span>
+        <span class="toolbar-divider" />
 
-      <!-- Simulation toggle button -->
-      <div class="toolbar-group">
-        <Button
-          :icon="isSimulating ? 'pi pi-stop' : 'pi pi-play'"
-          :severity="isSimulating ? 'warn' : 'secondary'"
-          text
-          size="small"
-          :title="isSimulating ? 'Simulación activa' : 'Simular workflow'"
-          @click="emit('update:showSimulationPanel', !showSimulationPanel)"
-        />
+        <!-- Export/Import buttons -->
+        <div class="toolbar-group">
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8"
+                :disabled="isExporting"
+                @click="emit('export')"
+              >
+                <i v-if="!isExporting" class="pi pi-download text-sm" />
+                <i v-else class="pi pi-spin pi-spinner text-sm" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Exportar workflow</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8"
+                :disabled="isImporting"
+                @click="emit('triggerImport')"
+              >
+                <i v-if="!isImporting" class="pi pi-upload text-sm" />
+                <i v-else class="pi pi-spin pi-spinner text-sm" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Importar workflow</TooltipContent>
+          </Tooltip>
+        </div>
+
+        <span class="toolbar-divider" />
+
+        <!-- View tools -->
+        <div class="toolbar-group">
+          <DropdownMenu v-model:open="showLayoutMenu">
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <DropdownMenuTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="h-8 w-8"
+                    :disabled="isLayouting"
+                  >
+                    <i v-if="!isLayouting" class="pi pi-th-large text-sm" />
+                    <i v-else class="pi pi-spin pi-spinner text-sm" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent v-if="!showLayoutMenu">Auto-Layout</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem @click="layoutTopToBottom">
+                <i class="pi pi-arrow-down mr-2" />
+                Vertical (arriba a abajo)
+              </DropdownMenuItem>
+              <DropdownMenuItem @click="layoutLeftToRight">
+                <i class="pi pi-arrow-right mr-2" />
+                Horizontal (izquierda a derecha)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8"
+                @click="emit('addAnnotation')"
+              >
+                <i class="pi pi-bookmark text-sm" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Agregar nota</TooltipContent>
+          </Tooltip>
+        </div>
+
+        <span class="toolbar-divider" />
+
+        <!-- Simulation toggle button -->
+        <div class="toolbar-group">
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                :variant="isSimulating ? 'default' : 'ghost'"
+                size="icon"
+                class="h-8 w-8"
+                :class="isSimulating ? 'bg-amber-500 hover:bg-amber-600 text-white' : ''"
+                @click="emit('update:showSimulationPanel', !showSimulationPanel)"
+              >
+                <i :class="isSimulating ? 'pi pi-stop' : 'pi pi-play'" class="text-sm" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{{ isSimulating ? 'Simulacion activa' : 'Simular workflow' }}</TooltipContent>
+          </Tooltip>
+        </div>
       </div>
     </div>
-  </div>
+  </TooltipProvider>
 </template>
 
 <style scoped>
 .workflow-toolbar {
-  background-color: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
+  background-color: hsl(var(--muted));
+  border-bottom: 1px solid hsl(var(--border));
   padding: 0.5rem 0.75rem;
   flex-shrink: 0;
 }
@@ -226,29 +316,7 @@ const layoutMenuItems = ref([
 .toolbar-divider {
   width: 1px;
   height: 1.5rem;
-  background-color: #e2e8f0;
+  background-color: hsl(var(--border));
   margin: 0 0.5rem;
-}
-
-/* Make buttons smaller and more compact */
-:deep(.p-button.p-button-sm) {
-  padding: 0.375rem 0.5rem;
-}
-
-:deep(.p-button.p-button-text.p-button-sm) {
-  padding: 0.375rem;
-}
-</style>
-
-<!-- Global dark mode styles (unscoped) -->
-<style>
-/* Workflow Toolbar - Dark Mode */
-.dark-mode .workflow-toolbar {
-  background-color: var(--aynux-navy-800) !important;
-  border-bottom-color: var(--aynux-navy-700) !important;
-}
-
-.dark-mode .workflow-toolbar .toolbar-divider {
-  background-color: var(--aynux-navy-600) !important;
 }
 </style>

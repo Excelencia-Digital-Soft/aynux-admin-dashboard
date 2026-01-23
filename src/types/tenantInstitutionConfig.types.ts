@@ -98,6 +98,8 @@ export interface WhatsAppSettings {
 // ============================================================
 
 export interface InstitutionSettings {
+  /** External system institution ID (e.g., HCWeb IdInstitucion) */
+  institution_id?: string
   connection: ConnectionSettings
   auth: AuthSettings
   scheduler: SchedulerSettings
@@ -177,6 +179,8 @@ export interface InstitutionConfigFormState {
   institution_type: string
   enabled: boolean
   description: string
+  /** External system institution ID (e.g., HCWeb IdInstitucion) */
+  institution_id: string
 
   // Connection tab
   connection: ConnectionSettings
@@ -293,6 +297,7 @@ export function getDefaultFormState(): InstitutionConfigFormState {
     institution_type: 'generic',
     enabled: true,
     description: '',
+    institution_id: '',
     connection: getDefaultConnectionSettings(),
     auth: getDefaultAuthSettings(),
     scheduler: getDefaultSchedulerSettings(),
@@ -309,6 +314,7 @@ export function configToFormState(config: TenantInstitutionConfig): InstitutionC
     institution_type: config.institution_type,
     enabled: config.enabled,
     description: config.description || '',
+    institution_id: config.settings.institution_id || '',
     connection: config.settings.connection || getDefaultConnectionSettings(),
     auth: config.settings.auth || getDefaultAuthSettings(),
     scheduler: config.settings.scheduler || getDefaultSchedulerSettings(),
@@ -328,6 +334,7 @@ export function formStateToCreateRequest(
     enabled: state.enabled,
     description: state.description || undefined,
     settings: {
+      institution_id: state.institution_id || undefined,
       connection: state.connection,
       auth: state.auth,
       scheduler: state.scheduler,
@@ -347,6 +354,7 @@ export function formStateToUpdateRequest(
     enabled: state.enabled,
     description: state.description || undefined,
     settings: {
+      institution_id: state.institution_id || undefined,
       connection: state.connection,
       auth: state.auth,
       scheduler: state.scheduler,

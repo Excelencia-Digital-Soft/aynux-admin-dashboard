@@ -128,6 +128,12 @@ export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}) {
     isDraft: store.currentWorkflow?.is_draft ?? true
   }))
 
+  // Selected institution (full object)
+  const selectedInstitution = computed(() => {
+    if (!selectedInstitutionId.value) return null
+    return institutions.value.find((i) => i.id === selectedInstitutionId.value) || null
+  })
+
   // Validation
   const validationErrors = computed(() => store.validationErrors)
   const hasValidationErrors = computed(() => store.hasValidationErrors)
@@ -530,6 +536,7 @@ export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}) {
     // Institution state
     institutions,
     selectedInstitutionId,
+    selectedInstitution,
     isLoadingInstitutions,
 
     // State

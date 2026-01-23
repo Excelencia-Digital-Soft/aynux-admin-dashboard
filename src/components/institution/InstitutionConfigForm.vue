@@ -3,15 +3,12 @@
  * InstitutionConfigForm - Form wrapper with tabs for creating/editing institutions.
  *
  * Uses separate tab components for each settings section.
+ * Migrated to shadcn-vue components.
  */
 
 import { ref, computed, watch } from 'vue'
-import Tabs from 'primevue/tabs'
-import TabList from 'primevue/tablist'
-import Tab from 'primevue/tab'
-import TabPanels from 'primevue/tabpanels'
-import TabPanel from 'primevue/tabpanel'
-import Button from 'primevue/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
 
 import GeneralSettingsTab from './tabs/GeneralSettingsTab.vue'
 import ConnectionSettingsTab from './tabs/ConnectionSettingsTab.vue'
@@ -55,7 +52,7 @@ const emit = defineEmits<{
 // ============================================================
 
 const formState = ref<InstitutionConfigFormState>(getDefaultFormState())
-const activeTab = ref('0')
+const activeTab = ref('general')
 
 // ============================================================
 // Computed
@@ -86,7 +83,7 @@ watch(
     } else {
       formState.value = getDefaultFormState()
     }
-    activeTab.value = '0'
+    activeTab.value = 'general'
   },
   { immediate: true }
 )
@@ -114,128 +111,104 @@ function handleCancel() {
   <div class="institution-config-form">
     <!-- Header -->
     <div class="flex items-center justify-between mb-4">
-      <h3 class="text-lg font-semibold text-gray-800">
+      <h3 class="text-lg font-semibold text-foreground">
         {{ formTitle }}
       </h3>
       <span
         v-if="isEditing"
-        class="text-sm text-gray-500"
+        class="text-sm text-muted-foreground"
       >
-        Clave: <code class="bg-gray-100 px-2 py-0.5 rounded">{{ formState.institution_key }}</code>
+        Clave: <code class="bg-muted px-2 py-0.5 rounded">{{ formState.institution_key }}</code>
       </span>
     </div>
 
     <!-- Tabs -->
-    <Tabs v-model:value="activeTab">
-      <TabList>
-        <Tab value="0">
-          <div class="flex items-center gap-2">
-            <i class="pi pi-info-circle" />
-            <span>General</span>
-          </div>
-        </Tab>
-        <Tab value="1">
-          <div class="flex items-center gap-2">
-            <i class="pi pi-globe" />
-            <span>Conexion</span>
-          </div>
-        </Tab>
-        <Tab value="2">
-          <div class="flex items-center gap-2">
-            <i class="pi pi-lock" />
-            <span>Autenticacion</span>
-          </div>
-        </Tab>
-        <Tab value="3">
-          <div class="flex items-center gap-2">
-            <i class="pi pi-clock" />
-            <span>Programador</span>
-          </div>
-        </Tab>
-        <Tab value="4">
-          <div class="flex items-center gap-2">
-            <i class="pi pi-image" />
-            <span>Marca</span>
-          </div>
-        </Tab>
-        <Tab value="5">
-          <div class="flex items-center gap-2">
-            <i class="pi pi-whatsapp" />
-            <span>WhatsApp</span>
-          </div>
-        </Tab>
-      </TabList>
+    <Tabs v-model="activeTab" class="w-full">
+      <TabsList class="grid w-full grid-cols-6">
+        <TabsTrigger value="general" class="flex items-center gap-2">
+          <i class="pi pi-info-circle" />
+          <span class="hidden sm:inline">General</span>
+        </TabsTrigger>
+        <TabsTrigger value="connection" class="flex items-center gap-2">
+          <i class="pi pi-globe" />
+          <span class="hidden sm:inline">Conexion</span>
+        </TabsTrigger>
+        <TabsTrigger value="auth" class="flex items-center gap-2">
+          <i class="pi pi-lock" />
+          <span class="hidden sm:inline">Auth</span>
+        </TabsTrigger>
+        <TabsTrigger value="scheduler" class="flex items-center gap-2">
+          <i class="pi pi-clock" />
+          <span class="hidden sm:inline">Scheduler</span>
+        </TabsTrigger>
+        <TabsTrigger value="branding" class="flex items-center gap-2">
+          <i class="pi pi-image" />
+          <span class="hidden sm:inline">Marca</span>
+        </TabsTrigger>
+        <TabsTrigger value="whatsapp" class="flex items-center gap-2">
+          <i class="pi pi-whatsapp" />
+          <span class="hidden sm:inline">WhatsApp</span>
+        </TabsTrigger>
+      </TabsList>
 
-      <TabPanels>
+      <div class="mt-4">
         <!-- General Tab -->
-        <TabPanel value="0">
+        <TabsContent value="general">
           <GeneralSettingsTab
             v-model:institutionKey="formState.institution_key"
             v-model:institutionName="formState.institution_name"
             v-model:institutionType="formState.institution_type"
             v-model:enabled="formState.enabled"
             v-model:description="formState.description"
+            v-model:institutionId="formState.institution_id"
             :isEditing="isEditing"
           />
-        </TabPanel>
+        </TabsContent>
 
         <!-- Connection Tab -->
-        <TabPanel value="1">
+        <TabsContent value="connection">
           <ConnectionSettingsTab v-model="formState.connection" />
-        </TabPanel>
+        </TabsContent>
 
         <!-- Auth Tab -->
-        <TabPanel value="2">
+        <TabsContent value="auth">
           <AuthSettingsTab v-model="formState.auth" />
-        </TabPanel>
+        </TabsContent>
 
         <!-- Scheduler Tab -->
-        <TabPanel value="3">
+        <TabsContent value="scheduler">
           <SchedulerSettingsTab v-model="formState.scheduler" />
-        </TabPanel>
+        </TabsContent>
 
         <!-- Branding Tab -->
-        <TabPanel value="4">
+        <TabsContent value="branding">
           <BrandingSettingsTab v-model="formState.branding" />
-        </TabPanel>
+        </TabsContent>
 
         <!-- WhatsApp Tab -->
-        <TabPanel value="5">
+        <TabsContent value="whatsapp">
           <WhatsAppSettingsTab v-model="formState.whatsapp" />
-        </TabPanel>
-      </TabPanels>
+        </TabsContent>
+      </div>
     </Tabs>
 
     <!-- Footer Actions -->
     <div class="flex justify-end gap-2 mt-6 pt-4 border-t">
       <Button
-        label="Cancelar"
-        severity="secondary"
-        text
+        variant="ghost"
         @click="handleCancel"
         :disabled="loading"
-      />
+      >
+        Cancelar
+      </Button>
       <Button
-        :label="isEditing ? 'Guardar Cambios' : 'Crear Institucion'"
-        icon="pi pi-check"
         @click="handleSave"
         :loading="loading"
         :disabled="!canSave"
-      />
+      >
+        <i class="pi pi-check mr-2" />
+        {{ isEditing ? 'Guardar Cambios' : 'Crear Institucion' }}
+      </Button>
     </div>
   </div>
 </template>
-
-<style scoped>
-.institution-config-form :deep(.p-tabpanels) {
-  padding: 1rem 0;
-}
-
-.institution-config-form :deep(.p-tablist) {
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.institution-config-form :deep(.p-tab) {
-  padding: 0.75rem 1rem;
-}
-</style>

@@ -1,20 +1,34 @@
 <script setup lang="ts">
 /**
- * InstitutionConfigList - DataTable for listing institution configurations.
+ * InstitutionConfigList - Table for listing institution configurations.
  *
  * Features:
  * - Sortable columns
  * - Inline toggle enabled/disabled
  * - Action buttons (edit, secrets, delete)
- * - Status tags
+ * - Status badges
+ *
+ * Migrated to shadcn-vue components.
  */
 
 import { computed } from 'vue'
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
-import Button from 'primevue/button'
-import Tag from 'primevue/tag'
-import ToggleSwitch from 'primevue/toggleswitch'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
 import type { TenantInstitutionConfig } from '@/types/tenantInstitutionConfig.types'
 
 // ============================================================
@@ -47,14 +61,14 @@ const tableConfigs = computed(() => props.configs)
 // Methods
 // ============================================================
 
-function getTypeSeverity(type: string): 'success' | 'info' | 'warn' | 'danger' | 'secondary' {
+function getTypeBadgeVariant(type: string): 'success' | 'info' | 'warning' | 'secondary' | 'default' {
   switch (type) {
     case 'medical':
       return 'success'
     case 'pharmacy':
       return 'info'
     case 'laboratory':
-      return 'warn'
+      return 'warning'
     default:
       return 'secondary'
   }
@@ -115,170 +129,161 @@ function formatDate(dateStr: string | null): string {
 </script>
 
 <template>
-  <DataTable
-    :value="tableConfigs"
-    :loading="loading"
-    stripedRows
-    responsiveLayout="scroll"
-    dataKey="id"
-    class="institution-config-table"
-  >
-    <!-- Estado -->
-    <Column field="enabled" header="Estado" :sortable="true" style="width: 100px">
-      <template #body="{ data }">
-        <ToggleSwitch
-          :modelValue="data.enabled"
-          @update:modelValue="handleToggle(data)"
-        />
-      </template>
-    </Column>
+  <TooltipProvider>
+    <!-- Loading State -->
+    <div v-if="loading" class="text-center py-8">
+      <i class="pi pi-spin pi-spinner text-2xl text-primary" />
+      <p class="mt-2 text-muted-foreground">Cargando...</p>
+    </div>
 
-    <!-- Clave -->
-    <Column field="institution_key" header="Clave" :sortable="true" style="width: 180px">
-      <template #body="{ data }">
-        <code class="text-sm bg-gray-100 px-2 py-1 rounded">
-          {{ data.institution_key }}
-        </code>
-      </template>
-    </Column>
+    <!-- Empty State -->
+    <div v-else-if="tableConfigs.length === 0" class="text-center py-8 text-muted-foreground">
+      <i class="pi pi-inbox text-4xl mb-2" />
+      <p>No hay configuraciones de instituciones</p>
+    </div>
 
-    <!-- Nombre -->
-    <Column field="institution_name" header="Nombre" :sortable="true">
-      <template #body="{ data }">
-        <div class="font-medium">{{ data.institution_name }}</div>
-        <div v-if="data.description" class="text-sm text-gray-500 truncate max-w-xs">
-          {{ data.description }}
-        </div>
-      </template>
-    </Column>
+    <!-- Table -->
+    <Table v-else>
+      <TableHeader>
+        <TableRow>
+          <TableHead class="w-[100px]">Estado</TableHead>
+          <TableHead class="w-[180px]">Clave</TableHead>
+          <TableHead>Nombre</TableHead>
+          <TableHead class="w-[120px]">Tipo</TableHead>
+          <TableHead class="w-[120px]">Conexion</TableHead>
+          <TableHead class="w-[100px]">Auth</TableHead>
+          <TableHead class="w-[100px]">WhatsApp</TableHead>
+          <TableHead class="w-[120px]">Actualizado</TableHead>
+          <TableHead class="w-[150px]">Acciones</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        <TableRow v-for="config in tableConfigs" :key="config.id">
+          <!-- Estado -->
+          <TableCell>
+            <Switch
+              :checked="config.enabled"
+              @update:checked="handleToggle(config)"
+            />
+          </TableCell>
 
-    <!-- Tipo -->
-    <Column field="institution_type" header="Tipo" :sortable="true" style="width: 120px">
-      <template #body="{ data }">
-        <Tag
-          :value="getTypeLabel(data.institution_type)"
-          :severity="getTypeSeverity(data.institution_type)"
-        />
-      </template>
-    </Column>
+          <!-- Clave -->
+          <TableCell>
+            <code class="text-sm bg-muted px-2 py-1 rounded">
+              {{ config.institution_key }}
+            </code>
+          </TableCell>
 
-    <!-- Conexion -->
-    <Column header="Conexion" style="width: 120px">
-      <template #body="{ data }">
-        <div class="text-sm">
-          <span class="font-medium">
-            {{ getConnectionTypeLabel(data.settings?.connection?.type || 'rest') }}
-          </span>
-        </div>
-        <div
-          v-if="data.settings?.connection?.base_url"
-          class="text-xs text-gray-500 truncate max-w-[150px]"
-          :title="data.settings.connection.base_url"
-        >
-          {{ data.settings.connection.base_url }}
-        </div>
-      </template>
-    </Column>
+          <!-- Nombre -->
+          <TableCell>
+            <div class="font-medium">{{ config.institution_name }}</div>
+            <div v-if="config.description" class="text-sm text-muted-foreground truncate max-w-xs">
+              {{ config.description }}
+            </div>
+          </TableCell>
 
-    <!-- Auth -->
-    <Column header="Auth" style="width: 100px">
-      <template #body="{ data }">
-        <div class="flex items-center gap-1">
-          <Tag
-            :value="data.settings?.auth?.type || 'none'"
-            :severity="data.settings?.auth?.type === 'none' ? 'secondary' : 'info'"
-            class="text-xs"
-          />
-          <i
-            v-if="data.has_secrets"
-            class="pi pi-lock text-green-600"
-            title="Credenciales configuradas"
-          />
-        </div>
-      </template>
-    </Column>
+          <!-- Tipo -->
+          <TableCell>
+            <Badge :variant="getTypeBadgeVariant(config.institution_type)">
+              {{ getTypeLabel(config.institution_type) }}
+            </Badge>
+          </TableCell>
 
-    <!-- WhatsApp -->
-    <Column header="WhatsApp" style="width: 100px">
-      <template #body="{ data }">
-        <i
-          v-if="data.settings?.whatsapp?.phone_number_id"
-          class="pi pi-check-circle text-green-600"
-          title="WhatsApp configurado"
-        />
-        <i v-else class="pi pi-minus-circle text-gray-400" title="Sin WhatsApp" />
-      </template>
-    </Column>
+          <!-- Conexion -->
+          <TableCell>
+            <div class="text-sm">
+              <span class="font-medium">
+                {{ getConnectionTypeLabel(config.settings?.connection?.type || 'rest') }}
+              </span>
+            </div>
+            <div
+              v-if="config.settings?.connection?.base_url"
+              class="text-xs text-muted-foreground truncate max-w-[150px]"
+              :title="config.settings.connection.base_url"
+            >
+              {{ config.settings.connection.base_url }}
+            </div>
+          </TableCell>
 
-    <!-- Actualizado -->
-    <Column field="updated_at" header="Actualizado" :sortable="true" style="width: 120px">
-      <template #body="{ data }">
-        <span class="text-sm text-gray-600">
-          {{ formatDate(data.updated_at) }}
-        </span>
-      </template>
-    </Column>
+          <!-- Auth -->
+          <TableCell>
+            <div class="flex items-center gap-1">
+              <Badge :variant="config.settings?.auth?.type === 'none' ? 'secondary' : 'info'" class="text-xs">
+                {{ config.settings?.auth?.type || 'none' }}
+              </Badge>
+              <i
+                v-if="config.has_secrets"
+                class="pi pi-lock text-green-600"
+                title="Credenciales configuradas"
+              />
+            </div>
+          </TableCell>
 
-    <!-- Acciones -->
-    <Column header="Acciones" style="width: 150px">
-      <template #body="{ data }">
-        <div class="flex gap-1">
-          <Button
-            icon="pi pi-pencil"
-            text
-            rounded
-            severity="secondary"
-            size="small"
-            @click="handleEdit(data)"
-            v-tooltip.top="'Editar'"
-          />
-          <Button
-            icon="pi pi-key"
-            text
-            rounded
-            severity="info"
-            size="small"
-            @click="handleSecrets(data)"
-            v-tooltip.top="'Credenciales'"
-          />
-          <Button
-            icon="pi pi-trash"
-            text
-            rounded
-            severity="danger"
-            size="small"
-            @click="handleDelete(data)"
-            v-tooltip.top="'Eliminar'"
-          />
-        </div>
-      </template>
-    </Column>
+          <!-- WhatsApp -->
+          <TableCell>
+            <i
+              v-if="config.settings?.whatsapp?.phone_number_id"
+              class="pi pi-check-circle text-green-600"
+              title="WhatsApp configurado"
+            />
+            <i v-else class="pi pi-minus-circle text-muted-foreground" title="Sin WhatsApp" />
+          </TableCell>
 
-    <!-- Empty state -->
-    <template #empty>
-      <div class="text-center py-8 text-gray-500">
-        <i class="pi pi-inbox text-4xl mb-2" />
-        <p>No hay configuraciones de instituciones</p>
-      </div>
-    </template>
+          <!-- Actualizado -->
+          <TableCell>
+            <span class="text-sm text-muted-foreground">
+              {{ formatDate(config.updated_at) }}
+            </span>
+          </TableCell>
 
-    <!-- Loading state -->
-    <template #loading>
-      <div class="text-center py-8">
-        <i class="pi pi-spin pi-spinner text-2xl" />
-        <p class="mt-2 text-gray-500">Cargando...</p>
-      </div>
-    </template>
-  </DataTable>
+          <!-- Acciones -->
+          <TableCell>
+            <div class="flex gap-1">
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    @click="handleEdit(config)"
+                    class="h-8 w-8"
+                  >
+                    <i class="pi pi-pencil" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Editar</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    @click="handleSecrets(config)"
+                    class="h-8 w-8 text-blue-600 hover:text-blue-700"
+                  >
+                    <i class="pi pi-key" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Credenciales</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    @click="handleDelete(config)"
+                    class="h-8 w-8 text-destructive hover:text-destructive"
+                  >
+                    <i class="pi pi-trash" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Eliminar</TooltipContent>
+              </Tooltip>
+            </div>
+          </TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
+  </TooltipProvider>
 </template>
-
-<style scoped>
-.institution-config-table :deep(.p-datatable-header) {
-  background: transparent;
-  border: none;
-}
-
-.institution-config-table :deep(.p-datatable-tbody > tr > td) {
-  padding: 0.75rem;
-}
-</style>

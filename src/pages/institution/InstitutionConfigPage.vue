@@ -7,18 +7,42 @@
  * - Create, edit, delete configurations
  * - Toggle enabled/disabled status
  * - Manage encrypted credentials
+ *
+ * Migrated to shadcn-vue components for consistent design.
  */
 
 import { ref, computed, onMounted, watch } from 'vue'
-import { useConfirm } from 'primevue/useconfirm'
-import Card from 'primevue/card'
-import Button from 'primevue/button'
-import InputText from 'primevue/inputtext'
-import Select from 'primevue/select'
-import Dialog from 'primevue/dialog'
-import ConfirmDialog from 'primevue/confirmdialog'
-import Paginator from 'primevue/paginator'
-import Message from 'primevue/message'
+
+// shadcn-vue components
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Pagination } from '@/components/ui/pagination'
 
 import InstitutionConfigList from '@/components/institution/InstitutionConfigList.vue'
 import InstitutionConfigForm from '@/components/institution/InstitutionConfigForm.vue'
@@ -39,7 +63,6 @@ import { INSTITUTION_TYPES } from '@/types/tenantInstitutionConfig.types'
 // ============================================================
 
 const authStore = useAuthStore()
-const confirm = useConfirm()
 const {
   configs,
   total,
@@ -48,7 +71,6 @@ const {
   isLoading,
   page,
   pageSize,
-  filters,
   showFormDialog,
   showSecretsDialog,
   editingConfig,
@@ -75,6 +97,8 @@ const {
 
 const searchQuery = ref('')
 const selectedType = ref<string | undefined>(undefined)
+const deleteDialogOpen = ref(false)
+const configToDelete = ref<TenantInstitutionConfig | null>(null)
 
 // ============================================================
 // Computed
@@ -87,9 +111,12 @@ const secretsConfig = computed(() => {
   return configs.value.find((c) => c.id === secretsConfigId.value) || null
 })
 
+// Use '_all' as sentinel value since radix-vue doesn't allow empty string values for SelectItem
+const ALL_TYPES_VALUE = '_all'
+
 const typeFilterOptions = computed(() => [
-  { label: 'Todos los tipos', value: undefined },
-  ...INSTITUTION_TYPES
+  { label: 'Todos los tipos', value: ALL_TYPES_VALUE },
+  ...INSTITUTION_TYPES.map(t => ({ label: t.label, value: t.value }))
 ])
 
 // ============================================================
@@ -119,15 +146,18 @@ function handleSearch() {
   }
 }
 
-function handleTypeFilter() {
-  setFilters({ institution_type: selectedType.value })
+function handleTypeFilter(value: string) {
+  // Convert sentinel value back to undefined for API
+  const filterValue = value === ALL_TYPES_VALUE ? undefined : value
+  selectedType.value = filterValue
+  setFilters({ institution_type: filterValue })
   if (currentOrgId.value) {
     fetchConfigs(currentOrgId.value)
   }
 }
 
-function handlePageChange(event: { page: number; rows: number }) {
-  setPage(event.page + 1)
+function handlePageChange(newPage: number) {
+  setPage(newPage)
   if (currentOrgId.value) {
     fetchConfigs(currentOrgId.value)
   }
@@ -137,20 +167,22 @@ function handleEdit(config: TenantInstitutionConfig) {
   openEditDialog(config)
 }
 
-function handleDelete(config: TenantInstitutionConfig) {
-  confirm.require({
-    message: `¿Eliminar la configuracion "${config.institution_name}"? Esta accion no se puede deshacer.`,
-    header: 'Confirmar eliminacion',
-    icon: 'pi pi-exclamation-triangle',
-    acceptLabel: 'Eliminar',
-    rejectLabel: 'Cancelar',
-    acceptClass: 'p-button-danger',
-    accept: async () => {
-      if (currentOrgId.value) {
-        await deleteConfig(currentOrgId.value, config.id)
-      }
-    }
-  })
+function handleDeleteRequest(config: TenantInstitutionConfig) {
+  configToDelete.value = config
+  deleteDialogOpen.value = true
+}
+
+async function confirmDelete() {
+  if (configToDelete.value && currentOrgId.value) {
+    await deleteConfig(currentOrgId.value, configToDelete.value.id)
+    deleteDialogOpen.value = false
+    configToDelete.value = null
+  }
+}
+
+function cancelDelete() {
+  deleteDialogOpen.value = false
+  configToDelete.value = null
 }
 
 async function handleToggle(config: TenantInstitutionConfig) {
@@ -187,125 +219,151 @@ async function handleSecretsSave(secrets: InstitutionConfigSecretsRequest) {
 
 <template>
   <div class="institution-config-page">
-    <ConfirmDialog />
+    <!-- Delete Confirmation Dialog -->
+    <AlertDialog :open="deleteDialogOpen" @update:open="(val: boolean) => !val && cancelDelete()">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Confirmar eliminacion</AlertDialogTitle>
+          <AlertDialogDescription>
+            ¿Eliminar la configuracion "{{ configToDelete?.institution_name }}"?
+            Esta accion no se puede deshacer.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel @click="cancelDelete">Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            @click="confirmDelete"
+            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Eliminar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-2xl font-bold text-gray-800">Configuracion de Instituciones</h1>
-        <p class="text-gray-500 mt-1">
+        <h1 class="text-2xl font-bold text-foreground">Configuracion de Instituciones</h1>
+        <p class="text-muted-foreground mt-1">
           Gestiona las configuraciones de integracion para cada institucion
         </p>
       </div>
-      <Button
-        label="Nueva Institucion"
-        icon="pi pi-plus"
-        @click="openCreateDialog"
-        :disabled="!currentOrgId"
-      />
+      <Button @click="openCreateDialog" :disabled="!currentOrgId">
+        <i class="pi pi-plus mr-2" />
+        Nueva Institucion
+      </Button>
     </div>
 
     <!-- No org selected warning -->
-    <Message v-if="!currentOrgId" severity="warn" :closable="false" class="mb-6">
-      Selecciona una organizacion para ver las configuraciones de instituciones.
-    </Message>
+    <Alert v-if="!currentOrgId" variant="warning" class="mb-6">
+      <i class="pi pi-exclamation-triangle" />
+      <AlertDescription>
+        Selecciona una organizacion para ver las configuraciones de instituciones.
+      </AlertDescription>
+    </Alert>
 
     <!-- Stats Cards -->
     <div v-if="currentOrgId" class="grid grid-cols-3 gap-4 mb-6">
       <Card class="text-center">
-        <template #content>
-          <div class="text-3xl font-bold text-gray-800">{{ total }}</div>
-          <div class="text-sm text-gray-500">Total</div>
-        </template>
+        <CardContent class="pt-6">
+          <div class="text-3xl font-bold text-foreground">{{ total }}</div>
+          <div class="text-sm text-muted-foreground">Total</div>
+        </CardContent>
       </Card>
       <Card class="text-center">
-        <template #content>
+        <CardContent class="pt-6">
           <div class="text-3xl font-bold text-green-600">{{ enabledCount }}</div>
-          <div class="text-sm text-gray-500">Habilitadas</div>
-        </template>
+          <div class="text-sm text-muted-foreground">Habilitadas</div>
+        </CardContent>
       </Card>
       <Card class="text-center">
-        <template #content>
-          <div class="text-3xl font-bold text-gray-400">{{ disabledCount }}</div>
-          <div class="text-sm text-gray-500">Deshabilitadas</div>
-        </template>
+        <CardContent class="pt-6">
+          <div class="text-3xl font-bold text-muted-foreground">{{ disabledCount }}</div>
+          <div class="text-sm text-muted-foreground">Deshabilitadas</div>
+        </CardContent>
       </Card>
     </div>
 
     <!-- Filters -->
     <Card v-if="currentOrgId" class="mb-6">
-      <template #content>
+      <CardContent class="pt-6">
         <div class="flex gap-4 items-end">
           <div class="flex-1">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
+            <label class="block text-sm font-medium text-foreground mb-1">Buscar</label>
             <div class="flex gap-2">
-              <InputText
+              <Input
                 v-model="searchQuery"
                 placeholder="Buscar por nombre o clave..."
                 class="flex-1"
                 @keyup.enter="handleSearch"
               />
-              <Button
-                icon="pi pi-search"
-                @click="handleSearch"
-                severity="secondary"
-              />
+              <Button variant="secondary" @click="handleSearch">
+                <i class="pi pi-search" />
+              </Button>
             </div>
           </div>
           <div style="width: 200px">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-            <Select
-              v-model="selectedType"
-              :options="typeFilterOptions"
-              optionLabel="label"
-              optionValue="value"
-              class="w-full"
-              @change="handleTypeFilter"
-            />
+            <label class="block text-sm font-medium text-foreground mb-1">Tipo</label>
+            <Select :model-value="selectedType || ALL_TYPES_VALUE" @update:model-value="handleTypeFilter">
+              <SelectTrigger class="w-full">
+                <SelectValue placeholder="Todos los tipos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem
+                  v-for="option in typeFilterOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
-      </template>
+      </CardContent>
     </Card>
 
     <!-- Table -->
     <Card v-if="currentOrgId">
-      <template #content>
+      <CardContent class="pt-6">
         <InstitutionConfigList
           :configs="configs"
           :loading="isLoading"
           @edit="handleEdit"
-          @delete="handleDelete"
+          @delete="handleDeleteRequest"
           @toggle="handleToggle"
           @secrets="handleSecrets"
         />
 
-        <!-- Paginator -->
-        <Paginator
+        <!-- Pagination -->
+        <Pagination
           v-if="total > pageSize"
-          :rows="pageSize"
           :totalRecords="total"
-          :first="(page - 1) * pageSize"
-          @page="handlePageChange"
-          class="mt-4"
+          :rows="pageSize"
+          :currentPage="page"
+          @pageChange="handlePageChange"
+          class="mt-4 justify-center"
         />
-      </template>
+      </CardContent>
     </Card>
 
     <!-- Form Dialog -->
-    <Dialog
-      v-model:visible="showFormDialog"
-      :header="isEditing ? 'Editar Institucion' : 'Nueva Institucion'"
-      :modal="true"
-      :closable="!isLoading"
-      :style="{ width: '800px' }"
-      :breakpoints="{ '960px': '90vw' }"
-    >
-      <InstitutionConfigForm
-        :config="editingConfig"
-        :loading="isLoading"
-        @save="handleFormSave"
-        @cancel="closeFormDialog"
-      />
+    <Dialog :open="showFormDialog" @update:open="(val) => !val && closeFormDialog()">
+      <DialogContent class="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{{ isEditing ? 'Editar Institucion' : 'Nueva Institucion' }}</DialogTitle>
+          <DialogDescription class="sr-only">
+            {{ isEditing ? 'Formulario para editar la configuracion de una institucion existente' : 'Formulario para crear una nueva configuracion de institucion' }}
+          </DialogDescription>
+        </DialogHeader>
+        <InstitutionConfigForm
+          :config="editingConfig"
+          :loading="isLoading"
+          @save="handleFormSave"
+          @cancel="closeFormDialog"
+        />
+      </DialogContent>
     </Dialog>
 
     <!-- Secrets Dialog -->

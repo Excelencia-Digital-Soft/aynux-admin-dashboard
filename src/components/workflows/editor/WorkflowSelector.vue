@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Button from 'primevue/button'
 import Card from 'primevue/card'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
@@ -10,6 +11,7 @@ defineProps<{
   workflows: WorkflowDefinition[]
   selectedInstitutionId: string | null
   selectedWorkflowId: string | null
+  selectedInstitution: TenantInstitutionConfig | null
   currentWorkflow: WorkflowDefinition | null
   stats: {
     totalNodes: number
@@ -23,6 +25,7 @@ const emit = defineEmits<{
   (e: 'update:selectedWorkflowId', value: string | null): void
   (e: 'selectInstitution'): void
   (e: 'selectWorkflow'): void
+  (e: 'showInstitutionInfo'): void
 }>()
 </script>
 
@@ -31,24 +34,36 @@ const emit = defineEmits<{
     <template #content>
       <div class="flex items-center gap-4">
         <!-- Institution Selector -->
-        <div class="w-64">
+        <div class="flex-auto">
           <label class="block text-sm font-medium text-gray-700 mb-1">Institución Médica</label>
-          <Select
-            :modelValue="selectedInstitutionId"
-            @update:modelValue="(v) => emit('update:selectedInstitutionId', v)"
-            :options="institutions"
-            optionLabel="institution_name"
-            optionValue="id"
-            placeholder="Selecciona institución"
-            class="w-full"
-            :loading="isLoadingInstitutions"
-            @change="emit('selectInstitution')"
-          />
+          <div class="flex items-center gap-2">
+            <Select
+              :modelValue="selectedInstitutionId"
+              @update:modelValue="(v) => emit('update:selectedInstitutionId', v)"
+              :options="institutions"
+              optionLabel="institution_name"
+              optionValue="id"
+              placeholder="Selecciona institución"
+              class="flex-1"
+              :loading="isLoadingInstitutions"
+              @change="emit('selectInstitution')"
+            />
+            <Button
+              v-if="selectedInstitution"
+              icon="pi pi-info-circle"
+              severity="secondary"
+              text
+              rounded
+              @click="emit('showInstitutionInfo')"
+              v-tooltip.top="'Ver información de institución'"
+              class="flex-shrink-0"
+            />
+          </div>
         </div>
 
         <!-- Workflow Selector -->
-        <div class="flex-1">
-          <label class="block text-sm font-medium text-gray-700 mb-1">Workflow</label>
+        <div class="flex-auto">
+          <label class="block text-sm font-medium text-gray-700 mb-1 ml-4">Workflow</label>
           <Select
             :modelValue="selectedWorkflowId"
             @update:modelValue="(v) => emit('update:selectedWorkflowId', v)"

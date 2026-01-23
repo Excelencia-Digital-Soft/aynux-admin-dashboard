@@ -25,6 +25,7 @@ const institutionName = defineModel<string>('institutionName', { required: true 
 const institutionType = defineModel<string>('institutionType', { required: true })
 const enabled = defineModel<boolean>('enabled', { required: true })
 const description = defineModel<string>('description', { required: true })
+const institutionId = defineModel<string>('institutionId', { required: true })
 </script>
 
 <template>
@@ -76,6 +77,22 @@ const description = defineModel<string>('description', { required: true })
         class="w-full"
         placeholder="Seleccionar tipo"
       />
+    </div>
+
+    <!-- External Institution ID (Optional - for HCWeb/SOAP integrations) -->
+    <div class="field">
+      <label for="institution_id" class="block text-sm font-medium text-gray-700 mb-1">
+        ID Externo de Institucion
+      </label>
+      <InputText
+        id="institution_id"
+        v-model="institutionId"
+        class="w-full"
+        placeholder="ej: 123 (ID numerico del sistema externo)"
+      />
+      <small class="text-gray-500">
+        ID numerico del sistema externo (HCWeb IdInstitucion). Opcional.
+      </small>
     </div>
 
     <!-- Enabled -->

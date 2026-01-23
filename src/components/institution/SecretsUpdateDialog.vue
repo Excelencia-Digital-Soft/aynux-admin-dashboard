@@ -3,13 +3,23 @@
  * SecretsUpdateDialog - Dialog for updating encrypted credentials.
  *
  * This is a write-only operation. Secrets are never returned from the API.
+ *
+ * Migrated to shadcn-vue components.
  */
 
 import { ref, computed, watch } from 'vue'
-import Dialog from 'primevue/dialog'
-import Button from 'primevue/button'
-import Password from 'primevue/password'
-import Message from 'primevue/message'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import type {
   TenantInstitutionConfig,
   InstitutionConfigSecretsRequest
@@ -43,6 +53,9 @@ const emit = defineEmits<{
 const apiKey = ref('')
 const password = ref('')
 const clientSecret = ref('')
+const showApiKey = ref(false)
+const showPassword = ref(false)
+const showClientSecret = ref(false)
 
 // ============================================================
 // Computed
@@ -55,11 +68,11 @@ const dialogVisible = computed({
 
 const authType = computed(() => props.config?.settings?.auth?.type || 'none')
 
-const showApiKey = computed(() => authType.value === 'api_key')
-const showPassword = computed(() =>
+const showApiKeyField = computed(() => authType.value === 'api_key')
+const showPasswordField = computed(() =>
   authType.value === 'basic' || authType.value === 'soap_wss'
 )
-const showClientSecret = computed(() => authType.value === 'oauth2')
+const showClientSecretField = computed(() => authType.value === 'oauth2')
 
 const canSave = computed(() => {
   // At least one field must have a value
@@ -80,6 +93,9 @@ watch(dialogVisible, (visible) => {
     apiKey.value = ''
     password.value = ''
     clientSecret.value = ''
+    showApiKey.value = false
+    showPassword.value = false
+    showClientSecret.value = false
   }
 })
 
@@ -111,121 +127,137 @@ function handleClose() {
 </script>
 
 <template>
-  <Dialog
-    v-model:visible="dialogVisible"
-    :header="`Credenciales - ${institutionName}`"
-    :modal="true"
-    :closable="!loading"
-    :style="{ width: '450px' }"
-    class="secrets-update-dialog"
-  >
-    <div class="space-y-4">
-      <Message severity="info" :closable="false">
-        <i class="pi pi-shield mr-2" />
-        Las credenciales se almacenan encriptadas y nunca se muestran.
-      </Message>
+  <Dialog :open="dialogVisible" @update:open="(val) => dialogVisible = val">
+    <DialogContent class="sm:max-w-[450px]">
+      <DialogHeader>
+        <DialogTitle>Credenciales - {{ institutionName }}</DialogTitle>
+        <DialogDescription class="sr-only">
+          Actualizar credenciales de autenticacion para esta institucion
+        </DialogDescription>
+      </DialogHeader>
 
-      <!-- API Key -->
-      <div v-if="showApiKey" class="field">
-        <label for="api_key" class="block text-sm font-medium text-gray-700 mb-1">
-          API Key
-        </label>
-        <Password
-          id="api_key"
-          v-model="apiKey"
-          class="w-full"
-          :feedback="false"
-          toggleMask
-          placeholder="Ingrese el API Key"
-        />
-        <small v-if="config?.has_secrets" class="text-green-600">
-          <i class="pi pi-check mr-1" />
-          Credencial existente. Dejar vacio para mantener la actual.
-        </small>
+      <div class="space-y-4 py-4">
+        <Alert variant="info">
+          <i class="pi pi-shield" />
+          <AlertDescription>
+            Las credenciales se almacenan encriptadas y nunca se muestran.
+          </AlertDescription>
+        </Alert>
+
+        <!-- API Key -->
+        <div v-if="showApiKeyField" class="space-y-2">
+          <Label for="api_key">API Key</Label>
+          <div class="relative">
+            <Input
+              id="api_key"
+              v-model="apiKey"
+              :type="showApiKey ? 'text' : 'password'"
+              placeholder="Ingrese el API Key"
+              class="pr-10"
+            />
+            <button
+              type="button"
+              @click="showApiKey = !showApiKey"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <i :class="showApiKey ? 'pi pi-eye-slash' : 'pi pi-eye'" />
+            </button>
+          </div>
+          <p v-if="config?.has_secrets" class="text-sm text-green-600">
+            <i class="pi pi-check mr-1" />
+            Credencial existente. Dejar vacio para mantener la actual.
+          </p>
+        </div>
+
+        <!-- Password (Basic Auth / SOAP WSS) -->
+        <div v-if="showPasswordField" class="space-y-2">
+          <Label for="password">
+            {{ authType === 'soap_wss' ? 'Password WS-Security' : 'Password' }}
+          </Label>
+          <div class="relative">
+            <Input
+              id="password"
+              v-model="password"
+              :type="showPassword ? 'text' : 'password'"
+              placeholder="Ingrese la contrasena"
+              class="pr-10"
+            />
+            <button
+              type="button"
+              @click="showPassword = !showPassword"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <i :class="showPassword ? 'pi pi-eye-slash' : 'pi pi-eye'" />
+            </button>
+          </div>
+          <p v-if="config?.has_secrets" class="text-sm text-green-600">
+            <i class="pi pi-check mr-1" />
+            Credencial existente. Dejar vacio para mantener la actual.
+          </p>
+        </div>
+
+        <!-- Client Secret (OAuth2) -->
+        <div v-if="showClientSecretField" class="space-y-2">
+          <Label for="client_secret">Client Secret</Label>
+          <div class="relative">
+            <Input
+              id="client_secret"
+              v-model="clientSecret"
+              :type="showClientSecret ? 'text' : 'password'"
+              placeholder="Ingrese el Client Secret"
+              class="pr-10"
+            />
+            <button
+              type="button"
+              @click="showClientSecret = !showClientSecret"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <i :class="showClientSecret ? 'pi pi-eye-slash' : 'pi pi-eye'" />
+            </button>
+          </div>
+          <p v-if="config?.has_secrets" class="text-sm text-green-600">
+            <i class="pi pi-check mr-1" />
+            Credencial existente. Dejar vacio para mantener la actual.
+          </p>
+        </div>
+
+        <!-- No auth configured -->
+        <div v-if="authType === 'none'" class="flex flex-col gap-3">
+          <Alert variant="warning">
+            <i class="pi pi-exclamation-triangle" />
+            <AlertDescription>
+              Esta institucion no tiene autenticacion configurada.
+              Primero configure el tipo de autenticacion en la seccion "Autenticacion".
+            </AlertDescription>
+          </Alert>
+          <Button
+            variant="outline"
+            size="sm"
+            @click="emit('configure-auth')"
+          >
+            <i class="pi pi-cog mr-2" />
+            Configurar Autenticacion
+          </Button>
+        </div>
       </div>
 
-      <!-- Password (Basic Auth / SOAP WSS) -->
-      <div v-if="showPassword" class="field">
-        <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
-          {{ authType === 'soap_wss' ? 'Password WS-Security' : 'Password' }}
-        </label>
-        <Password
-          id="password"
-          v-model="password"
-          class="w-full"
-          :feedback="false"
-          toggleMask
-          placeholder="Ingrese la contrasena"
-        />
-        <small v-if="config?.has_secrets" class="text-green-600">
-          <i class="pi pi-check mr-1" />
-          Credencial existente. Dejar vacio para mantener la actual.
-        </small>
-      </div>
-
-      <!-- Client Secret (OAuth2) -->
-      <div v-if="showClientSecret" class="field">
-        <label for="client_secret" class="block text-sm font-medium text-gray-700 mb-1">
-          Client Secret
-        </label>
-        <Password
-          id="client_secret"
-          v-model="clientSecret"
-          class="w-full"
-          :feedback="false"
-          toggleMask
-          placeholder="Ingrese el Client Secret"
-        />
-        <small v-if="config?.has_secrets" class="text-green-600">
-          <i class="pi pi-check mr-1" />
-          Credencial existente. Dejar vacio para mantener la actual.
-        </small>
-      </div>
-
-      <!-- No auth configured -->
-      <div v-if="authType === 'none'" class="flex flex-col gap-3">
-        <Message severity="warn" :closable="false">
-          Esta institucion no tiene autenticacion configurada.
-          Primero configure el tipo de autenticacion en la seccion "Autenticacion".
-        </Message>
+      <DialogFooter>
         <Button
-          label="Configurar Autenticacion"
-          icon="pi pi-cog"
-          outlined
-          size="small"
-          @click="emit('configure-auth')"
-        />
-      </div>
-    </div>
-
-    <!-- Footer -->
-    <template #footer>
-      <div class="flex justify-end gap-2">
-        <Button
-          label="Cancelar"
-          severity="secondary"
-          text
+          variant="ghost"
           @click="handleClose"
           :disabled="loading"
-        />
+        >
+          Cancelar
+        </Button>
         <Button
-          label="Guardar Credenciales"
-          icon="pi pi-lock"
           @click="handleSave"
           :loading="loading"
           :disabled="!canSave || authType === 'none'"
-        />
-      </div>
-    </template>
+        >
+          <i class="pi pi-lock mr-2" />
+          Guardar Credenciales
+        </Button>
+      </DialogFooter>
+    </DialogContent>
   </Dialog>
 </template>
-
-<style scoped>
-.secrets-update-dialog :deep(.p-password) {
-  width: 100%;
-}
-
-.secrets-update-dialog :deep(.p-password input) {
-  width: 100%;
-}
-</style>

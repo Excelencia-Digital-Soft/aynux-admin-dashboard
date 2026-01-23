@@ -350,9 +350,44 @@ export const useWorkflowEditorStore = defineStore("workflow-editor", () => {
         nodeId,
         updates,
       );
-      const idx = nodeInstances.value.findIndex((n) => n.id === nodeId);
-      if (idx !== -1) nodeInstances.value[idx] = updated;
-      generateGraph();
+
+      // Update nodeInstances in place, merging API response with local updates
+      // (API may not return all fields like description, is_active)
+      const instanceIdx = nodeInstances.value.findIndex((n) => n.id === nodeId);
+      if (instanceIdx !== -1) {
+        nodeInstances.value[instanceIdx] = {
+          ...nodeInstances.value[instanceIdx],
+          ...updated,
+          // Preserve fields from updates that API doesn't return
+          description: updates.description ?? updated.description ?? nodeInstances.value[instanceIdx].description,
+          is_active: updates.is_active ?? updated.is_active ?? nodeInstances.value[instanceIdx].is_active,
+        };
+      }
+
+      // Update the corresponding Vue Flow node in place (avoid full graph regeneration)
+      const nodeIdx = nodes.value.findIndex((n) => n.id === nodeId);
+      if (nodeIdx !== -1 && instanceIdx !== -1) {
+        const mergedInstance = nodeInstances.value[instanceIdx];
+        const definition = catalogStore.getNodeDefinitionById(mergedInstance.node_definition_id);
+        // Update node data in place using the merged instance
+        nodes.value[nodeIdx] = {
+          ...nodes.value[nodeIdx],
+          position: {
+            x: mergedInstance.position_x,
+            y: mergedInstance.position_y,
+          },
+          data: {
+            ...nodes.value[nodeIdx].data,
+            label: mergedInstance.display_label,
+            nodeInstance: mergedInstance,
+            nodeDefinition: definition,
+            isEntryPoint: mergedInstance.is_entry_point,
+            icon: mergedInstance.icon || definition?.icon,
+            color: mergedInstance.color || definition?.color,
+          },
+        };
+      }
+
       isDirty.value = true;
     } catch (e: unknown) {
       error.value = e instanceof Error ? e.message : "Failed to update node";
@@ -426,9 +461,30 @@ export const useWorkflowEditorStore = defineStore("workflow-editor", () => {
         transitionId,
         updates,
       );
-      const idx = transitions.value.findIndex((t) => t.id === transitionId);
-      if (idx !== -1) transitions.value[idx] = updated;
-      generateGraph();
+
+      // Update transitions in place
+      const transitionIdx = transitions.value.findIndex((t) => t.id === transitionId);
+      if (transitionIdx !== -1) {
+        transitions.value[transitionIdx] = updated;
+      }
+
+      // Update the corresponding Vue Flow edge in place (avoid full graph regeneration)
+      const edgeIdx = edges.value.findIndex((e) => e.id === transitionId);
+      if (edgeIdx !== -1) {
+        edges.value[edgeIdx] = {
+          ...edges.value[edgeIdx],
+          sourceHandle: updated.source_output || undefined,
+          targetHandle: updated.target_input || undefined,
+          type: updated.condition ? "condition" : "default",
+          label: updated.label || undefined,
+          animated: !!updated.condition,
+          data: {
+            transition: updated,
+            condition: updated.condition || undefined,
+          },
+        };
+      }
+
       isDirty.value = true;
     } catch (e: unknown) {
       error.value =
