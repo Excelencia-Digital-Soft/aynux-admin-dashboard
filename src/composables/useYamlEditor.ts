@@ -14,9 +14,7 @@ import type {
   UpdateTaskRequest,
   YamlFormatter,
   FormatterResponseType,
-  FormatterButton,
-  FormatterCreateRequest,
-  FormatterUpdateRequest
+  FormatterButton
 } from '@/types/yaml.types'
 
 /**
@@ -35,12 +33,23 @@ interface FormData extends CreateYamlRequest {
   key?: string
 }
 
-interface TaskFormData extends CreateTaskRequest {
-  key?: string
+interface TaskFormData {
+  key: string
+  name: string
+  description: string
+  template?: string
   version?: string
   active?: boolean
   source?: 'file' | 'database'
   is_critical?: boolean
+  metadata?: {
+    tags?: string[]
+    variables?: {
+      required: string[]
+      optional: string[]
+    }
+    is_critical?: boolean
+  }
 }
 
 interface FormatterFormData {
@@ -1004,9 +1013,9 @@ export function useYamlEditor(
             awaiting_input: currentFormatter.value.awaiting_input || '',
             is_complete: currentFormatter.value.is_complete ?? false,
             metadata: {
-              tags: currentFormatter.value.metadata?.tags || [],
-              category: currentFormatter.value.metadata?.category || '',
-              priority: currentFormatter.value.metadata?.priority || 0
+              tags: (currentFormatter.value.metadata as any)?.tags || [],
+              category: (currentFormatter.value.metadata as any)?.category || '',
+              priority: (currentFormatter.value.metadata as any)?.priority || 0
             },
             active: currentFormatter.value.active ?? true,
             source: currentFormatter.value.source || 'file'
