@@ -136,6 +136,14 @@ const router = createRouter({
           meta: { title: 'Pruebas Turnos', icon: 'pi-calendar-plus' }
         },
 
+        // Whisper Transcription Testing
+        {
+          path: 'whisper-testing',
+          name: 'WhisperTesting',
+          component: () => import('@/pages/testing/WhisperTestingPage.vue'),
+          meta: { title: 'Transcripcion Audio', icon: 'pi-microphone' }
+        },
+
         // Pharmacy Config (Page 12b) - Admin CRUD
         {
           path: 'pharmacy',
