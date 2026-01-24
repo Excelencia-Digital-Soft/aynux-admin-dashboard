@@ -49,8 +49,8 @@ const isLoading = ref(false)
 const isCopying = ref(false)
 const institutions = ref<TenantInstitutionConfig[]>([])
 const sourceWorkflows = ref<WorkflowDefinition[]>([])
-const selectedSourceInstitutionId = ref<string | null>(null)
-const selectedSourceWorkflowId = ref<string | null>(null)
+const selectedSourceInstitutionId = ref<string | undefined>(undefined)
+const selectedSourceWorkflowId = ref<string | undefined>(undefined)
 const newWorkflowKey = ref('')
 const newDisplayName = ref('')
 const isLoadingWorkflows = ref(false)
@@ -92,7 +92,7 @@ watch(
 // Load workflows when source institution changes
 watch(selectedSourceInstitutionId, async (institutionId) => {
   sourceWorkflows.value = []
-  selectedSourceWorkflowId.value = null
+  selectedSourceWorkflowId.value = undefined
   newWorkflowKey.value = ''
   newDisplayName.value = ''
 
@@ -181,8 +181,8 @@ async function handleCopy() {
 }
 
 function resetForm() {
-  selectedSourceInstitutionId.value = null
-  selectedSourceWorkflowId.value = null
+  selectedSourceInstitutionId.value = undefined
+  selectedSourceWorkflowId.value = undefined
   newWorkflowKey.value = ''
   newDisplayName.value = ''
   sourceWorkflows.value = []

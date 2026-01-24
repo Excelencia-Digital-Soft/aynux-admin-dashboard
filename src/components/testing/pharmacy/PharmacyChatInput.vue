@@ -26,7 +26,8 @@ function handleKeyPress(event: KeyboardEvent) {
 }
 
 function focus() {
-  inputRef.value?.$el?.focus()
+  const el = (inputRef.value as { $el?: HTMLElement } | null)?.$el
+  el?.focus()
 }
 
 defineExpose({ focus })
