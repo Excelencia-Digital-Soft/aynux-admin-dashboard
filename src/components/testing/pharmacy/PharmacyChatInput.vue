@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 
@@ -15,12 +16,20 @@ const emit = defineEmits<{
   (e: 'send'): void
 }>()
 
+const inputRef = ref<InstanceType<typeof InputText> | null>(null)
+
 function handleKeyPress(event: KeyboardEvent) {
   if (event.key === 'Enter' && !event.shiftKey) {
     event.preventDefault()
     emit('send')
   }
 }
+
+function focus() {
+  inputRef.value?.$el?.focus()
+}
+
+defineExpose({ focus })
 </script>
 
 <template>
@@ -28,6 +37,7 @@ function handleKeyPress(event: KeyboardEvent) {
     <div class="flex gap-3 items-end">
       <div class="flex-1 relative">
         <InputText
+          ref="inputRef"
           :modelValue="modelValue"
           @update:modelValue="(v) => emit('update:modelValue', v ?? '')"
           placeholder="Escribe un mensaje..."

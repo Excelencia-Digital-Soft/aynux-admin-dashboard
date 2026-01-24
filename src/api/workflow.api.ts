@@ -13,6 +13,8 @@ import type {
   WorkflowUpdate,
   WorkflowListResponse,
   WorkflowPublishResponse,
+  WorkflowCopyRequest,
+  WorkflowCopyResponse,
   NodeDefinition,
   NodeDefinitionCreate,
   NodeDefinitionUpdate,
@@ -101,6 +103,24 @@ export const workflowApi = {
   async publishWorkflow(workflowId: string): Promise<WorkflowPublishResponse> {
     const { data } = await apiClient.post<WorkflowPublishResponse>(
       `${BASE_URL}/${workflowId}/publish`
+    )
+    return data
+  },
+
+  /**
+   * Copy a workflow from another institution
+   */
+  async copyWorkflowFromInstitution(request: WorkflowCopyRequest): Promise<WorkflowCopyResponse> {
+    const { data } = await apiClient.post<WorkflowCopyResponse>(`${BASE_URL}/copy`, request)
+    return data
+  },
+
+  /**
+   * List workflows for a specific institution (for copy dialog)
+   */
+  async listWorkflowsByInstitution(institutionConfigId: string): Promise<WorkflowListResponse> {
+    const { data } = await apiClient.get<WorkflowListResponse>(
+      `${BASE_URL}/?institution_config_id=${institutionConfigId}`
     )
     return data
   },

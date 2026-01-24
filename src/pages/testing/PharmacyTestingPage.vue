@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'
 import { usePharmacyTesting } from '@/composables/usePharmacyTesting'
@@ -67,6 +67,15 @@ const {
 
 const toast = useToast()
 const useStreaming = ref(true)
+const chatInputRef = ref<InstanceType<typeof PharmacyChatInput> | null>(null)
+
+// Auto-focus input when response completes
+watch([() => isStreaming.value, () => isSending.value], ([streaming, sending], [wasStreaming, wasSending]) => {
+  // Focus input when streaming or sending finishes
+  if ((wasStreaming && !streaming) || (wasSending && !sending)) {
+    setTimeout(() => chatInputRef.value?.focus(), 100)
+  }
+})
 
 // Extended message type with metadata
 interface ExtendedMessage extends PharmacyTestMessage {
@@ -278,6 +287,7 @@ async function copyAllChat() {
           />
 
           <PharmacyChatInput
+            ref="chatInputRef"
             v-model="inputMessage"
             v-model:use-streaming="useStreaming"
             :is-loading="isSending || isStreaming"

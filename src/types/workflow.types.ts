@@ -169,6 +169,7 @@ export interface WorkflowDefinition {
   canvas_state: CanvasState | null;
   created_at: string;
   updated_at: string | null;
+  node_count?: number;
 }
 
 /**
@@ -753,4 +754,30 @@ export interface WorkflowGroup {
   is_collapsed: boolean;
   node_ids: string[];
   color?: string;
+}
+
+// =============================================================================
+// WORKFLOW COPY TYPES
+// =============================================================================
+
+/**
+ * Request to copy a workflow from another institution
+ */
+export interface WorkflowCopyRequest {
+  source_workflow_id: string;
+  target_institution_config_id: string;
+  new_workflow_key: string;
+  new_display_name: string;
+}
+
+/**
+ * Response from workflow copy operation
+ */
+export interface WorkflowCopyResponse {
+  success: boolean;
+  new_workflow_id: string;
+  new_workflow_key: string;
+  nodes_copied: number;
+  transitions_copied: number;
+  message: string;
 }

@@ -50,6 +50,7 @@ import AddNodeDialog from '@/components/workflows/editor/AddNodeDialog.vue'
 import WorkflowSimulationContext from '@/components/workflows/WorkflowSimulationContext.vue'
 import NodeDefinitionsDialog from '@/components/workflows/editor/NodeDefinitionsDialog.vue'
 import InstitutionInfoDialog from '@/components/workflows/editor/InstitutionInfoDialog.vue'
+import CopyWorkflowDialog from '@/components/workflows/editor/CopyWorkflowDialog.vue'
 
 // Types
 import type { NodeDefinition, NodeInstance } from '@/types/workflow.types'
@@ -152,6 +153,7 @@ const showSimulationContextDialog = ref(false)
 const showNodeDefinitionsDialog = ref(false)
 const showPropertiesDrawer = ref(false)
 const showInstitutionInfoDialog = ref(false)
+const showCopyWorkflowDialog = ref(false)
 
 // Confirm dialog state (replaces PrimeVue useConfirm)
 const showDeleteNodeDialog = ref(false)
@@ -367,6 +369,18 @@ async function onDefinitionsUpdated() {
   // Reload node definitions to reflect changes in the palette
   await workflowStore.loadNodeDefinitions()
 }
+
+// Copy workflow from another institution
+function openCopyWorkflowDialog() {
+  showCopyWorkflowDialog.value = true
+}
+
+async function onWorkflowCopied(result: { newWorkflowId: string; newWorkflowKey: string }) {
+  // Reload workflows to show the new one
+  await workflowStore.loadWorkflows()
+  // Select and load the newly copied workflow
+  localSelectedWorkflowId.value = result.newWorkflowId
+}
 </script>
 
 <template>
@@ -422,6 +436,7 @@ async function onDefinitionsUpdated() {
         @save="saveWorkflow"
         @publish="publishWorkflow"
         @newWorkflow="showWorkflowDialog = true"
+        @copyFromInstitution="openCopyWorkflowDialog"
       />
 
       <input
@@ -586,6 +601,13 @@ async function onDefinitionsUpdated() {
     <InstitutionInfoDialog
       v-model:visible="showInstitutionInfoDialog"
       :institution="selectedInstitution"
+    />
+
+    <!-- Copy Workflow Dialog -->
+    <CopyWorkflowDialog
+      v-model:visible="showCopyWorkflowDialog"
+      :currentInstitutionId="selectedInstitutionId"
+      @copied="onWorkflowCopied"
     />
   </div>
 </template>

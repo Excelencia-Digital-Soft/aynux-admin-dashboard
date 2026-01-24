@@ -12,6 +12,7 @@ const emit = defineEmits<{
   (e: 'newWorkflow'): void
   (e: 'save'): void
   (e: 'publish'): void
+  (e: 'copyFromInstitution'): void
 }>()
 </script>
 
@@ -38,6 +39,12 @@ const emit = defineEmits<{
         severity="info"
         :loading="isSaving"
         @click="emit('publish')"
+      />
+      <Button
+        label="Copiar de Otra Institucion"
+        icon="pi pi-copy"
+        severity="secondary"
+        @click="emit('copyFromInstitution')"
       />
       <Button
         label="Nuevo Workflow"

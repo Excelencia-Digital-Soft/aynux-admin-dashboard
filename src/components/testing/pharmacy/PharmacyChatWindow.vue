@@ -90,6 +90,13 @@ function hasInteractiveList(msg: ExtendedMessage): boolean {
   return msg.metadata?.response_type === 'list' &&
     (msg.metadata?.response_list_items?.length ?? 0) > 0
 }
+
+// Linkify URLs in text content
+function linkifyText(text: string): string {
+  if (!text) return ''
+  const urlRegex = /(https?:\/\/[^\s<>"{}|\\^`[\]]+)/g
+  return text.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer" class="message-link">$1</a>')
+}
 </script>
 
 <template>
@@ -179,9 +186,10 @@ function hasInteractiveList(msg: ExtendedMessage): boolean {
               <div class="max-w-[80%]">
                 <!-- Message bubble -->
                 <div class="bg-white dark:bg-gray-700 p-4 rounded-2xl rounded-bl-md shadow-sm border border-gray-100 dark:border-gray-600">
-                  <p class="whitespace-pre-wrap break-words text-gray-800 dark:text-gray-100">
-                    {{ msg.content }}
-                  </p>
+                  <p
+                    class="whitespace-pre-wrap break-words text-gray-800 dark:text-gray-100"
+                    v-html="linkifyText(msg.content)"
+                  />
 
                   <!-- Interactive Buttons from metadata -->
                   <div
@@ -290,7 +298,7 @@ function hasInteractiveList(msg: ExtendedMessage): boolean {
               <div class="bg-white dark:bg-gray-700 p-4 rounded-2xl rounded-bl-md shadow-sm border border-gray-100 dark:border-gray-600">
                 <!-- Content with cursor -->
                 <div v-if="streamContent" class="whitespace-pre-wrap break-words text-gray-800 dark:text-gray-100">
-                  <span>{{ streamContent }}</span>
+                  <span v-html="linkifyText(streamContent)" />
                   <span class="inline-block w-0.5 h-5 bg-green-500 animate-pulse ml-0.5 align-middle" />
                 </div>
 
@@ -407,5 +415,26 @@ function hasInteractiveList(msg: ExtendedMessage): boolean {
   cursor: not-allowed;
   background: #6b7280;
   box-shadow: none;
+}
+
+/* Message link styles */
+:deep(.message-link) {
+  color: #3b82f6;
+  text-decoration: underline;
+  word-break: break-all;
+  transition: color 0.2s ease;
+}
+
+:deep(.message-link:hover) {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.dark-mode :deep(.message-link) {
+  color: #60a5fa;
+}
+
+.dark-mode :deep(.message-link:hover) {
+  color: #93c5fd;
 }
 </style>

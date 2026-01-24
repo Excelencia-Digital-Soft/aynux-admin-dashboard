@@ -5,6 +5,8 @@ import type {
   WorkflowDefinition,
   WorkflowCreate,
   WorkflowUpdate,
+  WorkflowCopyRequest,
+  WorkflowCopyResponse,
 } from "@/types/workflow.types";
 
 export const useWorkflowCoreStore = defineStore("workflow-core", () => {
@@ -155,6 +157,30 @@ export const useWorkflowCoreStore = defineStore("workflow-core", () => {
     }
   }
 
+  async function copyWorkflowFromInstitution(
+    request: WorkflowCopyRequest,
+  ): Promise<WorkflowCopyResponse> {
+    isSaving.value = true;
+    error.value = null;
+
+    try {
+      const result = await workflowApi.copyWorkflowFromInstitution(request);
+
+      // Reload workflows if copying to current institution
+      if (request.target_institution_config_id === institutionConfigId.value) {
+        await loadWorkflows();
+      }
+
+      return result;
+    } catch (e: unknown) {
+      error.value =
+        e instanceof Error ? e.message : "Failed to copy workflow";
+      throw e;
+    } finally {
+      isSaving.value = false;
+    }
+  }
+
   return {
     // State
     currentWorkflow,
@@ -173,5 +199,6 @@ export const useWorkflowCoreStore = defineStore("workflow-core", () => {
     updateWorkflow,
     deleteWorkflow,
     publishWorkflow,
+    copyWorkflowFromInstitution,
   };
 });
