@@ -48,7 +48,7 @@ export function useWhisperTesting(options: UseWhisperTestingOptions = {}) {
   const isModelLoaded = computed(() => healthStatus.value?.model_loaded ?? false)
   const gpuAvailable = computed(() => healthStatus.value?.gpu_available ?? false)
   const canTranscribe = computed(
-    () => !!selectedFile.value && !isTranscribing.value && gpuAvailable.value
+    () => !!selectedFile.value && !isTranscribing.value && isModelLoaded.value
   )
   const vramUsage = computed(() => {
     if (!healthStatus.value) return null

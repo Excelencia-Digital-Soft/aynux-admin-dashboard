@@ -1,4 +1,4 @@
-import api from './index'
+import whisperClient from './whisper.client'
 
 // Health status from GPU/Model
 export interface WhisperHealthStatus {
@@ -53,7 +53,7 @@ export const whisperApi = {
    */
   async getHealth(): Promise<WhisperHealthStatus | null> {
     try {
-      const response = await api.get('/transcription/health')
+      const response = await whisperClient.get('/transcription/health')
       return response.data
     } catch (error) {
       console.error('Failed to fetch Whisper health:', error)
@@ -81,13 +81,22 @@ export const whisperApi = {
         formData.append('include_segments', String(options.include_segments))
       }
 
-      const response = await api.post('/transcription/transcribe', formData, {
+      const response = await whisperClient.post('/transcription/transcribe', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
-        },
-        timeout: 300000 // 5 minutes
+        }
+        // Timeout already set in whisperClient (5 minutes)
       })
-      return response.data
+
+      // API returns { success, result, error } - extract the result
+      const data = response.data
+      if (data.success && data.result) {
+        return data.result
+      }
+      if (data.error) {
+        throw new Error(data.error)
+      }
+      return null
     } catch (error) {
       console.error('Failed to transcribe audio:', error)
       throw error
@@ -99,7 +108,7 @@ export const whisperApi = {
    */
   async loadModel(): Promise<ModelResponse | null> {
     try {
-      const response = await api.post('/transcription/load-model', {}, {
+      const response = await whisperClient.post('/transcription/load-model', {}, {
         timeout: 120000 // 2 minutes for model loading
       })
       return response.data
@@ -114,7 +123,7 @@ export const whisperApi = {
    */
   async releaseMemory(): Promise<ModelResponse | null> {
     try {
-      const response = await api.post('/transcription/release-memory')
+      const response = await whisperClient.post('/transcription/release-memory')
       return response.data
     } catch (error) {
       console.error('Failed to release Whisper memory:', error)
@@ -127,7 +136,7 @@ export const whisperApi = {
    */
   async getSupportedFormats(): Promise<string[]> {
     try {
-      const response = await api.get('/transcription/supported-formats')
+      const response = await whisperClient.get('/transcription/supported-formats')
       return response.data.formats || []
     } catch (error) {
       console.error('Failed to fetch supported formats:', error)
