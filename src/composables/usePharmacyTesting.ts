@@ -37,6 +37,7 @@ export function usePharmacyTesting(options: UsePharmacyTestingOptions = {}) {
   // Core state
   const isLoading = ref(false)
   const isSending = ref(false)
+  const isTranscribing = ref(false)
   const pharmacies = ref<Pharmacy[]>([])
   const selectedPharmacy = ref<Pharmacy | null>(null)
   const sessionId = ref<string | null>(null)
@@ -244,6 +245,96 @@ export function usePharmacyTesting(options: UsePharmacyTestingOptions = {}) {
   }
 
   /**
+   * Send an audio message (transcribes and processes).
+   */
+  async function sendAudioMessage(audioFile: File): Promise<void> {
+    if (!selectedPharmacy.value) {
+      toast.error('Selecciona una farmacia primero')
+      return
+    }
+
+    // DID is required - use webhook config did, or fall back to pharmacy's code
+    const did = webhookConfig.value.did || selectedPharmacy.value.code
+    if (!did) {
+      toast.error('Se requiere un DID (número de WhatsApp del negocio)')
+      return
+    }
+
+    // Add placeholder user message showing audio file
+    const userMessage: PharmacyTestMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: `🎤 Audio: ${audioFile.name}`,
+      timestamp: new Date().toISOString(),
+      metadata: {
+        isAudio: true,
+        audioFileName: audioFile.name,
+        audioSize: audioFile.size
+      }
+    }
+
+    messages.value.push(userMessage)
+    isTranscribing.value = true
+    isSending.value = true
+
+    try {
+      const response = await pharmacyApi.sendAudioMessage({
+        whatsapp_phone_number_id: did,
+        phone_number: webhookConfig.value.phoneNumber,
+        audio_file: audioFile,
+        session_id: sessionId.value || undefined,
+        pharmacy_id: selectedPharmacy.value.id
+      })
+
+      if (response) {
+        sessionId.value = response.session_id
+
+        // Update user message with transcribed text if available
+        const transcribedText = response.metadata?.transcribed_text as string | undefined
+        if (transcribedText && !transcribedText.startsWith('[')) {
+          userMessage.content = `🎤 ${transcribedText}`
+        }
+
+        const assistantMessage: PharmacyTestMessage = {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: response.response,
+          timestamp: new Date().toISOString(),
+          metadata: response.metadata,
+          responseType: response.response_type,
+          buttons: response.response_buttons,
+          listItems: response.response_list_items
+        }
+
+        messages.value.push(assistantMessage)
+
+        if (response.execution_steps) {
+          executionSteps.value = response.execution_steps
+        }
+        if (response.graph_state) {
+          graphState.value = response.graph_state
+        }
+
+        // Show transcription info
+        if (transcribedText) {
+          if (transcribedText.startsWith('[')) {
+            toast.warn('No se pudo transcribir el audio')
+          } else {
+            toast.info('Audio transcrito correctamente')
+          }
+        }
+      }
+    } catch (err) {
+      toast.error('Error al enviar audio')
+      messages.value.pop() // Remove placeholder message on error
+      console.error('Error sending audio message:', err)
+    } finally {
+      isTranscribing.value = false
+      isSending.value = false
+    }
+  }
+
+  /**
    * Clear current session.
    */
   async function clearSession(): Promise<void> {
@@ -409,6 +500,7 @@ export function usePharmacyTesting(options: UsePharmacyTestingOptions = {}) {
     // Core state
     isLoading,
     isSending,
+    isTranscribing,
     pharmacies,
     selectedPharmacy,
     sessionId,
@@ -432,6 +524,7 @@ export function usePharmacyTesting(options: UsePharmacyTestingOptions = {}) {
     fetchPharmacies,
     sendMessage,
     sendInteractiveResponse,
+    sendAudioMessage,
     handleButtonClick,
     handleListSelect,
     clearSession,

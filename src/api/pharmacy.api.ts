@@ -59,6 +59,14 @@ export interface PharmacyTestRequest {
   pharmacy_id?: string              // Optional override (normally determined via bypass)
 }
 
+export interface PharmacyAudioRequest {
+  whatsapp_phone_number_id: string  // Business phone (DID) - REQUIRED
+  phone_number: string              // Customer phone - REQUIRED
+  audio_file: File                  // Audio file to transcribe
+  session_id?: string
+  pharmacy_id?: string
+}
+
 export interface PharmacyTestResponse {
   session_id: string
   response: string
@@ -220,6 +228,35 @@ export const pharmacyApi = {
     } catch (error) {
       console.error('Failed to fetch bypass rules:', error)
       return []
+    }
+  },
+
+  /**
+   * Send audio message to pharmacy agent.
+   * Uploads audio file, transcribes via Whisper, and processes as text.
+   * Extended timeout (3 min) for transcription + LLM processing.
+   */
+  async sendAudioMessage(request: PharmacyAudioRequest): Promise<PharmacyTestResponse | null> {
+    const formData = new FormData()
+    formData.append('audio_file', request.audio_file)
+    formData.append('whatsapp_phone_number_id', request.whatsapp_phone_number_id)
+    formData.append('phone_number', request.phone_number)
+    if (request.session_id) {
+      formData.append('session_id', request.session_id)
+    }
+    if (request.pharmacy_id) {
+      formData.append('pharmacy_id', request.pharmacy_id)
+    }
+
+    try {
+      const response = await api.post('/admin/pharmacy/test/audio', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 180000  // 3 minutes for transcription + processing
+      })
+      return response.data
+    } catch (error) {
+      console.error('Failed to send audio message:', error)
+      throw error
     }
   }
 }

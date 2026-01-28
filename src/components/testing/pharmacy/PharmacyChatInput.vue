@@ -8,21 +8,41 @@ defineProps<{
   useStreaming: boolean
   isLoading: boolean
   disabled: boolean
+  isTranscribing?: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: string): void
   (e: 'update:useStreaming', value: boolean): void
   (e: 'send'): void
+  (e: 'sendAudio', file: File): void
 }>()
 
 const inputRef = ref<InstanceType<typeof InputText> | null>(null)
+const audioInputRef = ref<HTMLInputElement | null>(null)
+
+// Allowed audio formats
+const ALLOWED_AUDIO_TYPES = 'audio/ogg,audio/opus,audio/mpeg,audio/wav,audio/mp4,audio/flac,audio/webm,audio/aac,.ogg,.opus,.mp3,.wav,.m4a,.flac,.webm,.aac'
 
 function handleKeyPress(event: KeyboardEvent) {
   if (event.key === 'Enter' && !event.shiftKey) {
     event.preventDefault()
     emit('send')
   }
+}
+
+function handleAudioSelect(event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (file) {
+    emit('sendAudio', file)
+    // Reset input so same file can be selected again
+    target.value = ''
+  }
+}
+
+function triggerAudioUpload() {
+  audioInputRef.value?.click()
 }
 
 function focus() {
@@ -35,6 +55,15 @@ defineExpose({ focus })
 
 <template>
   <div class="p-4 border-t dark:border-gray-700 bg-white dark:bg-gray-800">
+    <!-- Hidden audio file input -->
+    <input
+      ref="audioInputRef"
+      type="file"
+      :accept="ALLOWED_AUDIO_TYPES"
+      class="hidden"
+      @change="handleAudioSelect"
+    />
+
     <div class="flex gap-3 items-end">
       <div class="flex-1 relative">
         <InputText
@@ -47,10 +76,22 @@ defineExpose({ focus })
           :disabled="disabled"
         />
       </div>
+      <!-- Audio upload button -->
+      <Button
+        icon="pi pi-microphone"
+        @click="triggerAudioUpload"
+        :loading="isTranscribing"
+        :disabled="disabled"
+        class="h-10 w-10"
+        severity="secondary"
+        rounded
+        v-tooltip.top="'Enviar audio'"
+      />
+      <!-- Send text button -->
       <Button
         icon="pi pi-send"
         @click="emit('send')"
-        :loading="isLoading"
+        :loading="isLoading && !isTranscribing"
         :disabled="disabled || !modelValue.trim()"
         class="h-10 w-10"
         rounded

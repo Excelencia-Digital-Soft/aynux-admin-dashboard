@@ -24,6 +24,7 @@ const DEFAULT_PHONE = '2645631000'
 const {
   isLoading,
   isSending,
+  isTranscribing,
   pharmacies,
   selectedPharmacy,
   sessionId,
@@ -41,6 +42,7 @@ const {
   hasSession,
   fetchPharmacies,
   sendMessage: sendMessageNonStream,
+  sendAudioMessage,
   clearSession,
   setQuickMessage,
   updateWebhookConfig,
@@ -231,6 +233,11 @@ async function handleStreamListSelect(item: StreamListItem) {
   }
 }
 
+async function handleAudioSend(file: File) {
+  // Use non-streaming for audio (simpler flow)
+  await sendAudioMessage(file)
+}
+
 async function copyAllChat() {
   if (messages.value.length === 0) {
     toast.warn('No hay mensajes para copiar')
@@ -291,8 +298,10 @@ async function copyAllChat() {
             v-model="inputMessage"
             v-model:use-streaming="useStreaming"
             :is-loading="isSending || isStreaming"
+            :is-transcribing="isTranscribing"
             :disabled="!selectedPharmacy"
             @send="sendMessage"
+            @send-audio="handleAudioSend"
           />
         </div>
       </div>
