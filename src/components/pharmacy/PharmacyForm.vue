@@ -71,6 +71,7 @@ const formData = ref({
   mp_webhook_secret: '',
   mp_sandbox: true,
   mp_timeout: 30,
+  mp_max_installments: 12,
   mp_notification_url: '',
   receipt_public_url_base: ''
 })
@@ -113,6 +114,7 @@ watch(
         mp_webhook_secret: pharmacy.mp_webhook_secret || '',
         mp_sandbox: pharmacy.mp_sandbox,
         mp_timeout: pharmacy.mp_timeout,
+        mp_max_installments: pharmacy.mp_max_installments,
         mp_notification_url: pharmacy.mp_notification_url || '',
         receipt_public_url_base: pharmacy.receipt_public_url_base || ''
       }
@@ -148,6 +150,7 @@ function resetForm() {
     mp_webhook_secret: '',
     mp_sandbox: true,
     mp_timeout: 30,
+    mp_max_installments: 12,
     mp_notification_url: '',
     receipt_public_url_base: ''
   }
@@ -202,6 +205,7 @@ async function handleSubmit() {
       mp_enabled: formData.value.mp_enabled,
       mp_sandbox: formData.value.mp_sandbox,
       mp_timeout: formData.value.mp_timeout,
+      mp_max_installments: formData.value.mp_max_installments,
       mp_notification_url: formData.value.mp_notification_url || undefined,
       receipt_public_url_base: formData.value.receipt_public_url_base || undefined
     }
@@ -243,6 +247,7 @@ async function handleSubmit() {
       mp_webhook_secret: formData.value.mp_webhook_secret || undefined,
       mp_sandbox: formData.value.mp_sandbox,
       mp_timeout: formData.value.mp_timeout,
+      mp_max_installments: formData.value.mp_max_installments,
       mp_notification_url: formData.value.mp_notification_url || undefined,
       receipt_public_url_base: formData.value.receipt_public_url_base || undefined
     }
@@ -538,6 +543,20 @@ function handleClose() {
                 :max="120"
                 class="w-full"
               />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                Cuotas Maximas
+              </label>
+              <InputNumber
+                v-model="formData.mp_max_installments"
+                :min="1"
+                :max="12"
+                class="w-full"
+              />
+              <p class="text-xs text-gray-400 mt-1">
+                1 = Pago unico (sin cuotas)
+              </p>
             </div>
           </div>
 

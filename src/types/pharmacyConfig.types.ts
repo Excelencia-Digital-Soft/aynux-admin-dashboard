@@ -25,6 +25,7 @@ export interface PharmacyConfig {
   mp_enabled: boolean
   mp_sandbox: boolean
   mp_timeout: number
+  mp_max_installments: number
   mp_notification_url: string | null
   receipt_public_url_base: string | null
   has_mp_credentials: boolean
@@ -67,6 +68,7 @@ export interface PharmacyConfigCreateRequest {
   mp_webhook_secret?: string
   mp_sandbox?: boolean
   mp_timeout?: number
+  mp_max_installments?: number
   mp_notification_url?: string
   receipt_public_url_base?: string
 
@@ -97,6 +99,7 @@ export interface PharmacyConfigUpdateRequest {
   mp_webhook_secret?: string
   mp_sandbox?: boolean
   mp_timeout?: number
+  mp_max_installments?: number
   mp_notification_url?: string
   receipt_public_url_base?: string
 
