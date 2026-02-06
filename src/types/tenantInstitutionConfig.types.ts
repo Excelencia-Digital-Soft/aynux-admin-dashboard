@@ -181,6 +181,10 @@ export interface InstitutionConfigFormState {
   description: string
   /** External system institution ID (e.g., HCWeb IdInstitucion) */
   institution_id: string
+  /** Campaign ID for integration */
+  campaign_id: string
+  /** HCWeb institution ID for integration */
+  hcweb_institution_id: string
 
   // Connection tab
   connection: ConnectionSettings
@@ -298,6 +302,8 @@ export function getDefaultFormState(): InstitutionConfigFormState {
     enabled: true,
     description: '',
     institution_id: '',
+    campaign_id: '',
+    hcweb_institution_id: '',
     connection: getDefaultConnectionSettings(),
     auth: getDefaultAuthSettings(),
     scheduler: getDefaultSchedulerSettings(),
@@ -315,6 +321,8 @@ export function configToFormState(config: TenantInstitutionConfig): InstitutionC
     enabled: config.enabled,
     description: config.description || '',
     institution_id: config.settings.institution_id || '',
+    campaign_id: (config.settings.custom?.campaign_id as string) || '',
+    hcweb_institution_id: (config.settings.custom?.hcweb_institution_id as string) || '',
     connection: config.settings.connection || getDefaultConnectionSettings(),
     auth: config.settings.auth || getDefaultAuthSettings(),
     scheduler: config.settings.scheduler || getDefaultSchedulerSettings(),
@@ -340,7 +348,11 @@ export function formStateToCreateRequest(
       scheduler: state.scheduler,
       branding: state.branding,
       whatsapp: state.whatsapp,
-      custom: state.custom
+      custom: {
+        ...state.custom,
+        ...(state.campaign_id ? { campaign_id: state.campaign_id } : {}),
+        ...(state.hcweb_institution_id ? { hcweb_institution_id: state.hcweb_institution_id } : {})
+      }
     }
   }
 }
@@ -360,7 +372,11 @@ export function formStateToUpdateRequest(
       scheduler: state.scheduler,
       branding: state.branding,
       whatsapp: state.whatsapp,
-      custom: state.custom
+      custom: {
+        ...state.custom,
+        ...(state.campaign_id ? { campaign_id: state.campaign_id } : {}),
+        ...(state.hcweb_institution_id ? { hcweb_institution_id: state.hcweb_institution_id } : {})
+      }
     }
   }
 }

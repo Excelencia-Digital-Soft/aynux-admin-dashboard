@@ -16,9 +16,9 @@ import type {
   NodeInstanceUpdate,
   TransitionCreate,
   TransitionUpdate,
-  WorkflowCreate,
-  WorkflowTransition
+  WorkflowCreate
 } from '@/types/workflow.types'
+import { extractErrorMessage } from '@/utils/typeGuards'
 import type { TenantInstitutionConfig } from '@/types/tenantInstitutionConfig.types'
 
 export interface UseWorkflowEditorOptions {
@@ -400,18 +400,8 @@ export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}) {
       })
       toast.info('Conexion creada')
     } catch (e: unknown) {
-      // Extract detailed error message from axios response
-      const axiosError = e as { response?: { data?: { detail?: string | { msg: string }[] } } }
-      const detail = axiosError.response?.data?.detail
-      let errorMsg = 'Error al crear conexion'
-
-      if (typeof detail === 'string') {
-        errorMsg = detail
-      } else if (Array.isArray(detail) && detail.length > 0) {
-        errorMsg = detail.map(d => d.msg).join(', ')
-      }
-
-      console.error('[Workflow] Connection error:', axiosError.response?.data)
+      const errorMsg = extractErrorMessage(e, 'Error al crear conexion')
+      console.error('[Workflow] Connection error:', e)
       toast.error(errorMsg)
     }
   }

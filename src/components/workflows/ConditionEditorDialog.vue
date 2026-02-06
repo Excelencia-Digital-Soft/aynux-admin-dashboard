@@ -56,14 +56,13 @@ const operators = [
   { value: 'matches', label: 'coincide (regex)', description: 'Coincide con expresion regular' }
 ]
 
-// Local condition state
-const localCondition = ref<{
-  type: TransitionCondition['type']
-  value?: string
-  field?: string
-  operator?: TransitionCondition['operator']
-  expression?: string
-}>({
+// Input validation constants
+const MAX_FIELD_LENGTH = 100
+const MAX_VALUE_LENGTH = 500
+const VALID_FIELD_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_.]*$/
+
+// Local condition state - matches TransitionCondition shape
+const localCondition = ref<TransitionCondition>({
   type: 'always'
 })
 
@@ -74,10 +73,10 @@ watch(
     if (newCondition) {
       localCondition.value = {
         type: newCondition.type,
-        value: newCondition.value as string,
+        value: newCondition.value,
         field: newCondition.field,
         operator: newCondition.operator,
-        expression: (newCondition as { expression?: string }).expression
+        expression: newCondition.expression
       }
     } else {
       localCondition.value = { type: 'always' }
@@ -114,8 +113,33 @@ const fieldPlaceholder = computed(() => {
   return 'ej: user.authenticated, step_count'
 })
 
-// Validate condition
+// Input validation error message
+const validationError = computed(() => {
+  const c = localCondition.value
+
+  // Validate field for entity/state conditions
+  if (['entity', 'state'].includes(c.type) && c.field) {
+    if (c.field.length > MAX_FIELD_LENGTH) {
+      return `Campo muy largo (max ${MAX_FIELD_LENGTH} caracteres)`
+    }
+    if (!VALID_FIELD_PATTERN.test(c.field)) {
+      return 'Campo contiene caracteres invalidos (usa letras, numeros, _ y .)'
+    }
+  }
+
+  // Validate value length
+  if (c.value && typeof c.value === 'string' && c.value.length > MAX_VALUE_LENGTH) {
+    return `Valor muy largo (max ${MAX_VALUE_LENGTH} caracteres)`
+  }
+
+  return null
+})
+
+// Validate condition (includes input validation check)
 const isValid = computed(() => {
+  // First check input validation
+  if (validationError.value) return false
+
   const c = localCondition.value
   switch (c.type) {
     case 'always':
@@ -126,7 +150,7 @@ const isValid = computed(() => {
     case 'state':
       return !!c.field && !!c.operator && c.value !== undefined
     case 'expression':
-      return !!(c as { expression?: string }).expression
+      return !!c.expression
     default:
       return false
   }
@@ -149,10 +173,7 @@ function onSave() {
     if (c.value) condition.value = c.value
     if (c.field) condition.field = c.field
     if (c.operator) condition.operator = c.operator
-    const expr = (c as { expression?: string }).expression
-    if (expr) {
-      (condition as unknown as { expression: string }).expression = expr
-    }
+    if (c.expression) condition.expression = c.expression
 
     emit('save', condition)
   }
@@ -234,6 +255,7 @@ function onClear() {
               v-model="localCondition.field"
               class="w-full"
               :placeholder="fieldPlaceholder"
+              :maxlength="MAX_FIELD_LENGTH"
             />
           </div>
           <div class="field">
@@ -253,10 +275,14 @@ function onClear() {
               v-model="localCondition.value"
               class="w-full"
               placeholder="Valor esperado"
+              :maxlength="MAX_VALUE_LENGTH"
             />
           </div>
         </div>
-        <Message severity="info" :closable="false" class="text-sm">
+        <Message v-if="validationError" severity="error" :closable="false" class="text-sm">
+          {{ validationError }}
+        </Message>
+        <Message v-else severity="info" :closable="false" class="text-sm">
           <template v-if="localCondition.type === 'entity'">
             Ejemplo: Campo <code>specialty</code> operador <code>=</code> valor <code>FONOAUDIOLOGIA</code>
           </template>
@@ -270,7 +296,7 @@ function onClear() {
       <div v-if="showExpression" class="field">
         <label class="block text-sm font-medium text-gray-700 mb-2">Expresion</label>
         <Textarea
-          v-model="(localCondition as any).expression"
+          v-model="localCondition.expression"
           rows="4"
           class="w-full font-mono text-sm"
           placeholder="state.specialty === 'FONOAUDIOLOGIA' && state.confirmed"

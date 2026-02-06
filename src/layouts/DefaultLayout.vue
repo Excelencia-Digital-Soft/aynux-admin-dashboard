@@ -39,7 +39,7 @@ function initExpandedState() {
   if (route.path.startsWith('/pharmacy') || route.path.startsWith('/bypass') || route.path.startsWith('/yaml') || route.path.startsWith('/chattigo') || route.path.startsWith('/ai-models') || route.path.startsWith('/agent-catalog') || route.path.startsWith('/domains') || route.path.startsWith('/intent-configs') || route.path.startsWith('/workflow-editor')) {
     expandedKeys.value['config'] = true
   }
-  if (route.path.startsWith('/pharmacy-testing') || route.path.startsWith('/medical-testing') || route.path.startsWith('/whisper-testing') || route.path.startsWith('/chat-visualizer')) {
+  if (route.path.startsWith('/pharmacy-testing') || route.path.startsWith('/medical-testing') || route.path.startsWith('/whisper-testing') || route.path.startsWith('/chat-visualizer') || route.path.startsWith('/enav-testing')) {
     expandedKeys.value['testing'] = true
   }
 }
@@ -205,6 +205,11 @@ const menuItems = computed<MenuItem[]>(() => {
           label: 'Chat Visualizer',
           icon: 'pi pi-comments',
           route: '/chat-visualizer'
+        },
+        {
+          label: 'ENAV Testing',
+          icon: 'pi pi-file-pdf',
+          route: '/enav-testing'
         }
       ]
     }

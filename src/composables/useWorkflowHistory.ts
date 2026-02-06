@@ -4,7 +4,7 @@
  * Uses VueUse's useManualRefHistory to track workflow state changes.
  */
 
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useManualRefHistory } from '@vueuse/core'
 import { useWorkflowStore } from '@/stores/workflow.store'
 import { useToast } from '@/composables/useToast'
@@ -173,6 +173,14 @@ export function useWorkflowHistory() {
       }, 500)
     }
   )
+
+  // Cleanup on component unmount to prevent memory leaks
+  onUnmounted(() => {
+    if (recordTimeout) {
+      clearTimeout(recordTimeout)
+      recordTimeout = null
+    }
+  })
 
   return {
     // State

@@ -7,7 +7,7 @@
  * - Message format: text, buttons, or list
  * - WhatsApp constraints validation
  */
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import type {
   NodeResponseConfig,
   WhatsAppButton,
@@ -17,18 +17,24 @@ import type {
 } from '@/types/workflow.types'
 import { WHATSAPP_CONSTRAINTS } from '@/types/workflow.types'
 
-import Select from 'primevue/select'
+import SelectButton from 'primevue/selectbutton'
 import Textarea from 'primevue/textarea'
 import InputText from 'primevue/inputtext'
 import Button from 'primevue/button'
 import Panel from 'primevue/panel'
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
+import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import Divider from 'primevue/divider'
 
+interface AvailableNode {
+  id: string
+  key: string
+  label: string
+}
+
 interface Props {
   modelValue?: NodeResponseConfig
+  availableNodes?: AvailableNode[]
 }
 
 const props = defineProps<Props>()
@@ -36,6 +42,14 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:modelValue', value: NodeResponseConfig): void
 }>()
+
+// Computed for node dropdown options
+const nodeOptions = computed(() => {
+  return (props.availableNodes ?? []).map(node => ({
+    label: node.label || node.key,
+    value: node.key
+  }))
+})
 
 // Response type options
 const responseTypeOptions = [
@@ -65,8 +79,14 @@ const defaultConfig: NodeResponseConfig = {
 // Local config state
 const localConfig = ref<NodeResponseConfig>({ ...defaultConfig })
 
+// Track last emitted value to prevent loops
+let lastEmittedJson = ''
+
 // Flag to prevent update loops when syncing from props
 const isUpdatingFromProps = ref(false)
+
+// Timer tracking for cleanup (prevents memory leak)
+let updateFlagTimeoutId: ReturnType<typeof setTimeout> | null = null
 
 // Computed for character counters
 const taskDescriptionLength = computed(() => localConfig.value.task_description?.length ?? 0)
@@ -99,31 +119,58 @@ const listValid = computed(() => {
   return totalRows <= WHATSAPP_CONSTRAINTS.LIST_ITEMS_MAX
 })
 
-// Watch for prop changes - only update if the value actually changed
+// Watch for prop changes - only update when parent sends genuinely new value
 watch(
   () => props.modelValue,
   (newValue) => {
-    if (newValue) {
-      // Prevent loops: only update if values actually differ
-      const newConfig = { ...defaultConfig, ...newValue }
-      if (JSON.stringify(newConfig) !== JSON.stringify(localConfig.value)) {
-        isUpdatingFromProps.value = true
-        localConfig.value = newConfig
-        // Reset flag after Vue processes the update
-        setTimeout(() => {
-          isUpdatingFromProps.value = false
-        }, 0)
-      }
+    if (!newValue) return
+
+    const newConfig = { ...defaultConfig, ...newValue }
+    const newConfigJson = JSON.stringify(newConfig)
+
+    // Skip if this is the same as what we last emitted (round-trip from our own emit)
+    if (newConfigJson === lastEmittedJson) return
+
+    // Skip if already same as local state
+    if (newConfigJson === JSON.stringify(localConfig.value)) return
+
+    // Genuinely new value from parent - sync it
+    isUpdatingFromProps.value = true
+    localConfig.value = newConfig
+    lastEmittedJson = newConfigJson
+
+    // Clear any pending timer before scheduling new one
+    if (updateFlagTimeoutId) {
+      clearTimeout(updateFlagTimeoutId)
     }
+    // Reset flag after Vue processes the update
+    updateFlagTimeoutId = setTimeout(() => {
+      isUpdatingFromProps.value = false
+      updateFlagTimeoutId = null
+    }, 0)
   },
   { immediate: true, deep: true }
 )
+
+// Cleanup timer on component unmount to prevent memory leak
+onUnmounted(() => {
+  if (updateFlagTimeoutId) {
+    clearTimeout(updateFlagTimeoutId)
+    updateFlagTimeoutId = null
+  }
+})
 
 // Emit changes synchronously - parent component (WorkflowPropertiesPanel) handles
 // accumulation and only persists when user clicks "Save Configuration"
 function emitUpdate() {
   // Don't emit if we're updating from props (prevents loops)
   if (isUpdatingFromProps.value) return
+
+  const currentJson = JSON.stringify(localConfig.value)
+  // Skip if nothing changed
+  if (currentJson === lastEmittedJson) return
+
+  lastEmittedJson = currentJson
   emit('update:modelValue', { ...localConfig.value })
 }
 
@@ -201,7 +248,7 @@ function removeRow(sectionIndex: number, rowIndex: number) {
   emitUpdate()
 }
 
-// Update row
+// Update row - uses Object.assign for type-safe property assignment
 function updateRow(
   sectionIndex: number,
   rowIndex: number,
@@ -209,8 +256,8 @@ function updateRow(
   value: string
 ) {
   const row = localConfig.value.list_config?.sections[sectionIndex]?.rows[rowIndex]
-  if (row) {
-    ;(row as Record<string, string>)[field] = value
+  if (row && field in row) {
+    Object.assign(row, { [field]: value })
     emitUpdate()
   }
 }
@@ -246,21 +293,15 @@ const totalListRows = computed(() => {
       <label class="block text-xs font-medium text-gray-600 mb-1">
         Tipo de Respuesta
       </label>
-      <Select
-        v-model="localConfig.response_type"
+      <SelectButton
+        :modelValue="localConfig.response_type"
+        @update:modelValue="(v) => { if (v) { localConfig.response_type = v; emitUpdate(); } }"
         :options="responseTypeOptions"
         optionLabel="label"
         optionValue="value"
-        class="w-full"
-        @update:modelValue="emitUpdate"
-      >
-        <template #option="{ option }">
-          <div class="flex flex-col">
-            <span class="font-medium">{{ option.label }}</span>
-            <small class="text-gray-400">{{ option.description }}</small>
-          </div>
-        </template>
-      </Select>
+        :allowEmpty="false"
+        class="response-type-selector"
+      />
     </div>
 
     <!-- Task Description (for prompt type) -->
@@ -318,21 +359,15 @@ const totalListRows = computed(() => {
       <label class="block text-xs font-medium text-gray-600 mb-1">
         Formato WhatsApp
       </label>
-      <Select
-        v-model="localConfig.message_format"
+      <SelectButton
+        :modelValue="localConfig.message_format"
+        @update:modelValue="(v) => { if (v) { localConfig.message_format = v; emitUpdate(); } }"
         :options="messageFormatOptions"
         optionLabel="label"
         optionValue="value"
-        class="w-full"
-        @update:modelValue="emitUpdate"
-      >
-        <template #option="{ option }">
-          <div class="flex flex-col">
-            <span class="font-medium">{{ option.label }}</span>
-            <small class="text-gray-400">{{ option.description }}</small>
-          </div>
-        </template>
-      </Select>
+        :allowEmpty="false"
+        class="response-type-selector"
+      />
     </div>
 
     <!-- Buttons Configuration -->
@@ -349,56 +384,81 @@ const totalListRows = computed(() => {
       </template>
 
       <div class="space-y-3">
-        <DataTable
-          :value="localConfig.buttons ?? []"
-          size="small"
-          class="text-sm"
+        <!-- Card-based button layout for better responsiveness -->
+        <div
+          v-for="(button, index) in localConfig.buttons ?? []"
+          :key="button.id"
+          class="button-card"
         >
-          <Column header="ID" style="width: 30%">
-            <template #body="{ data, index }">
+          <div class="button-card-header">
+            <span class="text-sm font-medium">Botón {{ index + 1 }}</span>
+            <Button
+              icon="pi pi-trash"
+              severity="danger"
+              text
+              size="small"
+              @click="removeButton(index)"
+            />
+          </div>
+
+          <div class="button-card-body">
+            <!-- ID -->
+            <div class="field">
+              <label class="text-xs text-gray-500">ID</label>
               <InputText
-                :modelValue="data.id"
+                :modelValue="button.id"
                 @update:modelValue="(v) => updateButton(index, 'id', v ?? '')"
-                class="w-full text-xs"
+                class="w-full text-sm"
                 placeholder="btn_id"
               />
-            </template>
-          </Column>
-          <Column header="Titulo" style="width: 50%">
-            <template #body="{ data, index }">
-              <div class="flex items-center gap-2">
-                <InputText
-                  :modelValue="data.title"
-                  @update:modelValue="(v) => updateButton(index, 'title', v ?? '')"
-                  class="w-full text-xs"
-                  :maxlength="WHATSAPP_CONSTRAINTS.BUTTON_TITLE_MAX"
-                  placeholder="Texto del boton"
-                />
+            </div>
+
+            <!-- Título con contador -->
+            <div class="field">
+              <label class="text-xs text-gray-500 flex items-center gap-2">
+                Título
                 <Tag
-                  :severity="getCharSeverity(data.title.length, WHATSAPP_CONSTRAINTS.BUTTON_TITLE_MAX)"
-                  class="text-xs whitespace-nowrap"
+                  :severity="getCharSeverity(button.title.length, WHATSAPP_CONSTRAINTS.BUTTON_TITLE_MAX)"
+                  class="text-xs"
                 >
-                  {{ data.title.length }}/{{ WHATSAPP_CONSTRAINTS.BUTTON_TITLE_MAX }}
+                  {{ button.title.length }}/{{ WHATSAPP_CONSTRAINTS.BUTTON_TITLE_MAX }}
                 </Tag>
-              </div>
-            </template>
-          </Column>
-          <Column style="width: 20%">
-            <template #body="{ index }">
-              <Button
-                icon="pi pi-trash"
-                severity="danger"
-                text
-                size="small"
-                @click="removeButton(index)"
+              </label>
+              <InputText
+                :modelValue="button.title"
+                @update:modelValue="(v) => updateButton(index, 'title', v ?? '')"
+                class="w-full text-sm"
+                :maxlength="WHATSAPP_CONSTRAINTS.BUTTON_TITLE_MAX"
+                placeholder="Texto del botón"
               />
-            </template>
-          </Column>
-        </DataTable>
+            </div>
+
+            <!-- Siguiente Nodo con Dropdown -->
+            <div class="field">
+              <label class="text-xs text-gray-500">Siguiente Nodo</label>
+              <Select
+                :modelValue="button.next_node ?? ''"
+                @update:modelValue="(v) => updateButton(index, 'next_node', v ?? '')"
+                :options="nodeOptions"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Seleccionar nodo..."
+                class="w-full text-sm"
+                showClear
+                appendTo="body"
+                :pt="{
+                  overlay: { style: 'z-index: 9999 !important; pointer-events: auto !important;' },
+                  list: { style: 'pointer-events: auto !important;' },
+                  option: { style: 'pointer-events: auto !important;' }
+                }"
+              />
+            </div>
+          </div>
+        </div>
 
         <Button
           v-if="(localConfig.buttons?.length ?? 0) < WHATSAPP_CONSTRAINTS.BUTTON_MAX"
-          label="Agregar Boton"
+          label="Agregar Botón"
           icon="pi pi-plus"
           size="small"
           severity="secondary"
@@ -464,55 +524,99 @@ const totalListRows = computed(() => {
             />
           </div>
 
-          <DataTable
-            :value="section.rows"
-            size="small"
-            class="text-sm"
-          >
-            <Column header="ID" style="width: 20%">
-              <template #body="{ data, index }">
-                <InputText
-                  :modelValue="data.id"
-                  @update:modelValue="(v) => updateRow(sectionIndex, index, 'id', v ?? '')"
-                  class="w-full text-xs"
-                  placeholder="row_id"
-                />
-              </template>
-            </Column>
-            <Column header="Titulo" style="width: 30%">
-              <template #body="{ data, index }">
-                <InputText
-                  :modelValue="data.title"
-                  @update:modelValue="(v) => updateRow(sectionIndex, index, 'title', v ?? '')"
-                  class="w-full text-xs"
-                  :maxlength="WHATSAPP_CONSTRAINTS.LIST_TITLE_MAX"
-                  placeholder="Titulo"
-                />
-              </template>
-            </Column>
-            <Column header="Descripcion" style="width: 40%">
-              <template #body="{ data, index }">
-                <InputText
-                  :modelValue="data.description ?? ''"
-                  @update:modelValue="(v) => updateRow(sectionIndex, index, 'description', v ?? '')"
-                  class="w-full text-xs"
-                  :maxlength="WHATSAPP_CONSTRAINTS.LIST_DESCRIPTION_MAX"
-                  placeholder="Descripcion opcional"
-                />
-              </template>
-            </Column>
-            <Column style="width: 10%">
-              <template #body="{ index }">
+          <!-- Card-based list item layout for better responsiveness -->
+          <div class="space-y-2">
+            <div
+              v-for="(row, rowIndex) in section.rows"
+              :key="row.id"
+              class="list-item-card"
+            >
+              <div class="list-item-card-header">
+                <span class="text-xs font-medium text-gray-600">Item {{ rowIndex + 1 }}</span>
                 <Button
                   icon="pi pi-trash"
                   severity="danger"
                   text
                   size="small"
-                  @click="removeRow(sectionIndex, index)"
+                  @click="removeRow(sectionIndex, rowIndex)"
                 />
-              </template>
-            </Column>
-          </DataTable>
+              </div>
+              <div class="list-item-card-body">
+                <!-- ID y Título en fila -->
+                <div class="grid grid-cols-2 gap-2">
+                  <div class="field">
+                    <label class="text-xs text-gray-500">ID</label>
+                    <InputText
+                      :modelValue="row.id"
+                      @update:modelValue="(v) => updateRow(sectionIndex, rowIndex, 'id', v ?? '')"
+                      class="w-full text-sm"
+                      placeholder="row_id"
+                    />
+                  </div>
+                  <div class="field">
+                    <label class="text-xs text-gray-500 flex items-center gap-1">
+                      Título
+                      <Tag
+                        :severity="getCharSeverity(row.title.length, WHATSAPP_CONSTRAINTS.LIST_TITLE_MAX)"
+                        class="text-xs"
+                      >
+                        {{ row.title.length }}/{{ WHATSAPP_CONSTRAINTS.LIST_TITLE_MAX }}
+                      </Tag>
+                    </label>
+                    <InputText
+                      :modelValue="row.title"
+                      @update:modelValue="(v) => updateRow(sectionIndex, rowIndex, 'title', v ?? '')"
+                      class="w-full text-sm"
+                      :maxlength="WHATSAPP_CONSTRAINTS.LIST_TITLE_MAX"
+                      placeholder="Título del item"
+                    />
+                  </div>
+                </div>
+
+                <!-- Descripción -->
+                <div class="field">
+                  <label class="text-xs text-gray-500 flex items-center gap-1">
+                    Descripción
+                    <Tag
+                      v-if="row.description"
+                      :severity="getCharSeverity(row.description?.length ?? 0, WHATSAPP_CONSTRAINTS.LIST_DESCRIPTION_MAX)"
+                      class="text-xs"
+                    >
+                      {{ row.description?.length ?? 0 }}/{{ WHATSAPP_CONSTRAINTS.LIST_DESCRIPTION_MAX }}
+                    </Tag>
+                  </label>
+                  <InputText
+                    :modelValue="row.description ?? ''"
+                    @update:modelValue="(v) => updateRow(sectionIndex, rowIndex, 'description', v ?? '')"
+                    class="w-full text-sm"
+                    :maxlength="WHATSAPP_CONSTRAINTS.LIST_DESCRIPTION_MAX"
+                    placeholder="Descripción opcional"
+                  />
+                </div>
+
+                <!-- Siguiente Nodo con Dropdown -->
+                <div class="field">
+                  <label class="text-xs text-gray-500">Siguiente Nodo</label>
+                  <Select
+                    :modelValue="row.next_node ?? ''"
+                    @update:modelValue="(v) => updateRow(sectionIndex, rowIndex, 'next_node', v ?? '')"
+                    :options="nodeOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Seleccionar nodo..."
+                    class="w-full text-sm"
+                    showClear
+                    appendTo="body"
+                    :pt="{
+                      overlay: { style: 'z-index: 9999 !important; pointer-events: auto !important;' },
+                      list: { style: 'pointer-events: auto !important;' },
+                      option: { style: 'pointer-events: auto !important;' }
+                    }"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
 
           <Button
             v-if="totalListRows < WHATSAPP_CONSTRAINTS.LIST_ITEMS_MAX"
@@ -576,7 +680,121 @@ const totalListRows = computed(() => {
   padding: 0.75rem;
 }
 
-.response-config-form :deep(.p-datatable-tbody > tr > td) {
+/* Button Card Styles */
+.button-card {
+  border: 1px solid var(--p-surface-300);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--p-surface-0);
+}
+
+.button-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background: var(--p-surface-100);
+  border-bottom: 1px solid var(--p-surface-200);
+}
+
+.button-card-body {
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.button-card-body .field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* List Item Card Styles */
+.list-item-card {
+  border: 1px solid var(--p-surface-200);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--p-surface-0);
+}
+
+.list-item-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.375rem 0.5rem;
+  background: var(--p-surface-50);
+  border-bottom: 1px solid var(--p-surface-200);
+}
+
+.list-item-card-body {
   padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.list-item-card-body .field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* SelectButton styling for response type */
+.response-type-selector {
+  display: flex;
+  width: 100%;
+}
+
+.response-type-selector :deep(.p-selectbutton) {
+  display: flex;
+  width: 100%;
+}
+
+.response-type-selector :deep(.p-togglebutton) {
+  flex: 1;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  border: 1px solid var(--p-surface-300);
+  background: var(--p-surface-0);
+  color: var(--p-text-color);
+  transition: all 0.2s;
+}
+
+.response-type-selector :deep(.p-togglebutton:first-child) {
+  border-radius: 6px 0 0 6px;
+}
+
+.response-type-selector :deep(.p-togglebutton:last-child) {
+  border-radius: 0 6px 6px 0;
+}
+
+.response-type-selector :deep(.p-togglebutton:hover:not(.p-togglebutton-checked)) {
+  background: var(--p-surface-100);
+}
+
+.response-type-selector :deep(.p-togglebutton-checked) {
+  background: var(--p-primary-color);
+  border-color: var(--p-primary-color);
+  color: var(--p-primary-contrast-color);
+}
+
+/* Select dropdown adjustments */
+.button-card :deep(.p-select),
+.list-item-card :deep(.p-select) {
+  font-size: 0.875rem;
+}
+</style>
+
+<!-- Global styles for Select overlay (needs to be above Sheet and capture pointer events) -->
+<style>
+.p-select-overlay {
+  z-index: 9999 !important;
+  pointer-events: auto !important;
+}
+
+.p-select-overlay * {
+  pointer-events: auto !important;
 }
 </style>

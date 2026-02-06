@@ -7,6 +7,8 @@
  */
 import { ref, computed, watch } from 'vue'
 import type { NodeDefinition, NodeResponseConfig } from '@/types/workflow.types'
+import { useErrorHandler } from '@/composables/useErrorHandler'
+import { isValidConfigSchema, type ConfigSchema } from '@/utils/typeGuards'
 import ResponseConfigForm from './ResponseConfigForm.vue'
 
 import InputText from 'primevue/inputtext'
@@ -20,11 +22,17 @@ import Accordion from 'primevue/accordion'
 import AccordionPanel from 'primevue/accordionpanel'
 import AccordionHeader from 'primevue/accordionheader'
 import AccordionContent from 'primevue/accordioncontent'
-import Divider from 'primevue/divider'
+
+interface AvailableNode {
+  id: string
+  key: string
+  label: string
+}
 
 interface Props {
   config: Record<string, unknown>
   nodeDefinition?: NodeDefinition | null
+  availableNodes?: AvailableNode[]
 }
 
 const props = defineProps<Props>()
@@ -33,18 +41,40 @@ const emit = defineEmits<{
   (e: 'update:config', value: Record<string, unknown>): void
 }>()
 
+// Error handling
+const { fieldErrors, safeJsonParse, safeJsonStringify, clearFieldError } =
+  useErrorHandler('NodeConfigForm')
+
 // Local config state
 const localConfig = ref<Record<string, unknown>>({})
 const jsonConfigString = ref('')
 const jsonError = ref<string | null>(null)
 
-// Get config schema from node definition
-const configSchema = computed(() => {
-  return props.nodeDefinition?.config_schema as {
-    type?: string
-    properties?: Record<string, SchemaProperty>
-    required?: string[]
-  } | null
+// Get config schema from node definition with type validation
+// For conversation nodes, filters out 'message' field since it's handled by response_config
+const configSchema = computed((): (ConfigSchema & { properties?: Record<string, SchemaProperty> }) | null => {
+  const schema = props.nodeDefinition?.config_schema
+  if (!isValidConfigSchema(schema)) {
+    if (schema !== null && schema !== undefined) {
+      console.warn('[NodeConfigForm] Invalid config_schema:', schema)
+    }
+    return null
+  }
+
+  const validSchema = schema as ConfigSchema & { properties?: Record<string, SchemaProperty> }
+
+  // For conversation nodes, filter out 'message' field to avoid duplication
+  // Message is now configured via response_config.template_text
+  if (props.nodeDefinition?.node_type === 'conversation' && validSchema.properties?.message) {
+    const { message, ...filteredProperties } = validSchema.properties
+    return {
+      ...validSchema,
+      properties: filteredProperties,
+      required: validSchema.required?.filter((r: string) => r !== 'message')
+    }
+  }
+
+  return validSchema
 })
 
 interface SchemaProperty {
@@ -75,17 +105,20 @@ const responseConfig = computed(() => {
   return localConfig.value.response_config as NodeResponseConfig | undefined
 })
 
-// Initialize local config from props
+// Initialize local config from props - avoid unnecessary resets
 watch(
   () => props.config,
-  (newConfig) => {
-    localConfig.value = { ...newConfig }
-    if (!hasSchema.value) {
-      try {
-        jsonConfigString.value = JSON.stringify(newConfig, null, 2)
+  (newConfig, oldConfig) => {
+    // Only sync if the config actually changed (prevents unnecessary resets)
+    const newJson = JSON.stringify(newConfig ?? {})
+    const oldJson = JSON.stringify(oldConfig ?? {})
+
+    if (newJson !== oldJson) {
+      localConfig.value = { ...newConfig }
+      if (!hasSchema.value) {
+        // Use safe stringify with error logging
+        jsonConfigString.value = safeJsonStringify(newConfig, 'config')
         jsonError.value = null
-      } catch {
-        jsonConfigString.value = '{}'
       }
     }
   },
@@ -98,16 +131,18 @@ function updateField(key: string, value: unknown) {
   emit('update:config', { ...localConfig.value })
 }
 
-// Handle JSON editor changes
+// Handle JSON editor changes using safe parsing
 function onJsonChange(value: string) {
   jsonConfigString.value = value
-  try {
-    const parsed = JSON.parse(value)
+  const parsed = safeJsonParse(value, 'jsonConfig')
+
+  if (parsed !== null) {
     jsonError.value = null
-    localConfig.value = parsed
-    emit('update:config', parsed)
-  } catch (e) {
-    jsonError.value = 'JSON invalido'
+    localConfig.value = parsed as Record<string, unknown>
+    emit('update:config', parsed as Record<string, unknown>)
+  } else {
+    // Get error from fieldErrors or use default
+    jsonError.value = fieldErrors.value['jsonConfig'] || 'JSON invalido'
   }
 }
 
@@ -159,6 +194,20 @@ function getSelectOptions(property: SchemaProperty): Array<{ label: string; valu
     value: v
   }))
 }
+
+// Handle JSON field updates with proper error handling
+function handleJsonFieldUpdate(fieldKey: string, value: string): void {
+  const parsed = safeJsonParse(value, fieldKey)
+  if (parsed !== null) {
+    updateField(fieldKey, parsed)
+  }
+  // On error, safeJsonParse already logs and tracks the error in fieldErrors
+}
+
+// Get error for a specific JSON field
+function getJsonFieldError(fieldKey: string): string | undefined {
+  return fieldErrors.value[fieldKey]
+}
 </script>
 
 <template>
@@ -175,6 +224,7 @@ function getSelectOptions(property: SchemaProperty): Array<{ label: string; valu
         <AccordionContent>
           <ResponseConfigForm
             :modelValue="responseConfig"
+            :availableNodes="props.availableNodes"
             @update:modelValue="updateResponseConfig"
           />
         </AccordionContent>
@@ -261,13 +311,18 @@ function getSelectOptions(property: SchemaProperty): Array<{ label: string; valu
               />
 
               <!-- Nested object as JSON -->
-              <Textarea
-                v-else-if="getFieldType(property, key as string) === 'json'"
-                :modelValue="JSON.stringify(localConfig[key] ?? property.default ?? {}, null, 2)"
-                @update:modelValue="(v) => { try { updateField(key as string, JSON.parse(v)) } catch {} }"
-                rows="4"
-                class="w-full font-mono text-sm"
-              />
+              <div v-else-if="getFieldType(property, key as string) === 'json'" class="json-field">
+                <Textarea
+                  :modelValue="safeJsonStringify(localConfig[key] ?? property.default ?? {}, key as string)"
+                  @update:modelValue="(v) => handleJsonFieldUpdate(key as string, v)"
+                  rows="4"
+                  class="w-full font-mono text-sm"
+                  :class="{ 'border-red-500': getJsonFieldError(key as string) }"
+                />
+                <small v-if="getJsonFieldError(key as string)" class="text-red-500 mt-1 block">
+                  {{ getJsonFieldError(key as string) }}
+                </small>
+              </div>
 
               <small v-if="property.description && getFieldType(property, key as string) !== 'toggle'" class="text-gray-400 mt-1 block">
                 {{ property.description }}
@@ -371,13 +426,18 @@ function getSelectOptions(property: SchemaProperty): Array<{ label: string; valu
         />
 
         <!-- Nested object as JSON -->
-        <Textarea
-          v-else-if="getFieldType(property, key as string) === 'json'"
-          :modelValue="JSON.stringify(localConfig[key] ?? property.default ?? {}, null, 2)"
-          @update:modelValue="(v) => { try { updateField(key as string, JSON.parse(v)) } catch {} }"
-          rows="4"
-          class="w-full font-mono text-sm"
-        />
+        <div v-else-if="getFieldType(property, key as string) === 'json'" class="json-field">
+          <Textarea
+            :modelValue="safeJsonStringify(localConfig[key] ?? property.default ?? {}, key as string)"
+            @update:modelValue="(v) => handleJsonFieldUpdate(key as string, v)"
+            rows="4"
+            class="w-full font-mono text-sm"
+            :class="{ 'border-red-500': getJsonFieldError(key as string) }"
+          />
+          <small v-if="getJsonFieldError(key as string)" class="text-red-500 mt-1 block">
+            {{ getJsonFieldError(key as string) }}
+          </small>
+        </div>
 
         <small v-if="property.description && getFieldType(property, key as string) !== 'toggle'" class="text-gray-400 mt-1 block">
           {{ property.description }}

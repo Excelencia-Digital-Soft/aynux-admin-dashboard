@@ -13,6 +13,7 @@ const emit = defineEmits<{
   (e: 'save'): void
   (e: 'publish'): void
   (e: 'copyFromInstitution'): void
+  (e: 'delete'): void
 }>()
 </script>
 
@@ -39,6 +40,14 @@ const emit = defineEmits<{
         severity="info"
         :loading="isSaving"
         @click="emit('publish')"
+      />
+      <Button
+        v-if="currentWorkflow"
+        label="Eliminar"
+        icon="pi pi-trash"
+        severity="danger"
+        outlined
+        @click="emit('delete')"
       />
       <Button
         label="Copiar de Otra Institucion"

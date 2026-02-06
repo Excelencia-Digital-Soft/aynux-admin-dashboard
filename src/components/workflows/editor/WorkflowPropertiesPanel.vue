@@ -29,7 +29,17 @@ const props = defineProps<{
   selectedNode: NodeInstance | null
   selectedEdge: WorkflowTransition | null
   getNodeDefinition: (id: string) => NodeDefinition | undefined
+  nodeInstances?: NodeInstance[]
 }>()
+
+// Computed for available nodes dropdown
+const availableNodes = computed(() => {
+  return (props.nodeInstances ?? []).map(node => ({
+    id: node.id,
+    key: node.instance_key,
+    label: node.display_label || node.instance_key
+  }))
+})
 
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
@@ -72,15 +82,40 @@ const hasUnsavedTransitionProps = ref(false)
 // Sync local config and node props when selected node changes
 watch(
   () => props.selectedNode,
-  (node) => {
-    if (node) {
-      localConfig.value = { ...(node.config || {}) }
+  (newNode, oldNode) => {
+    const hasUnsaved = hasUnsavedConfig.value || hasUnsavedNodeProps.value
+
+    // If switching nodes with unsaved changes, prompt for confirmation
+    if (hasUnsaved && oldNode && newNode?.id !== oldNode.id) {
+      const discard = window.confirm(
+        'Tienes cambios sin guardar. ¿Deseas descartarlos?'
+      )
+
+      if (!discard) {
+        // Save pending changes before switching
+        if (hasUnsavedConfig.value) {
+          emit('updateNode', oldNode.id, { config: localConfig.value })
+        }
+        if (hasUnsavedNodeProps.value) {
+          emit('updateNode', oldNode.id, {
+            display_label: localNodeProps.value.display_label,
+            description: localNodeProps.value.description,
+            is_entry_point: localNodeProps.value.is_entry_point,
+            is_active: localNodeProps.value.is_active
+          })
+        }
+      }
+    }
+
+    // Reset to new node values
+    if (newNode) {
+      localConfig.value = { ...(newNode.config || {}) }
       hasUnsavedConfig.value = false
       localNodeProps.value = {
-        display_label: node.display_label || '',
-        description: node.description || '',
-        is_entry_point: node.is_entry_point || false,
-        is_active: node.is_active !== false // default to true if undefined
+        display_label: newNode.display_label || '',
+        description: newNode.description || '',
+        is_entry_point: newNode.is_entry_point || false,
+        is_active: newNode.is_active !== false // default to true if undefined
       }
       hasUnsavedNodeProps.value = false
     } else {
@@ -194,7 +229,7 @@ function onSaveCondition(condition: TransitionCondition | null) {
         :side="sheetSide"
         :class="`properties-sheet ${isFullscreen ? 'properties-sheet--fullscreen' : 'w-full md:w-96'}`"
       >
-        <SheetHeader class="flex flex-row items-center justify-between space-y-0 pb-4">
+        <SheetHeader class="flex flex-row items-center justify-between space-y-0 pb-4 pr-10">
           <div class="flex items-center gap-2">
             <i class="pi pi-sliders-h text-lg" />
             <SheetTitle>Propiedades</SheetTitle>
@@ -297,6 +332,7 @@ function onSaveCondition(condition: TransitionCondition | null) {
                 <NodeConfigForm
                   :config="localConfig"
                   :nodeDefinition="getNodeDefinition(selectedNode.node_definition_id)"
+                  :availableNodes="availableNodes"
                   @update:config="onConfigChange"
                 />
 
@@ -402,8 +438,8 @@ function onSaveCondition(condition: TransitionCondition | null) {
                       {{ selectedEdge.condition.operator || '' }}
                       {{ selectedEdge.condition.value }}
                     </span>
-                    <span v-else-if="(selectedEdge.condition as any).expression" class="text-purple-700 dark:text-purple-300 font-mono text-xs truncate">
-                      {{ (selectedEdge.condition as any).expression }}
+                    <span v-else-if="selectedEdge.condition.expression" class="text-purple-700 dark:text-purple-300 font-mono text-xs truncate">
+                      {{ selectedEdge.condition.expression }}
                     </span>
                   </div>
                 </div>
@@ -463,15 +499,19 @@ function onSaveCondition(condition: TransitionCondition | null) {
   min-height: 0; /* Required for flex child to allow shrinking and enable scroll */
 }
 
-/* Fullscreen mode - center content with max width and better scroll */
+/* Fullscreen mode - use full width */
 .properties-sheet--fullscreen {
   padding-bottom: 1rem;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  inset: 0 !important;
 }
 
 .properties-sheet--fullscreen .properties-content {
   width: 100%;
-  max-width: 800px;
-  margin: 0 auto;
+  max-width: 100%;
   padding: 1rem 2rem;
   padding-bottom: 2rem;
 }

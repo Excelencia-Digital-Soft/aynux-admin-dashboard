@@ -12,6 +12,15 @@ import {
 import { cn } from '@/lib/utils'
 import { cva, type VariantProps } from 'class-variance-authority'
 
+// Prevent sheet from closing when interacting with PrimeVue overlays (dropdowns, etc.)
+function handleInteractOutside(event: Event) {
+  const target = event.target as HTMLElement
+  // Check if click is on a PrimeVue overlay element (includes filter inputs)
+  if (target?.closest('.p-select-overlay, .p-select-filter, .p-select-filter-container, .p-dropdown-panel, .p-autocomplete-panel, .p-multiselect-panel, .p-cascadeselect-panel, .p-overlay-mask, .p-inputtext, .p-component-overlay')) {
+    event.preventDefault()
+  }
+}
+
 const sheetVariants = cva(
   'fixed z-50 gap-4 bg-background p-6 shadow-lg transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500 flex flex-col overflow-hidden',
   {
@@ -58,6 +67,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
     <DialogContent
       v-bind="forwarded"
       :class="cn(sheetVariants({ side }), props.class)"
+      @interact-outside="handleInteractOutside"
     >
       <slot />
 

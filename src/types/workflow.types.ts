@@ -27,6 +27,8 @@ export const WHATSAPP_CONSTRAINTS = {
 export interface WhatsAppButton {
   id: string;
   title: string;
+  /** Optional next node for dynamic routing */
+  next_node?: string;
 }
 
 /**
@@ -36,6 +38,8 @@ export interface WhatsAppListRow {
   id: string;
   title: string;
   description?: string;
+  /** Optional next node for dynamic routing */
+  next_node?: string;
 }
 
 /**
@@ -325,9 +329,10 @@ export interface WorkflowTransition {
 export interface TransitionCondition {
   type: "always" | "intent" | "entity" | "state" | "expression";
   value?: string;
-  operator?: "eq" | "ne" | "gt" | "lt" | "contains" | "matches";
+  operator?: "eq" | "ne" | "gt" | "lt" | "gte" | "lte" | "contains" | "matches";
   field?: string;
-  [key: string]: unknown;
+  /** Custom expression for 'expression' type conditions */
+  expression?: string;
 }
 
 /**

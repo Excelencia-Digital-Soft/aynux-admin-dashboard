@@ -4,7 +4,7 @@
  * Provides a visual simulation of workflow execution for testing and debugging.
  */
 
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useVueFlow } from '@vue-flow/core'
 import { useWorkflowStore } from '@/stores/workflow.store'
 import { useToast } from '@/composables/useToast'
@@ -61,8 +61,9 @@ export function useWorkflowSimulation() {
   // Speed control (ms between steps)
   const stepDelay = ref(1000)
 
-  // Auto-advance timer
+  // Auto-advance timer and generation counter for race condition prevention
   let autoAdvanceTimer: ReturnType<typeof setTimeout> | null = null
+  let autoAdvanceGeneration = 0
 
   // Computed
   const isSimulating = computed(() =>
@@ -343,14 +344,20 @@ export function useWorkflowSimulation() {
   }
 
   /**
-   * Schedule auto-advance
+   * Schedule auto-advance with generation tracking to prevent race conditions.
+   * Uses a generation counter to invalidate callbacks from previous pause/resume cycles.
    */
   function scheduleAutoAdvance() {
     if (state.value.status !== 'running') return
 
     clearAutoAdvance()
 
+    // Capture current generation for this callback
+    const currentGeneration = ++autoAdvanceGeneration
+
     autoAdvanceTimer = setTimeout(() => {
+      // Check if this callback is still valid (not from an old generation)
+      if (currentGeneration !== autoAdvanceGeneration) return
       if (state.value.status === 'running') {
         const advanced = stepForward()
         if (advanced) {
@@ -361,18 +368,25 @@ export function useWorkflowSimulation() {
   }
 
   /**
-   * Clear auto-advance timer
+   * Clear auto-advance timer and invalidate any pending callbacks
    */
   function clearAutoAdvance() {
     if (autoAdvanceTimer) {
       clearTimeout(autoAdvanceTimer)
       autoAdvanceTimer = null
     }
+    // Increment generation to invalidate any pending callbacks
+    autoAdvanceGeneration++
   }
 
   // Cleanup on workflow change
   watch(() => store.currentWorkflow?.id, () => {
     stop()
+  })
+
+  // Cleanup on component unmount to prevent memory leaks
+  onUnmounted(() => {
+    clearAutoAdvance()
   })
 
   return {

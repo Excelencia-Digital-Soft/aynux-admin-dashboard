@@ -2,7 +2,7 @@
 import { ref, watch, onMounted } from 'vue'
 import { useChatStore } from '@/stores/chat.store'
 import { chatApi, type BypassRuleOption } from '@/api/chat.api'
-import ToggleSwitch from 'primevue/toggleswitch'
+import Checkbox from 'primevue/checkbox'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
@@ -131,9 +131,10 @@ function getRuleValue(rule: BypassRuleOption): string {
     <div class="space-y-4">
       <!-- Toggle principal -->
       <div class="flex items-center gap-3">
-        <ToggleSwitch
+        <Checkbox
           :modelValue="store.webhookSimulation.enabled"
           @update:modelValue="handleEnabledChange"
+          :binary="true"
         />
         <label class="font-medium cursor-pointer" @click="store.toggleWebhookSimulation()">
           Activar Modo Webhook
@@ -178,9 +179,10 @@ function getRuleValue(rule: BypassRuleOption): string {
 
         <!-- Toggle: Simular Bypass Rules -->
         <div class="flex items-center gap-3 mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-          <ToggleSwitch
+          <Checkbox
             :modelValue="store.webhookSimulation.simulateBypass"
             @update:modelValue="handleSimulateBypassChange"
+            :binary="true"
           />
           <div>
             <label class="font-medium cursor-pointer">Simular Bypass Rules</label>

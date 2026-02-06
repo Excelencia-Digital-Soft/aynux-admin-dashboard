@@ -26,6 +26,8 @@ const institutionType = defineModel<string>('institutionType', { required: true 
 const enabled = defineModel<boolean>('enabled', { required: true })
 const description = defineModel<string>('description', { required: true })
 const institutionId = defineModel<string>('institutionId', { required: true })
+const campaignId = defineModel<string>('campaignId', { required: true })
+const hcwebInstitutionId = defineModel<string>('hcwebInstitutionId', { required: true })
 </script>
 
 <template>
@@ -93,6 +95,43 @@ const institutionId = defineModel<string>('institutionId', { required: true })
       <small class="text-gray-500">
         ID numerico del sistema externo (HCWeb IdInstitucion). Opcional.
       </small>
+    </div>
+
+    <!-- Integration IDs Separator -->
+    <div class="border-t pt-4 mt-4">
+      <h4 class="text-sm font-semibold text-gray-600 mb-3">IDs de Integracion</h4>
+
+      <!-- Campaign ID -->
+      <div class="field mb-4">
+        <label for="campaign_id" class="block text-sm font-medium text-gray-700 mb-1">
+          Campaign ID
+        </label>
+        <InputText
+          id="campaign_id"
+          v-model="campaignId"
+          class="w-full"
+          placeholder="ej: camp_12345"
+        />
+        <small class="text-gray-500">
+          Identificador de campana para integraciones externas. Opcional.
+        </small>
+      </div>
+
+      <!-- HCWeb Institution ID -->
+      <div class="field">
+        <label for="hcweb_institution_id" class="block text-sm font-medium text-gray-700 mb-1">
+          HCWeb Institution ID
+        </label>
+        <InputText
+          id="hcweb_institution_id"
+          v-model="hcwebInstitutionId"
+          class="w-full"
+          placeholder="ej: 456"
+        />
+        <small class="text-gray-500">
+          ID de institucion en el sistema HCWeb. Opcional.
+        </small>
+      </div>
     </div>
 
     <!-- Enabled -->

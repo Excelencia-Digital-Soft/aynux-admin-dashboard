@@ -230,7 +230,8 @@ export function useWorkflowLayout() {
     layoutLeftToRight,
     layoutBottomToTop,
     layoutRightToLeft,
-    layoutSubgraph
+    layoutSubgraph,
+    autoLayout: layoutTopToBottom
   }
 }
 

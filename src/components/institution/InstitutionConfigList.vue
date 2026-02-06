@@ -49,6 +49,7 @@ const emit = defineEmits<{
   delete: [config: TenantInstitutionConfig]
   toggle: [config: TenantInstitutionConfig]
   secrets: [configId: string]
+  viewHistory: [config: TenantInstitutionConfig]
 }>()
 
 // ============================================================
@@ -116,6 +117,10 @@ function handleToggle(config: TenantInstitutionConfig) {
 
 function handleSecrets(config: TenantInstitutionConfig) {
   emit('secrets', config.id)
+}
+
+function handleViewHistory(config: TenantInstitutionConfig) {
+  emit('viewHistory', config)
 }
 
 function formatDate(dateStr: string | null): string {
@@ -239,6 +244,20 @@ function formatDate(dateStr: string | null): string {
           <!-- Acciones -->
           <TableCell>
             <div class="flex gap-1">
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    @click="handleViewHistory(config)"
+                    class="h-8 w-8 text-cyan-600 hover:text-cyan-700"
+                  >
+                    <i class="pi pi-eye" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Ver historial</TooltipContent>
+              </Tooltip>
+
               <Tooltip>
                 <TooltipTrigger as-child>
                   <Button

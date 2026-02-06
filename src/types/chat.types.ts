@@ -165,7 +165,7 @@ export interface StreamChunk {
 }
 
 // Webhook simulation types
-export type BusinessDomain = 'excelencia' | 'ecommerce' | 'healthcare' | 'credit' | 'pharmacy' | 'medical_appointments'
+export type BusinessDomain = 'excelencia' | 'ecommerce' | 'healthcare' | 'credit' | 'pharmacy' | 'medical_appointments' | 'enav'
 
 export interface WebhookSimulationConfig {
   enabled: boolean
@@ -209,11 +209,15 @@ export interface WebhookSimulationResponse {
     webhook_simulation: boolean
     channel: string
     business_domain: string
+    bypass_matched?: boolean
+    graph_state?: Record<string, unknown>
   }
   metadata?: {
     phone_number: string
     user_name: string
     processing_time_ms: number
     flow: string
+    document_url?: string
+    document_caption?: string
   }
 }

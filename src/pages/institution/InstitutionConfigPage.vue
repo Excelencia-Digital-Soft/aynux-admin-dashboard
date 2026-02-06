@@ -12,6 +12,7 @@
  */
 
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 // shadcn-vue components
 import { Card, CardContent } from '@/components/ui/card'
@@ -62,6 +63,7 @@ import { INSTITUTION_TYPES } from '@/types/tenantInstitutionConfig.types'
 // Composables & Stores
 // ============================================================
 
+const router = useRouter()
 const authStore = useAuthStore()
 const {
   configs,
@@ -160,6 +162,12 @@ function handlePageChange(newPage: number) {
   setPage(newPage)
   if (currentOrgId.value) {
     fetchConfigs(currentOrgId.value)
+  }
+}
+
+function handleViewHistory(config: TenantInstitutionConfig) {
+  if (currentOrgId.value) {
+    router.push(`/institution-configs/${currentOrgId.value}/${config.id}`)
   }
 }
 
@@ -334,6 +342,7 @@ async function handleSecretsSave(secrets: InstitutionConfigSecretsRequest) {
           @delete="handleDeleteRequest"
           @toggle="handleToggle"
           @secrets="handleSecrets"
+          @viewHistory="handleViewHistory"
         />
 
         <!-- Pagination -->

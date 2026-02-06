@@ -161,6 +161,8 @@ function handleCancel() {
             v-model:enabled="formState.enabled"
             v-model:description="formState.description"
             v-model:institutionId="formState.institution_id"
+            v-model:campaignId="formState.campaign_id"
+            v-model:hcwebInstitutionId="formState.hcweb_institution_id"
             :isEditing="isEditing"
           />
         </TabsContent>

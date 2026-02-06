@@ -100,7 +100,8 @@ watch(() => props.visible, async (visible) => {
 async function loadDefinitions() {
   try {
     await catalogStore.loadNodeDefinitions()
-  } catch {
+  } catch (error) {
+    console.error('[NodeDefinitionsDialog] Failed to load node definitions:', error)
     toast.add({
       severity: 'error',
       summary: 'Error',
@@ -181,6 +182,11 @@ async function saveDefinition() {
     showEditDialog.value = false
     emit('definitionsUpdated')
   } catch (error) {
+    console.error('[NodeDefinitionsDialog] Failed to save node definition:', {
+      isCreating: isCreating.value,
+      nodeKey: editingDefinition.value.node_key,
+      error
+    })
     toast.add({
       severity: 'error',
       summary: 'Error',
@@ -206,7 +212,12 @@ function confirmDelete(definition: NodeDefinition) {
           life: 3000
         })
         emit('definitionsUpdated')
-      } catch {
+      } catch (error) {
+        console.error('[NodeDefinitionsDialog] Failed to delete node definition:', {
+          definitionId: definition.id,
+          nodeKey: definition.node_key,
+          error
+        })
         toast.add({
           severity: 'error',
           summary: 'Error',

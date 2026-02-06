@@ -6,7 +6,7 @@ import type { BusinessDomain } from '@/types/chat.types'
 
 import Button from 'primevue/button'
 import Popover from 'primevue/popover'
-import ToggleSwitch from 'primevue/toggleswitch'
+import Checkbox from 'primevue/checkbox'
 import Select from 'primevue/select'
 import InputText from 'primevue/inputtext'
 import Divider from 'primevue/divider'
@@ -121,9 +121,10 @@ const emit = defineEmits<{
       <div class="popover-content">
         <div class="flex items-center justify-between mb-3">
           <h4 class="popover-title">Webhook Simulation</h4>
-          <ToggleSwitch
+          <Checkbox
             :modelValue="store.webhookSimulation.enabled"
             @update:modelValue="store.updateWebhookSimulation({ enabled: $event })"
+            :binary="true"
           />
         </div>
 
@@ -160,9 +161,10 @@ const emit = defineEmits<{
           </div>
 
           <div class="flex items-center gap-2">
-            <ToggleSwitch
+            <Checkbox
               :modelValue="store.webhookSimulation.simulateBypass"
               @update:modelValue="store.updateWebhookSimulation({ simulateBypass: $event })"
+              :binary="true"
             />
             <span class="popover-text">Bypass Rules</span>
           </div>

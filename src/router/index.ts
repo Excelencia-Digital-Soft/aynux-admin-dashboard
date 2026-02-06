@@ -144,6 +144,14 @@ const router = createRouter({
           meta: { title: 'Transcripcion Audio', icon: 'pi-microphone' }
         },
 
+        // ENAV Testing (DDJJ/CIU for vinateros)
+        {
+          path: 'enav-testing',
+          name: 'EnavTesting',
+          component: () => import('@/pages/testing/EnavTestingPage.vue'),
+          meta: { title: 'Pruebas ENAV', icon: 'pi-file-pdf' }
+        },
+
         // Pharmacy Config (Page 12b) - Admin CRUD
         {
           path: 'pharmacy',
@@ -287,6 +295,19 @@ const router = createRouter({
             title: 'Configuracion Instituciones',
             icon: 'pi-building',
             requiresOrg: true,
+            requiresAdmin: true
+          }
+        },
+
+        // Institution Config Detail - Message History View
+        {
+          path: 'institution-configs/:orgId/:configId',
+          name: 'InstitutionConfigDetail',
+          component: () => import('@/pages/institution/InstitutionConfigDetailPage.vue'),
+          meta: {
+            title: 'Detalle Institucion',
+            icon: 'pi-building',
+            hideFromMenu: true,
             requiresAdmin: true
           }
         },
