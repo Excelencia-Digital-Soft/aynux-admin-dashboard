@@ -33,6 +33,7 @@ const {
   clearSession,
   updateWebhookConfig,
   setQuickMessage,
+  copyChat,
   formatTime
 } = useEnavTesting()
 
@@ -179,6 +180,7 @@ function linkifyText(text: string): string {
                 v-tooltip.bottom="'Copiar chat'"
                 :disabled="messages.length === 0"
                 class="text-white hover:bg-white/20"
+                @click="copyChat"
               />
             </div>
           </template>
@@ -235,6 +237,17 @@ function linkifyText(text: string): string {
                             <i class="pi pi-file-pdf text-lg" />
                             <span>{{ msg.documentCaption || 'Descargar PDF' }}</span>
                             <i class="pi pi-external-link text-xs" />
+                          </a>
+                        </div>
+
+                        <!-- Analytics chart image -->
+                        <div v-if="msg.imageUrl" class="mt-3">
+                          <a :href="msg.imageUrl" target="_blank" rel="noopener noreferrer">
+                            <img
+                              :src="msg.imageUrl"
+                              :alt="msg.imageCaption || 'Grafico de estadisticas'"
+                              class="w-full rounded-lg border border-gray-200 dark:border-gray-600 cursor-pointer hover:opacity-90 transition-opacity"
+                            />
                           </a>
                         </div>
 

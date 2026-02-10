@@ -14,11 +14,13 @@ export interface EnavTestMessage {
   role: 'user' | 'assistant'
   content: string
   timestamp: string
-  responseType?: 'text' | 'buttons' | 'list' | 'document'
+  responseType?: 'text' | 'buttons' | 'list' | 'document' | 'image'
   buttons?: InteractiveButton[]
   listItems?: InteractiveListItem[]
   documentUrl?: string
   documentCaption?: string
+  imageUrl?: string
+  imageCaption?: string
   metadata?: Record<string, unknown>
 }
 
@@ -146,6 +148,13 @@ export function useEnavTesting() {
       assistantMessage.documentCaption = response.metadata.document_caption as string
     }
 
+    // Check for image in metadata
+    if (response.response_type === 'image' && response.metadata?.image_url) {
+      assistantMessage.responseType = 'image'
+      assistantMessage.imageUrl = response.metadata.image_url as string
+      assistantMessage.imageCaption = response.metadata.image_caption as string
+    }
+
     messages.value.push(assistantMessage)
   }
 
@@ -174,6 +183,19 @@ export function useEnavTesting() {
 
   function setQuickMessage(message: string): void {
     inputMessage.value = message
+  }
+
+  function copyChat(): void {
+    const text = messages.value
+      .map((msg) => {
+        const time = formatTime(msg.timestamp)
+        const prefix = msg.role === 'user' ? 'Usuario' : 'Bot'
+        return `[${time}] ${prefix}: ${msg.content}`
+      })
+      .join('\n\n')
+    navigator.clipboard.writeText(text).then(() => {
+      toast.info('Chat copiado al portapapeles')
+    })
   }
 
   function formatTime(timestamp: string): string {
@@ -227,6 +249,7 @@ export function useEnavTesting() {
     clearSession,
     updateWebhookConfig,
     setQuickMessage,
+    copyChat,
     formatTime
   }
 }

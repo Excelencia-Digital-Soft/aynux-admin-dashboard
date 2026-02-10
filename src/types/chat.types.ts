@@ -28,7 +28,7 @@ export interface ConversationMessage {
     model?: string
   }
   // Interactive message fields
-  responseType?: 'text' | 'buttons' | 'list'
+  responseType?: 'text' | 'buttons' | 'list' | 'image'
   buttons?: InteractiveButton[]
   listItems?: InteractiveListItem[]
   interactiveResponse?: InteractiveResponse
@@ -199,7 +199,7 @@ export interface WebhookSimulationResponse {
   agent_used: string
   execution_steps?: ExecutionStep[]
   // Interactive response fields
-  response_type?: 'text' | 'buttons' | 'list'
+  response_type?: 'text' | 'buttons' | 'list' | 'image'
   response_buttons?: InteractiveButton[]
   response_list_items?: InteractiveListItem[]
   debug_info?: {
@@ -219,5 +219,7 @@ export interface WebhookSimulationResponse {
     flow: string
     document_url?: string
     document_caption?: string
+    image_url?: string
+    image_caption?: string
   }
 }
