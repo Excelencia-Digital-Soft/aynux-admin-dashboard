@@ -54,7 +54,7 @@ export function usePharmacyConfig() {
 
   // ============ Pharmacy CRUD ============
 
-  async function fetchPharmacies() {
+  async function fetchPharmacies(organizationId?: string) {
     store.setLoading(true)
     store.setError(null)
 
@@ -63,7 +63,8 @@ export function usePharmacyConfig() {
         page: store.pharmacyPage,
         pageSize: store.pharmacyPageSize,
         search: store.pharmacyFilters.search,
-        mpEnabled: store.pharmacyFilters.mpEnabled
+        mpEnabled: store.pharmacyFilters.mpEnabled,
+        organizationId
       })
       store.setPharmacies(result.pharmacies, result.total)
     } catch (err) {

@@ -157,7 +157,7 @@ const router = createRouter({
           path: 'pharmacy',
           name: 'Pharmacy',
           component: () => import('@/pages/pharmacy/PharmacyPage.vue'),
-          meta: { title: 'Farmacias', icon: 'pi-shop' }
+          meta: { title: 'Farmacias', icon: 'pi-shop', requiresOrg: true }
         },
 
         // Pharmacy Detail (Page 12c) - History View

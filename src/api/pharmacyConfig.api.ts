@@ -24,13 +24,15 @@ export const pharmacyConfigApi = {
     pageSize?: number
     search?: string
     mpEnabled?: boolean
+    organizationId?: string
   } = {}): Promise<PharmacyConfigListResponse> {
     const { data } = await apiClient.get<PharmacyConfigListResponse>(PHARMACY_CONFIG_URL, {
       params: {
         page: params.page || 1,
         page_size: params.pageSize || 25,
         search: params.search,
-        mp_enabled: params.mpEnabled
+        mp_enabled: params.mpEnabled,
+        organization_id: params.organizationId
       }
     })
     return data

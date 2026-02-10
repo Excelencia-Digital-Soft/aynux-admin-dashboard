@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
 import { usePharmacyStore } from '@/stores/pharmacy.store'
 import { usePharmacyConfig } from '@/composables/usePharmacyConfig'
 import type { PharmacyConfig } from '@/types/pharmacyConfig.types'
@@ -21,6 +20,10 @@ import InputIcon from 'primevue/inputicon'
 import Select from 'primevue/select'
 import Paginator from 'primevue/paginator'
 import Skeleton from 'primevue/skeleton'
+
+const props = defineProps<{
+  organizationId?: string
+}>()
 
 const emit = defineEmits<{
   (e: 'select', pharmacy: PharmacyConfig): void
@@ -51,23 +54,19 @@ function formatDate(dateStr: string | null): string {
 
 function onPageChange(event: { page: number; rows: number }) {
   setPharmacyPage(event.page + 1)
-  fetchPharmacies()
+  fetchPharmacies(props.organizationId)
 }
 
 function handleSearch(event: Event) {
   const value = (event.target as HTMLInputElement).value
   setPharmacyFilters({ search: value || undefined })
-  fetchPharmacies()
+  fetchPharmacies(props.organizationId)
 }
 
 function handleMPFilter(mpEnabled: boolean | undefined) {
   setPharmacyFilters({ mpEnabled })
-  fetchPharmacies()
+  fetchPharmacies(props.organizationId)
 }
-
-onMounted(() => {
-  fetchPharmacies()
-})
 </script>
 
 <template>

@@ -33,10 +33,10 @@ function initExpandedState() {
   if (route.path.startsWith('/agent-config') || route.path.startsWith('/excelencia')) {
     expandedKeys.value['agents'] = true
   }
-  if (route.path.startsWith('/organizations') || route.path.startsWith('/tenant') || route.path.startsWith('/institution')) {
+  if (route.path.startsWith('/organizations') || route.path.startsWith('/tenant') || route.path.startsWith('/institution') || route.path.startsWith('/pharmacy')) {
     expandedKeys.value['multitenant'] = true
   }
-  if (route.path.startsWith('/pharmacy') || route.path.startsWith('/bypass') || route.path.startsWith('/yaml') || route.path.startsWith('/chattigo') || route.path.startsWith('/ai-models') || route.path.startsWith('/agent-catalog') || route.path.startsWith('/domains') || route.path.startsWith('/intent-configs') || route.path.startsWith('/workflow-editor')) {
+  if (route.path.startsWith('/bypass') || route.path.startsWith('/yaml') || route.path.startsWith('/chattigo') || route.path.startsWith('/ai-models') || route.path.startsWith('/agent-catalog') || route.path.startsWith('/domains') || route.path.startsWith('/intent-configs') || route.path.startsWith('/workflow-editor')) {
     expandedKeys.value['config'] = true
   }
   if (route.path.startsWith('/pharmacy-testing') || route.path.startsWith('/medical-testing') || route.path.startsWith('/whisper-testing') || route.path.startsWith('/chat-visualizer') || route.path.startsWith('/enav-testing')) {
@@ -122,6 +122,12 @@ const menuItems = computed<MenuItem[]>(() => {
           icon: 'pi pi-building-columns',
           route: '/institution-configs',
           disabled: !currentOrganization.value
+        },
+        {
+          label: 'Farmacias',
+          icon: 'pi pi-shop',
+          route: '/pharmacy',
+          disabled: !currentOrganization.value
         }
       ]
     },
@@ -131,11 +137,6 @@ const menuItems = computed<MenuItem[]>(() => {
       label: 'Configuración',
       icon: 'pi pi-cog',
       items: [
-        {
-          label: 'Farmacias',
-          icon: 'pi pi-shop',
-          route: '/pharmacy'
-        },
         {
           label: 'Reglas de Bypass',
           icon: 'pi pi-directions',
