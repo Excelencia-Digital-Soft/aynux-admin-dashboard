@@ -2,16 +2,16 @@
 import { ref, watch } from 'vue'
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'
-import { useMedicalTesting } from '@/composables/useMedicalTesting'
+import { useTurnosMedicosTesting } from '@/composables/useTurnosMedicosTesting'
 import { useToast } from '@/composables/useToast'
 import type { InteractiveButton, InteractiveListItem } from '@/api/medical.api'
 
 // Components
-import MedicalTestHeader from '@/components/testing/medical/MedicalTestHeader.vue'
-import MedicalChatWindow from '@/components/testing/medical/MedicalChatWindow.vue'
-import MedicalChatInput from '@/components/testing/medical/MedicalChatInput.vue'
-import MedicalDebugPanel from '@/components/testing/medical/MedicalDebugPanel.vue'
-import MedicalQuickActions from '@/components/testing/medical/MedicalQuickActions.vue'
+import TurnosMedicosTestHeader from '@/components/testing/turnos-medicos/TurnosMedicosTestHeader.vue'
+import TurnosMedicosChatWindow from '@/components/testing/turnos-medicos/TurnosMedicosChatWindow.vue'
+import TurnosMedicosChatInput from '@/components/testing/turnos-medicos/TurnosMedicosChatInput.vue'
+import TurnosMedicosDebugPanel from '@/components/testing/turnos-medicos/TurnosMedicosDebugPanel.vue'
+import TurnosMedicosQuickActions from '@/components/testing/turnos-medicos/TurnosMedicosQuickActions.vue'
 
 const DEFAULT_PHONE = '5491100001234'
 
@@ -45,10 +45,10 @@ const {
   deleteConversation,
   deleteAllHistory,
   formatTime
-} = useMedicalTesting({ defaultPhone: DEFAULT_PHONE })
+} = useTurnosMedicosTesting({ defaultPhone: DEFAULT_PHONE })
 
 const toast = useToast()
-const chatInputRef = ref<InstanceType<typeof MedicalChatInput> | null>(null)
+const chatInputRef = ref<InstanceType<typeof TurnosMedicosChatInput> | null>(null)
 
 // Auto-focus input when sending finishes
 watch(() => isSending.value, (sending, wasSending) => {
@@ -90,8 +90,8 @@ async function copyAllChat() {
 </script>
 
 <template>
-  <div class="medical-testing-page">
-    <MedicalTestHeader
+  <div class="turnos-medicos-testing-page">
+    <TurnosMedicosTestHeader
       :is-loading="isLoading"
       :has-session="hasSession"
       @refresh="fetchInstitutions"
@@ -102,7 +102,7 @@ async function copyAllChat() {
       <!-- Chat Panel -->
       <div class="lg:col-span-2 flex flex-col gap-4">
         <div class="card-wrapper rounded-xl overflow-hidden border dark:border-gray-700 shadow-sm">
-          <MedicalChatWindow
+          <TurnosMedicosChatWindow
             v-model:selected-institution="selectedInstitution"
             :messages="messages"
             :institutions="institutions"
@@ -113,7 +113,7 @@ async function copyAllChat() {
             @list-select="onListSelect"
           />
 
-          <MedicalChatInput
+          <TurnosMedicosChatInput
             ref="chatInputRef"
             v-model="inputMessage"
             :is-loading="isSending"
@@ -125,7 +125,7 @@ async function copyAllChat() {
 
       <!-- Right Sidebar -->
       <div>
-        <MedicalDebugPanel
+        <TurnosMedicosDebugPanel
           :webhook-config="webhookConfig"
           :has-session="hasSession"
           :default-phone="DEFAULT_PHONE"
@@ -146,7 +146,7 @@ async function copyAllChat() {
           @delete-history="showDeleteConfirm = true"
         />
 
-        <MedicalQuickActions
+        <TurnosMedicosQuickActions
           @action="setQuickMessage"
         />
       </div>
@@ -191,7 +191,7 @@ async function copyAllChat() {
 </template>
 
 <style scoped>
-.medical-testing-page {
+.turnos-medicos-testing-page {
   max-width: 100%;
 }
 </style>

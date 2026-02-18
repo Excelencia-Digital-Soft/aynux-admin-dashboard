@@ -9,6 +9,7 @@ import { computed } from 'vue'
 import { useTenantInstitutionConfigStore } from '@/stores/tenantInstitutionConfig.store'
 import { tenantInstitutionConfigApi } from '@/api/tenantInstitutionConfig.api'
 import { useToast } from 'primevue/usetoast'
+import type { AxiosError } from 'axios'
 import type {
   TenantInstitutionConfig,
   InstitutionConfigCreateRequest,
@@ -16,6 +17,41 @@ import type {
   InstitutionConfigSecretsRequest,
   InstitutionConfigListParams
 } from '@/types/tenantInstitutionConfig.types'
+
+interface ApiValidationDetail {
+  field: string
+  message: string
+  type: string
+}
+
+interface ApiErrorResponse {
+  error?: boolean
+  message?: string
+  detail?: string | ApiValidationDetail[]
+  details?: ApiValidationDetail[]
+}
+
+function extractErrorMessage(err: unknown, fallback: string): string {
+  if (typeof err === 'object' && err !== null && 'response' in err) {
+    const axiosErr = err as AxiosError<ApiErrorResponse>
+    const data = axiosErr.response?.data
+    if (data) {
+      // Format: { details: [{ field, message }] }
+      if (data.details?.length) {
+        return data.details.map((d) => d.message).join('. ')
+      }
+      // Format: { detail: [{ msg, loc }] } (FastAPI default)
+      if (Array.isArray(data.detail)) {
+        return data.detail.map((d) => d.message || String(d)).join('. ')
+      }
+      // Format: { message: "..." } or { detail: "..." }
+      if (data.message) return data.message
+      if (typeof data.detail === 'string') return data.detail
+    }
+  }
+  if (err instanceof Error) return err.message
+  return fallback
+}
 
 export function useTenantInstitutionConfig() {
   const store = useTenantInstitutionConfigStore()
@@ -70,8 +106,7 @@ export function useTenantInstitutionConfig() {
         response.disabled_count
       )
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : 'Error al cargar configuraciones'
+      const message = extractErrorMessage(err, 'Error al cargar configuraciones')
       store.setError(message)
       toast.add({
         severity: 'error',
@@ -108,8 +143,7 @@ export function useTenantInstitutionConfig() {
       store.closeFormDialog()
       return config
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : 'Error al crear configuración'
+      const message = extractErrorMessage(err, 'Error al crear configuración')
       store.setError(message)
       toast.add({
         severity: 'error',
@@ -148,8 +182,7 @@ export function useTenantInstitutionConfig() {
       store.closeFormDialog()
       return config
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : 'Error al actualizar configuración'
+      const message = extractErrorMessage(err, 'Error al actualizar configuración')
       store.setError(message)
       toast.add({
         severity: 'error',
@@ -186,8 +219,7 @@ export function useTenantInstitutionConfig() {
 
       return true
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : 'Error al eliminar configuración'
+      const message = extractErrorMessage(err, 'Error al eliminar configuración')
       store.setError(message)
       toast.add({
         severity: 'error',
@@ -226,8 +258,7 @@ export function useTenantInstitutionConfig() {
 
       return config
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : 'Error al cambiar estado'
+      const message = extractErrorMessage(err, 'Error al cambiar estado')
       store.setError(message)
       toast.add({
         severity: 'error',
@@ -271,8 +302,7 @@ export function useTenantInstitutionConfig() {
       store.closeSecretsDialog()
       return true
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : 'Error al actualizar credenciales'
+      const message = extractErrorMessage(err, 'Error al actualizar credenciales')
       store.setError(message)
       toast.add({
         severity: 'error',

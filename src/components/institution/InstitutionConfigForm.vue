@@ -16,6 +16,8 @@ import AuthSettingsTab from './tabs/AuthSettingsTab.vue'
 import SchedulerSettingsTab from './tabs/SchedulerSettingsTab.vue'
 import BrandingSettingsTab from './tabs/BrandingSettingsTab.vue'
 import WhatsAppSettingsTab from './tabs/WhatsAppSettingsTab.vue'
+import ChattigoBspTab from './tabs/ChattigoBspTab.vue'
+import HumanHandoffTab from './tabs/HumanHandoffTab.vue'
 
 import type {
   TenantInstitutionConfig,
@@ -124,7 +126,7 @@ function handleCancel() {
 
     <!-- Tabs -->
     <Tabs v-model="activeTab" class="w-full">
-      <TabsList class="grid w-full grid-cols-6">
+      <TabsList class="flex w-full overflow-x-auto">
         <TabsTrigger value="general" class="flex items-center gap-2">
           <i class="pi pi-info-circle" />
           <span class="hidden sm:inline">General</span>
@@ -148,6 +150,14 @@ function handleCancel() {
         <TabsTrigger value="whatsapp" class="flex items-center gap-2">
           <i class="pi pi-whatsapp" />
           <span class="hidden sm:inline">WhatsApp</span>
+        </TabsTrigger>
+        <TabsTrigger value="chattigo" class="flex items-center gap-2">
+          <i class="pi pi-comments" />
+          <span class="hidden sm:inline">Chattigo</span>
+        </TabsTrigger>
+        <TabsTrigger value="handoff" class="flex items-center gap-2">
+          <i class="pi pi-users" />
+          <span class="hidden sm:inline">Handoff</span>
         </TabsTrigger>
       </TabsList>
 
@@ -190,6 +200,21 @@ function handleCancel() {
         <!-- WhatsApp Tab -->
         <TabsContent value="whatsapp">
           <WhatsAppSettingsTab v-model="formState.whatsapp" />
+        </TabsContent>
+
+        <!-- Chattigo Tab -->
+        <TabsContent value="chattigo">
+          <ChattigoBspTab v-model="formState.chattigo" />
+        </TabsContent>
+
+        <!-- Human Handoff Tab -->
+        <TabsContent value="handoff">
+          <HumanHandoffTab
+            v-model="formState.workflow"
+            :orgId="config?.organization_id"
+            :configId="config?.id"
+            :isEditing="isEditing"
+          />
         </TabsContent>
       </div>
     </Tabs>

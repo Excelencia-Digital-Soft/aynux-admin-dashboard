@@ -1,0 +1,70 @@
+<script setup lang="ts">
+import { ref } from 'vue'
+import Button from 'primevue/button'
+import InputText from 'primevue/inputtext'
+
+defineProps<{
+  modelValue: string
+  isLoading: boolean
+  disabled: boolean
+}>()
+
+const emit = defineEmits<{
+  (e: 'update:modelValue', value: string): void
+  (e: 'send'): void
+}>()
+
+const inputRef = ref<InstanceType<typeof InputText> | null>(null)
+
+function handleKeyPress(event: KeyboardEvent) {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault()
+    emit('send')
+  }
+}
+
+function focus() {
+  const el = (inputRef.value as { $el?: HTMLElement } | null)?.$el
+  el?.focus()
+}
+
+defineExpose({ focus })
+</script>
+
+<template>
+  <div class="p-4 border-t dark:border-gray-700 bg-white dark:bg-gray-800">
+    <div class="flex gap-3 items-end">
+      <div class="flex-1 relative">
+        <InputText
+          ref="inputRef"
+          :modelValue="modelValue"
+          @update:modelValue="(v) => emit('update:modelValue', v ?? '')"
+          placeholder="Escribe un mensaje..."
+          class="w-full"
+          @keypress="handleKeyPress"
+          :disabled="disabled"
+        />
+      </div>
+      <Button
+        icon="pi pi-send"
+        @click="emit('send')"
+        :loading="isLoading"
+        :disabled="disabled || !modelValue.trim()"
+        class="h-10 w-10"
+        rounded
+      />
+    </div>
+    <div class="flex items-center mt-2">
+      <div class="flex items-center gap-2 text-xs text-gray-400">
+        <span>Enter para enviar</span>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+:deep(.p-inputtext:focus) {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  border-color: #3b82f6;
+}
+</style>

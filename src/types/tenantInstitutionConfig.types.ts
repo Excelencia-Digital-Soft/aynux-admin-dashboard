@@ -14,6 +14,7 @@ export type ConnectionType = 'soap' | 'rest' | 'graphql'
 export interface ConnectionSettings {
   type: ConnectionType
   base_url: string
+  namespace?: string
   timeout_seconds?: number
   retry_count?: number
   verify_ssl?: boolean
@@ -94,6 +95,31 @@ export interface WhatsAppSettings {
 }
 
 // ============================================================
+// Chattigo BSP Settings
+// ============================================================
+
+export interface ChattigoSettings {
+  did?: string
+  template_name?: string
+  bot_name?: string
+  login_url?: string
+  base_url?: string
+  token_refresh_hours?: number
+  enabled?: boolean
+}
+
+// ============================================================
+// Workflow Settings
+// ============================================================
+
+export interface WorkflowSettings {
+  enabled: boolean
+  default_workflow_key: string
+  human_handoff_specialties: string[]
+  allow_custom_workflows: boolean
+}
+
+// ============================================================
 // Institution Settings (Root Schema)
 // ============================================================
 
@@ -105,6 +131,8 @@ export interface InstitutionSettings {
   scheduler: SchedulerSettings
   branding?: BrandingSettings
   whatsapp?: WhatsAppSettings
+  chattigo?: ChattigoSettings
+  workflow?: WorkflowSettings
   custom?: Record<string, unknown>
 }
 
@@ -151,6 +179,8 @@ export interface InstitutionConfigSecretsRequest {
   api_key?: string
   password?: string
   client_secret?: string
+  chattigo_username?: string
+  chattigo_password?: string
 }
 
 export interface InstitutionConfigListResponse {
@@ -201,6 +231,12 @@ export interface InstitutionConfigFormState {
   // WhatsApp tab
   whatsapp: WhatsAppSettings
 
+  // Chattigo tab
+  chattigo: ChattigoSettings
+
+  // Workflow / Handoff tab
+  workflow: WorkflowSettings
+
   // Custom tab (optional)
   custom: Record<string, unknown>
 }
@@ -209,6 +245,8 @@ export interface SecretsFormState {
   api_key: string
   password: string
   client_secret: string
+  chattigo_username: string
+  chattigo_password: string
   updateSecrets: boolean
 }
 
@@ -232,9 +270,19 @@ export const AUTH_TYPES: { label: string; value: AuthType }[] = [
 
 export const INSTITUTION_TYPES: { label: string; value: string }[] = [
   { label: 'Genérico', value: 'generic' },
-  { label: 'Médico', value: 'medical' },
+  { label: 'Clínica / Centro Médico', value: 'medical' },
+  { label: 'Hospital', value: 'hospital' },
   { label: 'Farmacia', value: 'pharmacy' },
-  { label: 'Laboratorio', value: 'laboratory' }
+  { label: 'Laboratorio', value: 'laboratory' },
+  { label: 'Centro de Imágenes', value: 'imaging' },
+  { label: 'Odontología', value: 'dental' },
+  { label: 'Oftalmología', value: 'ophthalmology' },
+  { label: 'Salud Mental', value: 'mental_health' },
+  { label: 'Kinesiología / Rehabilitación', value: 'rehabilitation' },
+  { label: 'Veterinaria', value: 'veterinary' },
+  { label: 'Obra Social / Prepaga', value: 'insurance' },
+  { label: 'Estética', value: 'aesthetics' },
+  { label: 'Traumatología', value: 'traumatology' }
 ]
 
 export const TIMEZONES: { label: string; value: string }[] = [
@@ -294,6 +342,27 @@ export function getDefaultWhatsAppSettings(): WhatsAppSettings {
   }
 }
 
+export function getDefaultChattigoSettings(): ChattigoSettings {
+  return {
+    did: '',
+    template_name: '',
+    bot_name: 'Aynux',
+    login_url: 'https://massive.chattigo.com/api-bot/login',
+    base_url: 'https://massive.chattigo.com',
+    token_refresh_hours: 7,
+    enabled: true
+  }
+}
+
+export function getDefaultWorkflowSettings(): WorkflowSettings {
+  return {
+    enabled: false,
+    default_workflow_key: 'default',
+    human_handoff_specialties: [],
+    allow_custom_workflows: true
+  }
+}
+
 export function getDefaultFormState(): InstitutionConfigFormState {
   return {
     institution_key: '',
@@ -309,6 +378,8 @@ export function getDefaultFormState(): InstitutionConfigFormState {
     scheduler: getDefaultSchedulerSettings(),
     branding: getDefaultBrandingSettings(),
     whatsapp: getDefaultWhatsAppSettings(),
+    chattigo: getDefaultChattigoSettings(),
+    workflow: getDefaultWorkflowSettings(),
     custom: {}
   }
 }
@@ -328,6 +399,8 @@ export function configToFormState(config: TenantInstitutionConfig): InstitutionC
     scheduler: config.settings.scheduler || getDefaultSchedulerSettings(),
     branding: config.settings.branding || getDefaultBrandingSettings(),
     whatsapp: config.settings.whatsapp || getDefaultWhatsAppSettings(),
+    chattigo: config.settings.chattigo || getDefaultChattigoSettings(),
+    workflow: config.settings.workflow || getDefaultWorkflowSettings(),
     custom: config.settings.custom || {}
   }
 }
@@ -348,6 +421,8 @@ export function formStateToCreateRequest(
       scheduler: state.scheduler,
       branding: state.branding,
       whatsapp: state.whatsapp,
+      chattigo: state.chattigo,
+      workflow: state.workflow,
       custom: {
         ...state.custom,
         ...(state.campaign_id ? { campaign_id: state.campaign_id } : {}),
@@ -372,6 +447,8 @@ export function formStateToUpdateRequest(
       scheduler: state.scheduler,
       branding: state.branding,
       whatsapp: state.whatsapp,
+      chattigo: state.chattigo,
+      workflow: state.workflow,
       custom: {
         ...state.custom,
         ...(state.campaign_id ? { campaign_id: state.campaign_id } : {}),

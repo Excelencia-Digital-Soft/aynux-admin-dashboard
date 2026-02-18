@@ -65,29 +65,46 @@ const tableConfigs = computed(() => props.configs)
 function getTypeBadgeVariant(type: string): 'success' | 'info' | 'warning' | 'secondary' | 'default' {
   switch (type) {
     case 'medical':
+    case 'hospital':
       return 'success'
     case 'pharmacy':
-      return 'info'
     case 'laboratory':
+    case 'imaging':
+      return 'info'
+    case 'dental':
+    case 'ophthalmology':
+    case 'rehabilitation':
+    case 'mental_health':
+    case 'traumatology':
       return 'warning'
+    case 'veterinary':
+    case 'insurance':
+    case 'aesthetics':
+      return 'default'
     default:
       return 'secondary'
   }
 }
 
+const TYPE_LABELS: Record<string, string> = {
+  generic: 'Genérico',
+  medical: 'Clínica',
+  hospital: 'Hospital',
+  pharmacy: 'Farmacia',
+  laboratory: 'Laboratorio',
+  imaging: 'Imágenes',
+  dental: 'Odontología',
+  ophthalmology: 'Oftalmología',
+  mental_health: 'Salud Mental',
+  rehabilitation: 'Rehabilitación',
+  veterinary: 'Veterinaria',
+  insurance: 'Obra Social',
+  aesthetics: 'Estética',
+  traumatology: 'Traumatología'
+}
+
 function getTypeLabel(type: string): string {
-  switch (type) {
-    case 'medical':
-      return 'Medico'
-    case 'pharmacy':
-      return 'Farmacia'
-    case 'laboratory':
-      return 'Laboratorio'
-    case 'generic':
-      return 'Generico'
-    default:
-      return type
-  }
+  return TYPE_LABELS[type] || type
 }
 
 function getConnectionTypeLabel(type: string): string {

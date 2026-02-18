@@ -144,6 +144,14 @@ const router = createRouter({
           meta: { title: 'Transcripcion Audio', icon: 'pi-microphone' }
         },
 
+        // Turnos Medicos Testing
+        {
+          path: 'turnos-medicos-testing',
+          name: 'TurnosMedicosTesting',
+          component: () => import('@/pages/testing/TurnosMedicosTestingPage.vue'),
+          meta: { title: 'Pruebas Turnos Medicos', icon: 'pi-calendar-clock' }
+        },
+
         // ENAV Testing (DDJJ/CIU for vinateros)
         {
           path: 'enav-testing',
@@ -361,6 +369,20 @@ const router = createRouter({
             requiresAdmin: true,
             hideFromMenu: true
           }
+        }
+      ]
+    },
+
+    // ENAV Consulta Publica (no auth required)
+    {
+      path: '/enav',
+      component: () => import('@/layouts/PublicLayout.vue'),
+      children: [
+        {
+          path: 'consulta',
+          name: 'EnavConsulta',
+          component: () => import('@/pages/enav/ConsultaCosechaPage.vue'),
+          meta: { requiresAuth: false, title: 'Consulta de Cosecha ENAV' }
         }
       ]
     },

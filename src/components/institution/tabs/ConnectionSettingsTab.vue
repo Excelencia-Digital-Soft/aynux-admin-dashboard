@@ -32,6 +32,7 @@ const model = defineModel<ConnectionSettings>({ required: true })
         optionValue="value"
         class="w-full"
         placeholder="Seleccionar tipo"
+        appendTo="self"
       />
     </div>
 
@@ -48,6 +49,22 @@ const model = defineModel<ConnectionSettings>({ required: true })
       />
       <small class="text-gray-500">
         URL del servicio externo (SOAP endpoint, REST API, etc.)
+      </small>
+    </div>
+
+    <!-- Namespace SOAP (only for SOAP connections) -->
+    <div v-if="model.type === 'soap'" class="field">
+      <label for="namespace" class="block text-sm font-medium text-gray-700 mb-1">
+        Namespace SOAP
+      </label>
+      <InputText
+        id="namespace"
+        v-model="model.namespace"
+        class="w-full"
+        placeholder="http://tempuri.org/"
+      />
+      <small class="text-gray-500">
+        Namespace del servicio SOAP (se usa en el envelope XML y header SOAPAction)
       </small>
     </div>
 

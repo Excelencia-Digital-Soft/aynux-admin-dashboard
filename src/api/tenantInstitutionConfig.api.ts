@@ -121,6 +121,23 @@ class TenantInstitutionConfigApi {
   }
 
   /**
+   * Fetch available specialties from HCWeb SOAP API.
+   *
+   * @param orgId - Organization UUID
+   * @param configId - Institution config UUID
+   * @returns List of specialties with id and name
+   */
+  async fetchSpecialties(
+    orgId: string,
+    configId: string
+  ): Promise<{ id: string; name: string }[]> {
+    const { data } = await apiClient.get<{ id: string; name: string }[]>(
+      `${BASE_URL}/${orgId}/institution-configs/${configId}/specialties`
+    )
+    return data
+  }
+
+  /**
    * Update encrypted secrets (write-only).
    *
    * NOTE: Secrets are never returned in API responses.

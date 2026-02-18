@@ -78,6 +78,7 @@ const hcwebInstitutionId = defineModel<string>('hcwebInstitutionId', { required:
         optionValue="value"
         class="w-full"
         placeholder="Seleccionar tipo"
+        appendTo="self"
       />
     </div>
 

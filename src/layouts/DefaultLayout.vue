@@ -39,7 +39,7 @@ function initExpandedState() {
   if (route.path.startsWith('/bypass') || route.path.startsWith('/yaml') || route.path.startsWith('/chattigo') || route.path.startsWith('/ai-models') || route.path.startsWith('/agent-catalog') || route.path.startsWith('/domains') || route.path.startsWith('/intent-configs') || route.path.startsWith('/workflow-editor')) {
     expandedKeys.value['config'] = true
   }
-  if (route.path.startsWith('/pharmacy-testing') || route.path.startsWith('/medical-testing') || route.path.startsWith('/whisper-testing') || route.path.startsWith('/chat-visualizer') || route.path.startsWith('/enav-testing')) {
+  if (route.path.startsWith('/pharmacy-testing') || route.path.startsWith('/medical-testing') || route.path.startsWith('/turnos-medicos-testing') || route.path.startsWith('/whisper-testing') || route.path.startsWith('/chat-visualizer') || route.path.startsWith('/enav-testing')) {
     expandedKeys.value['testing'] = true
   }
 }
@@ -196,6 +196,11 @@ const menuItems = computed<MenuItem[]>(() => {
           label: 'Medical Testing',
           icon: 'pi pi-calendar-plus',
           route: '/medical-testing'
+        },
+        {
+          label: 'Turnos Medicos',
+          icon: 'pi pi-calendar-clock',
+          route: '/turnos-medicos-testing'
         },
         {
           label: 'Whisper Testing',

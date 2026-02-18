@@ -228,7 +228,7 @@ async function handleSecretsSave(secrets: InstitutionConfigSecretsRequest) {
 <template>
   <div class="institution-config-page">
     <!-- Delete Confirmation Dialog -->
-    <AlertDialog :open="deleteDialogOpen" @update:open="(val: boolean) => !val && cancelDelete()">
+    <AlertDialog :open="deleteDialogOpen" @update:open="(val: boolean) => deleteDialogOpen = val">
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Confirmar eliminacion</AlertDialogTitle>

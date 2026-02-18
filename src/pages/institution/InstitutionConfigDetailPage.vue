@@ -54,10 +54,20 @@ function handleBack() {
 
 function getTypeLabel(type: string): string {
   const labels: Record<string, string> = {
-    medical: 'Medico',
+    generic: 'Genérico',
+    medical: 'Clínica',
+    hospital: 'Hospital',
     pharmacy: 'Farmacia',
     laboratory: 'Laboratorio',
-    generic: 'Generico'
+    imaging: 'Imágenes',
+    dental: 'Odontología',
+    ophthalmology: 'Oftalmología',
+    mental_health: 'Salud Mental',
+    rehabilitation: 'Rehabilitación',
+    veterinary: 'Veterinaria',
+    insurance: 'Obra Social',
+    aesthetics: 'Estética',
+    traumatology: 'Traumatología'
   }
   return labels[type] || type
 }

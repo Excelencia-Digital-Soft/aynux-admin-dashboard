@@ -53,9 +53,13 @@ const emit = defineEmits<{
 const apiKey = ref('')
 const password = ref('')
 const clientSecret = ref('')
+const chattigoUsername = ref('')
+const chattigoPassword = ref('')
 const showApiKey = ref(false)
 const showPassword = ref(false)
 const showClientSecret = ref(false)
+const showChattigoUsername = ref(false)
+const showChattigoPassword = ref(false)
 
 // ============================================================
 // Computed
@@ -74,9 +78,19 @@ const showPasswordField = computed(() =>
 )
 const showClientSecretField = computed(() => authType.value === 'oauth2')
 
+const hasChattigoConfig = computed(() => {
+  const chattigo = props.config?.settings?.chattigo
+  return chattigo?.did && chattigo?.enabled
+})
+
 const canSave = computed(() => {
-  // At least one field must have a value
-  return apiKey.value.trim() || password.value.trim() || clientSecret.value.trim()
+  return (
+    apiKey.value.trim() ||
+    password.value.trim() ||
+    clientSecret.value.trim() ||
+    chattigoUsername.value.trim() ||
+    chattigoPassword.value.trim()
+  )
 })
 
 const institutionName = computed(() =>
@@ -93,9 +107,13 @@ watch(dialogVisible, (visible) => {
     apiKey.value = ''
     password.value = ''
     clientSecret.value = ''
+    chattigoUsername.value = ''
+    chattigoPassword.value = ''
     showApiKey.value = false
     showPassword.value = false
     showClientSecret.value = false
+    showChattigoUsername.value = false
+    showChattigoPassword.value = false
   }
 })
 
@@ -116,6 +134,12 @@ function handleSave() {
   }
   if (clientSecret.value.trim()) {
     secrets.client_secret = clientSecret.value.trim()
+  }
+  if (chattigoUsername.value.trim()) {
+    secrets.chattigo_username = chattigoUsername.value.trim()
+  }
+  if (chattigoPassword.value.trim()) {
+    secrets.chattigo_password = chattigoPassword.value.trim()
   }
 
   emit('save', secrets)
@@ -221,13 +245,70 @@ function handleClose() {
           </p>
         </div>
 
+        <!-- Chattigo BSP Credentials -->
+        <div v-if="hasChattigoConfig" class="space-y-3">
+          <div class="border-t pt-3">
+            <h4 class="text-sm font-semibold text-foreground mb-2">
+              <i class="pi pi-comments mr-1" />
+              Credenciales Chattigo BSP
+            </h4>
+          </div>
+
+          <!-- Chattigo Username -->
+          <div class="space-y-2">
+            <Label for="chattigo_username">Usuario Chattigo BSP</Label>
+            <div class="relative">
+              <Input
+                id="chattigo_username"
+                v-model="chattigoUsername"
+                :type="showChattigoUsername ? 'text' : 'password'"
+                placeholder="Ingrese el usuario BSP"
+                class="pr-10"
+              />
+              <button
+                type="button"
+                @click="showChattigoUsername = !showChattigoUsername"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <i :class="showChattigoUsername ? 'pi pi-eye-slash' : 'pi pi-eye'" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Chattigo Password -->
+          <div class="space-y-2">
+            <Label for="chattigo_password">Contrasena Chattigo BSP</Label>
+            <div class="relative">
+              <Input
+                id="chattigo_password"
+                v-model="chattigoPassword"
+                :type="showChattigoPassword ? 'text' : 'password'"
+                placeholder="Ingrese la contrasena BSP"
+                class="pr-10"
+              />
+              <button
+                type="button"
+                @click="showChattigoPassword = !showChattigoPassword"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <i :class="showChattigoPassword ? 'pi pi-eye-slash' : 'pi pi-eye'" />
+              </button>
+            </div>
+          </div>
+
+          <p v-if="config?.has_secrets" class="text-sm text-green-600">
+            <i class="pi pi-check mr-1" />
+            Credencial existente. Dejar vacio para mantener la actual.
+          </p>
+        </div>
+
         <!-- No auth configured -->
-        <div v-if="authType === 'none'" class="flex flex-col gap-3">
+        <div v-if="authType === 'none' && !hasChattigoConfig" class="flex flex-col gap-3">
           <Alert variant="warning">
             <i class="pi pi-exclamation-triangle" />
             <AlertDescription>
-              Esta institucion no tiene autenticacion configurada.
-              Primero configure el tipo de autenticacion en la seccion "Autenticacion".
+              Esta institucion no tiene autenticacion ni Chattigo configurado.
+              Configure autenticacion en la seccion "Auth" o Chattigo en la seccion "Chattigo".
             </AlertDescription>
           </Alert>
           <Button
@@ -252,7 +333,7 @@ function handleClose() {
         <Button
           @click="handleSave"
           :loading="loading"
-          :disabled="!canSave || authType === 'none'"
+          :disabled="!canSave || (authType === 'none' && !hasChattigoConfig)"
         >
           <i class="pi pi-lock mr-2" />
           Guardar Credenciales

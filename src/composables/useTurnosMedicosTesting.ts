@@ -12,20 +12,21 @@ import type {
 import { useToast } from '@/composables/useToast'
 
 /**
- * Composable for medical appointments testing page.
+ * Composable for turnos medicos testing page.
  * Manages chat, session, institution selection, and conversation history.
+ * Reuses the same backend API as medical testing (DID determines the domain agent).
  */
 
-export interface UseMedicalTestingOptions {
+export interface UseTurnosMedicosTestingOptions {
   defaultPhone?: string
   persistConfig?: boolean
   storageKey?: string
 }
 
 const DEFAULT_PHONE = '5491100001234'
-const STORAGE_KEY = 'medical-webhook-config'
+const STORAGE_KEY = 'turnos-medicos-webhook-config'
 
-export function useMedicalTesting(options: UseMedicalTestingOptions = {}) {
+export function useTurnosMedicosTesting(options: UseTurnosMedicosTestingOptions = {}) {
   const {
     defaultPhone = DEFAULT_PHONE,
     persistConfig = true,
@@ -380,7 +381,7 @@ export function useMedicalTesting(options: UseMedicalTestingOptions = {}) {
         try {
           webhookConfig.value = JSON.parse(saved)
         } catch (e) {
-          console.warn('Failed to parse medical webhook config')
+          console.warn('Failed to parse turnos medicos webhook config')
         }
       }
     }
@@ -441,4 +442,4 @@ export function useMedicalTesting(options: UseMedicalTestingOptions = {}) {
   }
 }
 
-export default useMedicalTesting
+export default useTurnosMedicosTesting
