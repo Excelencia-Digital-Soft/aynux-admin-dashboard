@@ -1,475 +1,228 @@
 /**
  * useIntentConfigGraph Composable
  *
- * Manages state and logic for the intent configuration graph visualization.
- * Combines data from domain intents, intent mappings, flow agents, and keywords.
+ * Manages state and logic for the LangGraph topology editor.
+ * Fetches graph topology from API and converts to Vue Flow nodes/edges.
  */
 
-import { ref, computed, watch, type Ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useToast } from 'primevue/usetoast'
-import { useAuthStore } from '@/stores/auth.store'
-import { useIntentConfigStore } from '@/stores/intentConfig.store'
-import { useIntentConfig } from '@/composables/useIntentConfig'
-import { useDomainIntents } from '@/composables/useDomainIntents'
-import { domainIntentsApi } from '@/api/domainIntents.api'
-import { generateGraph, getConnectedPath, formatAgentName } from '../utils/graphLayout'
-import type {
-  IntentConfigGraphNode,
-  IntentConfigGraphEdge,
-  GraphNodeType,
-  GraphFilters,
-  SelectedNodeInfo,
-  DomainNodeData,
-  IntentNodeData,
-  AgentNodeData,
-  KeywordGroupNodeData
-} from '../types'
-import type { DomainIntent, DomainKey, IntentCreate } from '@/types/domainIntents.types'
-import type { UsageStatus } from '@/types/intentConfigs.types'
-import { AVAILABLE_DOMAINS } from '@/types/domainIntents.types'
+import { graphTopologyApi } from '@/api/graphTopology.api'
+import { routingConfigsApi } from '@/api/routingConfigs.api'
+import { awaitingTypeConfigsApi } from '@/api/awaitingTypeConfigs.api'
+import type { GraphTopologyResponse, RoutingConfigSummary, AwaitingTypeConfigSummary } from '@/types/graphTopology.types'
+import type { RoutingConfigUpdate } from '@/types/routingConfigs.types'
+import type { AwaitingTypeConfigUpdate } from '@/api/awaitingTypeConfigs.api'
+import { layoutTopology } from '../utils/graphLayout'
+import type { TopologyFlowNode, TopologyFlowEdge, SelectedNodeInfo } from '../types'
 
 export function useIntentConfigGraph() {
   const toast = useToast()
-  const authStore = useAuthStore()
-  const store = useIntentConfigStore()
-  const intentConfigComposable = useIntentConfig()
 
   // ==========================================================================
   // State
   // ==========================================================================
 
-  // Graph state
-  const nodes = ref<IntentConfigGraphNode[]>([])
-  const edges = ref<IntentConfigGraphEdge[]>([])
+  const nodes = ref<TopologyFlowNode[]>([])
+  const edges = ref<TopologyFlowEdge[]>([])
+  const topology = ref<GraphTopologyResponse | null>(null)
 
-  // Data state
-  const domainIntents = ref<Map<string, DomainIntent[]>>(new Map())
+  // Domain selection
+  const domainKey = ref('pharmacy')
+  const availableDomains = ref<string[]>([])
 
-  // UI state
+  // Selection
   const selectedNodeId = ref<string | null>(null)
-  const selectedNodeType = ref<GraphNodeType | null>(null)
-  const highlightedPath = ref<string[]>([])
-
-  // Filters
-  const filters = ref<GraphFilters>({
-    domainKey: null,
-    status: 'all',
-    showDisabled: true
-  })
+  const drawerVisible = ref(false)
 
   // Loading
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
-  // Drawer state
-  const drawerVisible = ref(false)
-
   // ==========================================================================
   // Computed
   // ==========================================================================
 
-  const organizationId = computed(() => authStore.currentOrgId)
-
-  const availableDomains = computed(() => AVAILABLE_DOMAINS)
-
   const selectedNode = computed<SelectedNodeInfo | null>(() => {
-    if (!selectedNodeId.value) return null
-    const node = nodes.value.find(n => n.id === selectedNodeId.value)
+    if (!selectedNodeId.value || !topology.value) return null
+
+    const node = nodes.value.find((n) => n.id === selectedNodeId.value)
     if (!node) return null
+
+    // Find routing configs targeting this node
+    const nodeRoutingConfigs = topology.value.routing_configs.filter(
+      (rc) => rc.target_node === node.id
+    )
+
+    // Find awaiting type configs for this node
+    const nodeAwaitingConfigs = topology.value.awaiting_type_configs.filter(
+      (ac) => ac.target_node === node.id
+    )
+
     return {
       nodeId: node.id,
-      nodeType: node.type as GraphNodeType,
-      data: node.data
+      nodeType: node.data.nodeType,
+      data: node.data,
+      routingConfigs: nodeRoutingConfigs,
+      awaitingTypeConfigs: nodeAwaitingConfigs
     }
   })
 
-  // Get all domain intents as a flat array
-  const allIntents = computed(() => {
-    const all: DomainIntent[] = []
-    domainIntents.value.forEach(intents => all.push(...intents))
-    return all
+  const stats = computed(() => {
+    if (!topology.value) {
+      return { nodes: 0, edges: 0, routingConfigs: 0, awaitingTypes: 0 }
+    }
+    return {
+      nodes: topology.value.nodes.filter((n) => n.node_type !== 'terminal').length,
+      edges: topology.value.edges.length,
+      routingConfigs: topology.value.routing_configs.length,
+      awaitingTypes: topology.value.awaiting_type_configs.length
+    }
   })
-
-  // Stats
-  const stats = computed(() => ({
-    totalDomains: domainIntents.value.size,
-    totalIntents: allIntents.value.length,
-    totalMappings: store.intentMappings.length,
-    totalAgents: store.mappedAgents.length,
-    totalKeywords: store.keywordMappings.length,
-    totalFlowAgents: store.flowAgents.filter(f => f.is_flow_agent).length,
-    activeIntents: allIntents.value.filter(i => i.is_enabled).length,
-    enabledMappings: store.enabledMappings.length
-  }))
 
   // ==========================================================================
   // Data Fetching
   // ==========================================================================
 
-  async function fetchAllData() {
-    if (!organizationId.value) {
-      toast.add({
-        severity: 'warn',
-        summary: 'Sin organización',
-        detail: 'Selecciona una organización primero',
-        life: 3000
-      })
-      return
-    }
-
+  async function fetchTopology() {
     isLoading.value = true
     error.value = null
 
     try {
-      // Fetch all configs (mappings, flow agents, keywords)
-      await intentConfigComposable.fetchAllConfigs()
+      // Fetch available domains and topology in parallel
+      const [domains, topoData] = await Promise.all([
+        graphTopologyApi.listDomains(),
+        graphTopologyApi.getTopology(domainKey.value)
+      ])
 
-      // Fetch intents for all domains
-      const domainsToFetch = filters.value.domainKey
-        ? [filters.value.domainKey]
-        : AVAILABLE_DOMAINS.map(d => d.key)
+      availableDomains.value = domains
+      topology.value = topoData
 
-      const intentsMap = new Map<string, DomainIntent[]>()
-
-      await Promise.all(
-        domainsToFetch.map(async domainKey => {
-          try {
-            const intents = await domainIntentsApi.listIntents(
-              domainKey as DomainKey,
-              organizationId.value!
-            )
-            if (intents.length > 0) {
-              intentsMap.set(domainKey, intents)
-            }
-          } catch (err) {
-            console.warn(`Failed to fetch intents for domain ${domainKey}:`, err)
-          }
-        })
-      )
-
-      domainIntents.value = intentsMap
-
-      // Generate graph
-      regenerateGraph()
-    } catch (err) {
-      console.error('Error fetching graph data:', err)
-      error.value = 'Error al cargar los datos del grafo'
+      // Layout the graph
+      rebuildGraph()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error desconocido'
+      error.value = `Error cargando topologia: ${msg}`
+      console.error('Failed to fetch topology:', err)
       toast.add({
         severity: 'error',
         summary: 'Error',
-        detail: 'No se pudieron cargar los datos',
-        life: 5000
+        detail: 'No se pudo cargar la topologia del grafo',
+        life: 3000
       })
     } finally {
       isLoading.value = false
     }
   }
 
-  // ==========================================================================
-  // Graph Generation
-  // ==========================================================================
+  function rebuildGraph() {
+    if (!topology.value) return
 
-  function regenerateGraph() {
-    const generated = generateGraph({
-      domainIntents: domainIntents.value,
-      intentMappings: store.intentMappings,
-      flowAgents: store.flowAgents,
-      keywordMappings: store.keywordMappings,
-      filters: {
-        domainKey: filters.value.domainKey,
-        status: filters.value.status as UsageStatus | 'all',
-        showDisabled: filters.value.showDisabled
-      }
-    })
+    const result = layoutTopology(
+      topology.value.nodes,
+      topology.value.edges,
+      selectedNodeId.value
+    )
 
-    nodes.value = generated.nodes
-    edges.value = generated.edges
-
-    // Clear selection if selected node no longer exists
-    if (selectedNodeId.value && !nodes.value.find(n => n.id === selectedNodeId.value)) {
-      clearSelection()
-    }
+    nodes.value = result.nodes
+    edges.value = result.edges
   }
 
   // ==========================================================================
   // Selection
   // ==========================================================================
 
-  function selectNode(nodeId: string | null) {
-    if (nodeId === selectedNodeId.value) {
-      // Toggle off
-      clearSelection()
-      return
-    }
-
+  function selectNode(nodeId: string) {
     selectedNodeId.value = nodeId
-
-    if (nodeId) {
-      const node = nodes.value.find(n => n.id === nodeId)
-      selectedNodeType.value = node?.type as GraphNodeType || null
-
-      // Highlight connected path
-      highlightedPath.value = getConnectedPath(nodeId, nodes.value, edges.value)
-
-      // Open drawer
-      drawerVisible.value = true
-    } else {
-      selectedNodeType.value = null
-      highlightedPath.value = []
-    }
+    drawerVisible.value = true
+    // Update selected state on nodes
+    rebuildGraph()
   }
 
   function clearSelection() {
     selectedNodeId.value = null
-    selectedNodeType.value = null
-    highlightedPath.value = []
     drawerVisible.value = false
+    rebuildGraph()
   }
 
   // ==========================================================================
-  // Filters
+  // Domain Switching
   // ==========================================================================
 
-  function setFilter<K extends keyof GraphFilters>(key: K, value: GraphFilters[K]) {
-    filters.value[key] = value
-    regenerateGraph()
-  }
-
-  function clearFilters() {
-    filters.value = {
-      domainKey: null,
-      status: 'all',
-      showDisabled: true
-    }
-    regenerateGraph()
+  function setDomain(key: string) {
+    domainKey.value = key
+    selectedNodeId.value = null
+    drawerVisible.value = false
+    fetchTopology()
   }
 
   // ==========================================================================
-  // CRUD Operations - Intents
+  // Config Updates
   // ==========================================================================
 
-  async function createIntent(domainKey: DomainKey, data: IntentCreate): Promise<boolean> {
-    if (!organizationId.value) {
-      toast.add({
-        severity: 'warn',
-        summary: 'Sin organización',
-        detail: 'Selecciona una organización primero',
-        life: 3000
-      })
-      return false
-    }
-
+  async function updateRoutingConfig(configId: string, updates: RoutingConfigUpdate) {
     try {
-      await domainIntentsApi.createIntent(domainKey, organizationId.value, data)
-
+      await routingConfigsApi.update(configId, updates)
       toast.add({
         severity: 'success',
-        summary: 'Intent creado',
-        detail: `"${data.name}" creado correctamente`,
-        life: 3000
+        summary: 'Guardado',
+        detail: 'Configuracion de routing actualizada',
+        life: 2000
       })
-
-      // Refresh data
-      await fetchAllData()
-      return true
+      // Refetch to get updated counts
+      await fetchTopology()
     } catch (err) {
-      console.error('Error creating intent:', err)
-      const errorMessage = err instanceof Error ? err.message : 'No se pudo crear el intent'
+      console.error('Failed to update routing config:', err)
       toast.add({
         severity: 'error',
         summary: 'Error',
-        detail: errorMessage,
-        life: 5000
+        detail: 'No se pudo actualizar la configuracion',
+        life: 3000
       })
-      return false
     }
   }
 
-  async function deleteIntent(domainKey: DomainKey, intentId: string, intentName: string): Promise<boolean> {
+  async function updateRoutingConfigsBatch(ids: string[], updates: RoutingConfigUpdate) {
     try {
-      await domainIntentsApi.deleteIntent(domainKey, intentId)
-
+      await routingConfigsApi.batchUpdate({ ids, updates })
       toast.add({
         severity: 'success',
-        summary: 'Intent eliminado',
-        detail: `"${intentName}" eliminado correctamente`,
-        life: 3000
+        summary: 'Guardado',
+        detail: `${ids.length} configuraciones actualizadas`,
+        life: 2000
       })
-
-      // Close drawer since the intent no longer exists
-      clearSelection()
-
-      // Refresh data
-      await fetchAllData()
-      return true
+      await fetchTopology()
     } catch (err) {
-      console.error('Error deleting intent:', err)
-      const errorMessage = err instanceof Error ? err.message : 'No se pudo eliminar el intent'
+      console.error('Failed to batch update routing configs:', err)
       toast.add({
         severity: 'error',
         summary: 'Error',
-        detail: errorMessage,
-        life: 5000
+        detail: 'No se pudieron actualizar las configuraciones',
+        life: 3000
       })
-      return false
     }
   }
 
-  async function updateIntent(
-    intentId: string,
-    updates: Partial<DomainIntent>
-  ): Promise<boolean> {
+  async function updateAwaitingTypeConfig(configId: string, updates: AwaitingTypeConfigUpdate) {
     try {
-      // Find the intent to get its domain
-      let domainKey: string | null = null
-      domainIntents.value.forEach((intents, key) => {
-        if (intents.find(i => i.id === intentId)) {
-          domainKey = key
-        }
-      })
-
-      if (!domainKey) {
-        throw new Error('Intent not found')
-      }
-
-      await domainIntentsApi.updateIntent(domainKey as DomainKey, intentId, updates)
-
+      await awaitingTypeConfigsApi.update(configId, updates)
       toast.add({
         severity: 'success',
-        summary: 'Intent actualizado',
-        detail: 'Los cambios se guardaron correctamente',
-        life: 3000
+        summary: 'Guardado',
+        detail: 'Configuracion de awaiting type actualizada',
+        life: 2000
       })
-
-      // Refresh data
-      await fetchAllData()
-      return true
+      await fetchTopology()
     } catch (err) {
-      console.error('Error updating intent:', err)
+      console.error('Failed to update awaiting type config:', err)
       toast.add({
         severity: 'error',
         summary: 'Error',
-        detail: 'No se pudo actualizar el intent',
-        life: 5000
+        detail: 'No se pudo actualizar la configuracion',
+        life: 3000
       })
-      return false
     }
   }
-
-  // ==========================================================================
-  // CRUD Operations - Mappings
-  // ==========================================================================
-
-  async function createMapping(domainKey: string, intentKey: string, agentKey: string): Promise<boolean> {
-    try {
-      // Find the intent name from domainIntents
-      const intents = domainIntents.value.get(domainKey)
-      const intent = intents?.find(i => i.intent_key === intentKey)
-      const intentName = intent?.name || intentKey
-
-      await intentConfigComposable.createIntentMapping({
-        intent_key: intentKey,
-        intent_name: intentName,
-        agent_key: agentKey,
-        domain_key: domainKey
-      })
-
-      await fetchAllData()
-      return true
-    } catch (err) {
-      console.error('Error creating mapping:', err)
-      return false
-    }
-  }
-
-  async function updateMapping(
-    mappingId: string,
-    updates: { agent_key?: string; is_enabled?: boolean; confidence_threshold?: number }
-  ): Promise<boolean> {
-    try {
-      await intentConfigComposable.updateIntentMapping(mappingId, updates)
-      await fetchAllData()
-      return true
-    } catch (err) {
-      console.error('Error updating mapping:', err)
-      return false
-    }
-  }
-
-  async function deleteMapping(mappingId: string): Promise<boolean> {
-    try {
-      await intentConfigComposable.deleteIntentMapping(mappingId)
-      await fetchAllData()
-      return true
-    } catch (err) {
-      console.error('Error deleting mapping:', err)
-      return false
-    }
-  }
-
-  // ==========================================================================
-  // CRUD Operations - Keywords
-  // ==========================================================================
-
-  async function addKeywords(agentKey: string, keywords: string[]): Promise<boolean> {
-    try {
-      await intentConfigComposable.createKeywordsBulk({
-        agent_key: agentKey,
-        keywords
-      })
-
-      await fetchAllData()
-      return true
-    } catch (err) {
-      console.error('Error adding keywords:', err)
-      return false
-    }
-  }
-
-  async function deleteKeyword(keywordId: string): Promise<boolean> {
-    try {
-      await intentConfigComposable.deleteKeyword(keywordId)
-      await fetchAllData()
-      return true
-    } catch (err) {
-      console.error('Error deleting keyword:', err)
-      return false
-    }
-  }
-
-  // ==========================================================================
-  // CRUD Operations - Flow Agents
-  // ==========================================================================
-
-  async function updateFlowAgent(
-    agentKey: string,
-    updates: { is_flow_agent?: boolean; is_enabled?: boolean; max_turns?: number }
-  ): Promise<boolean> {
-    try {
-      await intentConfigComposable.updateFlowAgent(agentKey, updates)
-      await fetchAllData()
-      return true
-    } catch (err) {
-      console.error('Error updating flow agent:', err)
-      return false
-    }
-  }
-
-  // ==========================================================================
-  // Watchers
-  // ==========================================================================
-
-  // Watch for organization changes
-  watch(organizationId, newOrgId => {
-    if (newOrgId) {
-      fetchAllData()
-    } else {
-      nodes.value = []
-      edges.value = []
-      domainIntents.value.clear()
-      clearSelection()
-    }
-  })
 
   // ==========================================================================
   // Return
@@ -479,57 +232,23 @@ export function useIntentConfigGraph() {
     // State
     nodes,
     edges,
-    domainIntents,
+    topology,
+    domainKey,
+    availableDomains,
     selectedNodeId,
-    selectedNodeType,
-    highlightedPath,
-    filters,
+    selectedNode,
+    drawerVisible,
     isLoading,
     error,
-    drawerVisible,
-
-    // Computed
-    organizationId,
-    availableDomains,
-    selectedNode,
-    allIntents,
     stats,
 
-    // Store refs
-    intentMappings: computed(() => store.intentMappings),
-    flowAgents: computed(() => store.flowAgents),
-    keywordMappings: computed(() => store.keywordMappings),
-
-    // Data fetching
-    fetchAllData,
-    regenerateGraph,
-
-    // Selection
+    // Actions
+    fetchTopology,
     selectNode,
     clearSelection,
-
-    // Filters
-    setFilter,
-    clearFilters,
-
-    // CRUD - Intents
-    createIntent,
-    deleteIntent,
-    updateIntent,
-
-    // CRUD - Mappings
-    createMapping,
-    updateMapping,
-    deleteMapping,
-
-    // CRUD - Keywords
-    addKeywords,
-    deleteKeyword,
-
-    // CRUD - Flow Agents
-    updateFlowAgent,
-
-    // Helpers
-    formatAgentName
+    setDomain,
+    updateRoutingConfig,
+    updateRoutingConfigsBatch,
+    updateAwaitingTypeConfig
   }
 }

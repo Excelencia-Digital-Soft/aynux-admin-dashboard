@@ -36,6 +36,7 @@ class TenantInstitutionConfigApi {
           page: params.page || 1,
           page_size: params.page_size || 25,
           institution_type: params.institution_type,
+          domain_key: params.domain_key,
           search: params.search,
           enabled_only: params.enabled_only
         }

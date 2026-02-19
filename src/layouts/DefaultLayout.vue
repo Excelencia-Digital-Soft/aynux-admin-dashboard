@@ -36,7 +36,7 @@ function initExpandedState() {
   if (route.path.startsWith('/organizations') || route.path.startsWith('/tenant') || route.path.startsWith('/institution') || route.path.startsWith('/pharmacy')) {
     expandedKeys.value['multitenant'] = true
   }
-  if (route.path.startsWith('/bypass') || route.path.startsWith('/yaml') || route.path.startsWith('/chattigo') || route.path.startsWith('/ai-models') || route.path.startsWith('/agent-catalog') || route.path.startsWith('/domains') || route.path.startsWith('/intent-configs') || route.path.startsWith('/workflow-editor')) {
+  if (route.path.startsWith('/bypass') || route.path.startsWith('/yaml') || route.path.startsWith('/chattigo') || route.path.startsWith('/ai-models') || route.path.startsWith('/agent-catalog') || route.path.startsWith('/domains') || route.path.startsWith('/graph-topology') || route.path.startsWith('/workflow-editor')) {
     expandedKeys.value['config'] = true
   }
   if (route.path.startsWith('/pharmacy-testing') || route.path.startsWith('/medical-testing') || route.path.startsWith('/turnos-medicos-testing') || route.path.startsWith('/whisper-testing') || route.path.startsWith('/chat-visualizer') || route.path.startsWith('/enav-testing')) {
@@ -169,9 +169,9 @@ const menuItems = computed<MenuItem[]>(() => {
             route: '/domains'
           },
           {
-            label: 'Intents y Respuestas',
-            icon: 'pi pi-cog',
-            route: '/intent-configs'
+            label: 'LangGraph Topología',
+            icon: 'pi pi-share-alt',
+            route: '/graph-topology'
           },
           {
             label: 'Editor Workflows',

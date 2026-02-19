@@ -3,12 +3,14 @@
  * GeneralSettingsTab - General institution information.
  */
 
+import { onMounted } from 'vue'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 import Select from 'primevue/select'
 import ToggleSwitch from 'primevue/toggleswitch'
 import Message from 'primevue/message'
 import { INSTITUTION_TYPES } from '@/types/tenantInstitutionConfig.types'
+import { useDomains } from '@/composables/useDomains'
 
 // ============================================================
 // Props & Model
@@ -23,11 +25,22 @@ defineProps<Props>()
 const institutionKey = defineModel<string>('institutionKey', { required: true })
 const institutionName = defineModel<string>('institutionName', { required: true })
 const institutionType = defineModel<string>('institutionType', { required: true })
+const domainKey = defineModel<string | null>('domainKey', { required: true })
 const enabled = defineModel<boolean>('enabled', { required: true })
 const description = defineModel<string>('description', { required: true })
 const institutionId = defineModel<string>('institutionId', { required: true })
 const campaignId = defineModel<string>('campaignId', { required: true })
 const hcwebInstitutionId = defineModel<string>('hcwebInstitutionId', { required: true })
+
+// ============================================================
+// Domains
+// ============================================================
+
+const { fetchDomains, getDomainOptions } = useDomains()
+
+onMounted(() => {
+  fetchDomains()
+})
 </script>
 
 <template>
@@ -80,6 +93,27 @@ const hcwebInstitutionId = defineModel<string>('hcwebInstitutionId', { required:
         placeholder="Seleccionar tipo"
         appendTo="self"
       />
+    </div>
+
+    <!-- Domain Key -->
+    <div class="field">
+      <label for="domain_key" class="block text-sm font-medium text-gray-700 mb-1">
+        Dominio
+      </label>
+      <Select
+        id="domain_key"
+        v-model="domainKey"
+        :options="getDomainOptions(true)"
+        optionLabel="label"
+        optionValue="value"
+        class="w-full"
+        placeholder="Sin dominio especifico"
+        appendTo="self"
+        showClear
+      />
+      <small class="text-gray-500">
+        Dominio asociado (ej: turnos_medicos, pharmacy). Opcional.
+      </small>
     </div>
 
     <!-- External Institution ID (Optional - for HCWeb/SOAP integrations) -->

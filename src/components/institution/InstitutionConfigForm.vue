@@ -168,6 +168,7 @@ function handleCancel() {
             v-model:institutionKey="formState.institution_key"
             v-model:institutionName="formState.institution_name"
             v-model:institutionType="formState.institution_type"
+            v-model:domainKey="formState.domain_key"
             v-model:enabled="formState.enabled"
             v-model:description="formState.description"
             v-model:institutionId="formState.institution_id"

@@ -1,27 +1,23 @@
 <script setup lang="ts">
 /**
- * IntentConfigGraph - Main component for the graph-based intent configuration editor
+ * IntentConfigGraph - Main component for the LangGraph topology editor
  *
- * Displays a visual graph: [Domain] → [Intent] → [Agent] → [Keywords]
- * with a detail drawer for editing selected nodes.
+ * Displays the real LangGraph topology (graph_v2.py):
+ * START → ROUTER → [action nodes] → RESPONSE_FORMATTER → END
+ * with a detail drawer for editing selected node configurations.
  */
-import { ref, onMounted, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import Select from 'primevue/select'
 import Button from 'primevue/button'
 import ProgressSpinner from 'primevue/progressspinner'
 import Tag from 'primevue/tag'
-import Dialog from 'primevue/dialog'
-import InputText from 'primevue/inputtext'
-import InputNumber from 'primevue/inputnumber'
-import Textarea from 'primevue/textarea'
-import Checkbox from 'primevue/checkbox'
-import type { DomainKey, IntentCreate } from '@/types/domainIntents.types'
 
 import IntentConfigGraphCanvas from './IntentConfigGraphCanvas.vue'
 import IntentConfigDetailDrawer from './IntentConfigDetailDrawer.vue'
 import { useIntentConfigGraph } from './composables/useIntentConfigGraph'
-import type { GraphNodeType } from './types'
-import { STATUS_CONFIGS } from './types'
+import { DOMAIN_CONFIGS } from './types'
+import { graphTopologyApi } from '@/api/graphTopology.api'
+import type { InstitutionConfigSummary } from '@/types/graphTopology.types'
 
 // Props
 interface Props {
@@ -38,120 +34,47 @@ const {
   edges,
   selectedNodeId,
   selectedNode,
-  highlightedPath,
-  filters,
+  drawerVisible,
+  domainKey,
+  availableDomains,
   isLoading,
   error,
-  drawerVisible,
-  availableDomains,
   stats,
-  intentMappings,
-  flowAgents,
-  keywordMappings,
-  fetchAllData,
+  fetchTopology,
   selectNode,
   clearSelection,
-  setFilter,
-  clearFilters,
-  createIntent,
-  deleteIntent,
-  updateIntent,
-  createMapping,
-  updateMapping,
-  deleteMapping,
-  addKeywords,
-  deleteKeyword,
-  updateFlowAgent
+  setDomain,
+  updateRoutingConfig,
+  updateAwaitingTypeConfig
 } = useIntentConfigGraph()
 
-// ==========================================================================
-// Create Intent Dialog State
-// ==========================================================================
+// Domain options for the dropdown
+const domainOptions = Object.values(DOMAIN_CONFIGS).map((d) => ({
+  label: d.displayName,
+  value: d.key
+}))
 
-interface IntentFormData extends IntentCreate {
-  is_enabled: boolean
-  exact_match: boolean
-}
+// Linked institution configs
+const linkedConfigs = ref<InstitutionConfigSummary[]>([])
 
-const defaultFormData: IntentFormData = {
-  intent_key: '',
-  name: '',
-  description: '',
-  weight: 1.0,
-  priority: 50,
-  is_enabled: true,
-  exact_match: false
-}
-
-const showCreateDialog = ref(false)
-const savingIntent = ref(false)
-const createFormData = ref<IntentFormData>({ ...defaultFormData })
-
-// Get selected domain for creating intent (use filter or first available)
-function getSelectedDomainForCreate(): DomainKey | null {
-  if (filters.value.domainKey) {
-    return filters.value.domainKey as DomainKey
+async function fetchLinkedConfigs() {
+  if (!domainKey.value) {
+    linkedConfigs.value = []
+    return
   }
-  // If no filter, return first available domain
-  if (availableDomains.value.length > 0) {
-    return availableDomains.value[0].key as DomainKey
-  }
-  return null
-}
-
-function openCreateIntentDialog() {
-  createFormData.value = { ...defaultFormData }
-  showCreateDialog.value = true
-}
-
-function closeCreateIntentDialog() {
-  showCreateDialog.value = false
-}
-
-async function handleSaveIntent() {
-  const domainKey = getSelectedDomainForCreate()
-  if (!domainKey) return
-
-  savingIntent.value = true
   try {
-    const data: IntentCreate = {
-      intent_key: createFormData.value.intent_key,
-      name: createFormData.value.name,
-      description: createFormData.value.description || undefined,
-      weight: createFormData.value.weight,
-      priority: createFormData.value.priority,
-      is_enabled: createFormData.value.is_enabled,
-      exact_match: createFormData.value.exact_match
-    }
-    const success = await createIntent(domainKey, data)
-    if (success) {
-      closeCreateIntentDialog()
-    }
-  } finally {
-    savingIntent.value = false
+    linkedConfigs.value = await graphTopologyApi.getDomainInstitutionConfigs(domainKey.value)
+  } catch {
+    linkedConfigs.value = []
   }
 }
 
-// Status filter options
-const statusOptions = [
-  { label: 'Todos', value: 'all' },
-  { label: 'Activos', value: 'active' },
-  { label: 'Inactivos', value: 'idle' },
-  { label: 'Sin usar', value: 'unused' },
-  { label: 'Huérfanos', value: 'orphaned' }
-]
-
-// Domain filter options
-const domainOptions = [
-  { label: 'Todos los dominios', value: null },
-  ...availableDomains.value.map(d => ({
-    label: d.name,
-    value: d.key
-  }))
-]
+watch(domainKey, () => {
+  fetchLinkedConfigs()
+})
 
 // Handle node click
-function handleNodeClick(nodeId: string, nodeType: GraphNodeType) {
+function handleNodeClick(nodeId: string) {
   selectNode(nodeId)
 }
 
@@ -165,95 +88,62 @@ function handleDrawerClose() {
   drawerVisible.value = false
 }
 
-// Handle domain filter change
-function handleDomainFilter(domain: string | null) {
-  setFilter('domainKey', domain)
+// Handle domain change
+function handleDomainChange(event: { value: string }) {
+  setDomain(event.value)
 }
 
-// Handle status filter change
-function handleStatusFilter(status: string) {
-  setFilter('status', status as 'all' | 'active' | 'idle' | 'unused' | 'orphaned')
+// Handle config toggle from panels
+function handleToggleRoutingConfig(configId: string, enabled: boolean) {
+  updateRoutingConfig(configId, { is_enabled: enabled })
 }
 
-// Handle toggle disabled
-function handleToggleDisabled() {
-  setFilter('showDisabled', !filters.value.showDisabled)
+function handleToggleAwaitingConfig(configId: string, enabled: boolean) {
+  updateAwaitingTypeConfig(configId, { is_enabled: enabled })
 }
 
-// Refresh data
+// Handle generic routing config update (clears_context, metadata, etc.)
+function handleUpdateRoutingConfig(configId: string, updates: Record<string, unknown>) {
+  updateRoutingConfig(configId, updates)
+}
+
+// Refresh
 function handleRefresh() {
-  fetchAllData()
+  fetchTopology()
 }
 
 // Lifecycle
 onMounted(() => {
-  fetchAllData()
+  fetchTopology()
+  fetchLinkedConfigs()
 })
 </script>
 
 <template>
-  <div class="intent-config-graph">
+  <div class="topology-graph">
     <!-- Header / Toolbar -->
     <div class="graph-toolbar">
       <div class="toolbar-left">
         <h2 class="toolbar-title">
-          <i class="pi pi-sitemap" />
-          Configuración de Intents
+          <i class="pi pi-share-alt" />
+          LangGraph Topology
         </h2>
       </div>
 
       <div class="toolbar-center">
-        <!-- Domain Filter -->
+        <!-- Domain Selector -->
         <Select
-          v-model="filters.domainKey"
+          :modelValue="domainKey"
           :options="domainOptions"
           optionLabel="label"
           optionValue="value"
           placeholder="Dominio"
-          class="filter-select"
-          @change="(e) => handleDomainFilter(e.value)"
-        />
-
-        <!-- Status Filter -->
-        <Select
-          v-model="filters.status"
-          :options="statusOptions"
-          optionLabel="label"
-          optionValue="value"
-          placeholder="Estado"
-          class="filter-select"
-          @change="(e) => handleStatusFilter(e.value)"
-        />
-
-        <!-- Show Disabled Toggle -->
-        <Button
-          :icon="filters.showDisabled ? 'pi pi-eye' : 'pi pi-eye-slash'"
-          :severity="filters.showDisabled ? 'secondary' : 'contrast'"
-          text
-          @click="handleToggleDisabled"
-          v-tooltip="filters.showDisabled ? 'Ocultar deshabilitados' : 'Mostrar deshabilitados'"
-        />
-
-        <!-- Clear Filters -->
-        <Button
-          icon="pi pi-filter-slash"
-          severity="secondary"
-          text
-          @click="clearFilters"
-          v-tooltip="'Limpiar filtros'"
+          class="domain-select"
+          @change="handleDomainChange"
         />
       </div>
 
       <div class="toolbar-right">
-        <!-- Create Intent -->
-        <Button
-          label="Nuevo Intent"
-          icon="pi pi-plus"
-          severity="success"
-          @click="openCreateIntentDialog"
-          v-tooltip="'Crear un nuevo intent'"
-        />
-
         <!-- Refresh -->
         <Button
           icon="pi pi-refresh"
@@ -269,35 +159,43 @@ onMounted(() => {
     <!-- Stats Bar -->
     <div class="stats-bar">
       <div class="stat-item">
-        <span class="stat-value">{{ stats.totalDomains }}</span>
-        <span class="stat-label">Dominios</span>
+        <span class="stat-value">{{ stats.nodes }}</span>
+        <span class="stat-label">Nodos</span>
       </div>
       <div class="stat-item">
-        <span class="stat-value">{{ stats.totalIntents }}</span>
-        <span class="stat-label">Intents</span>
+        <span class="stat-value">{{ stats.edges }}</span>
+        <span class="stat-label">Conexiones</span>
       </div>
       <div class="stat-item">
-        <span class="stat-value">{{ stats.totalMappings }}</span>
-        <span class="stat-label">Mappings</span>
+        <span class="stat-value">{{ stats.routingConfigs }}</span>
+        <span class="stat-label">Routing</span>
       </div>
       <div class="stat-item">
-        <span class="stat-value">{{ stats.totalAgents }}</span>
-        <span class="stat-label">Agentes</span>
+        <span class="stat-value">{{ stats.awaitingTypes }}</span>
+        <span class="stat-label">Awaiting</span>
       </div>
-      <div class="stat-item">
-        <span class="stat-value">{{ stats.totalKeywords }}</span>
-        <span class="stat-label">Keywords</span>
-      </div>
-      <div class="stat-item flow">
-        <span class="stat-value">{{ stats.totalFlowAgents }}</span>
-        <span class="stat-label">Flow Agents</span>
+    </div>
+
+    <!-- Linked Institution Configs -->
+    <div v-if="linkedConfigs.length > 0" class="linked-configs-bar">
+      <span class="linked-configs-label">
+        <i class="pi pi-building" />
+        Instituciones vinculadas:
+      </span>
+      <div class="linked-configs-list">
+        <Tag
+          v-for="cfg in linkedConfigs"
+          :key="cfg.id"
+          :severity="cfg.enabled ? 'success' : 'secondary'"
+          :value="cfg.institution_name"
+        />
       </div>
     </div>
 
     <!-- Loading State -->
     <div v-if="isLoading && nodes.length === 0" class="loading-state">
       <ProgressSpinner />
-      <p>Cargando configuración de intents...</p>
+      <p>Cargando topologia del grafo...</p>
     </div>
 
     <!-- Error State -->
@@ -313,7 +211,6 @@ onMounted(() => {
       :nodes="nodes"
       :edges="edges"
       :selected-node-id="selectedNodeId"
-      :highlighted-path="highlightedPath"
       :height="height"
       @node-click="handleNodeClick"
       @pane-click="handlePaneClick"
@@ -324,30 +221,31 @@ onMounted(() => {
       <div class="legend-title">Leyenda</div>
       <div class="legend-items">
         <div class="legend-item">
-          <span class="legend-dot domain" />
-          <span>Dominio</span>
+          <span class="legend-dot" style="background: #10b981" />
+          <span>Terminal</span>
         </div>
         <div class="legend-item">
-          <span class="legend-dot intent" />
-          <span>Intent</span>
+          <span class="legend-dot" style="background: #8b5cf6" />
+          <span>Supervisor</span>
         </div>
         <div class="legend-item">
-          <span class="legend-dot agent" />
-          <span>Agente</span>
+          <span class="legend-dot" style="background: #3b82f6" />
+          <span>Action</span>
         </div>
         <div class="legend-item">
-          <span class="legend-dot keyword" />
-          <span>Keywords</span>
+          <span class="legend-dot" style="background: #a855f7" />
+          <span>Formatter</span>
         </div>
       </div>
-      <div class="legend-status">
-        <Tag
-          v-for="(config, status) in STATUS_CONFIGS"
-          :key="status"
-          :value="config.label"
-          :style="{ backgroundColor: config.bgColor, color: config.color }"
-          class="status-tag"
-        />
+      <div class="legend-edges">
+        <div class="legend-item">
+          <span class="legend-line solid" />
+          <span>Directo</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-line dashed" />
+          <span>Condicional</span>
+        </div>
       </div>
     </div>
 
@@ -355,124 +253,17 @@ onMounted(() => {
     <IntentConfigDetailDrawer
       v-model:visible="drawerVisible"
       :selected-node="selectedNode"
-      :intent-mappings="intentMappings"
-      :flow-agents="flowAgents"
-      :keyword-mappings="keywordMappings"
+      :domain-key="domainKey"
       @close="handleDrawerClose"
-      @update-intent="updateIntent"
-      @delete-intent="deleteIntent"
-      @create-mapping="createMapping"
-      @update-mapping="updateMapping"
-      @delete-mapping="deleteMapping"
-      @add-keywords="addKeywords"
-      @delete-keyword="deleteKeyword"
-      @update-flow-agent="updateFlowAgent"
-      @refresh="handleRefresh"
+      @toggle-routing-config="handleToggleRoutingConfig"
+      @toggle-awaiting-config="handleToggleAwaitingConfig"
+      @update-routing-config="handleUpdateRoutingConfig"
     />
-
-    <!-- Create Intent Dialog -->
-    <Dialog
-      v-model:visible="showCreateDialog"
-      header="Nuevo Intent"
-      :modal="true"
-      :style="{ width: '500px' }"
-      class="intent-create-dialog"
-    >
-      <div class="dialog-content">
-        <!-- Domain Info -->
-        <div class="domain-info">
-          <i class="pi pi-info-circle" />
-          <span>
-            El intent se creará en el dominio:
-            <strong>{{ filters.domainKey || availableDomains[0]?.name || 'Sin dominio' }}</strong>
-          </span>
-        </div>
-
-        <div class="field">
-          <label for="intent_key">Intent Key *</label>
-          <InputText
-            id="intent_key"
-            v-model="createFormData.intent_key"
-            placeholder="ej: check_stock, request_price"
-            class="w-full"
-          />
-          <small class="text-muted">Identificador único del intent (snake_case)</small>
-        </div>
-
-        <div class="field">
-          <label for="name">Nombre *</label>
-          <InputText
-            id="name"
-            v-model="createFormData.name"
-            placeholder="ej: Consulta de Stock"
-            class="w-full"
-          />
-        </div>
-
-        <div class="field">
-          <label for="description">Descripción</label>
-          <Textarea
-            id="description"
-            v-model="createFormData.description"
-            rows="3"
-            placeholder="Descripción del intent y cuándo se activa"
-            class="w-full"
-          />
-        </div>
-
-        <div class="field-row">
-          <div class="field">
-            <label for="weight">Peso</label>
-            <InputNumber
-              id="weight"
-              v-model="createFormData.weight"
-              :min="0"
-              :max="9.99"
-              :minFractionDigits="2"
-              :maxFractionDigits="2"
-              class="w-full"
-            />
-          </div>
-          <div class="field">
-            <label for="priority">Prioridad</label>
-            <InputNumber
-              id="priority"
-              v-model="createFormData.priority"
-              :min="0"
-              :max="100"
-              class="w-full"
-            />
-          </div>
-        </div>
-
-        <div class="field-row">
-          <div class="field checkbox-field">
-            <Checkbox v-model="createFormData.is_enabled" :binary="true" inputId="is_enabled" />
-            <label for="is_enabled">Activo</label>
-          </div>
-          <div class="field checkbox-field">
-            <Checkbox v-model="createFormData.exact_match" :binary="true" inputId="exact_match" />
-            <label for="exact_match">Match Exacto</label>
-          </div>
-        </div>
-      </div>
-
-      <template #footer>
-        <Button label="Cancelar" severity="secondary" text @click="closeCreateIntentDialog" />
-        <Button
-          label="Crear Intent"
-          icon="pi pi-check"
-          @click="handleSaveIntent"
-          :loading="savingIntent"
-          :disabled="!createFormData.intent_key || !createFormData.name"
-        />
-      </template>
-    </Dialog>
   </div>
 </template>
 
 <style scoped>
-.intent-config-graph {
+.topology-graph {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -516,8 +307,8 @@ onMounted(() => {
   gap: 0.5rem;
 }
 
-.filter-select {
-  width: 160px;
+.domain-select {
+  width: 180px;
 }
 
 .toolbar-right {
@@ -553,8 +344,31 @@ onMounted(() => {
   text-transform: uppercase;
 }
 
-.stat-item.flow .stat-value {
-  color: #f59e0b;
+/* Linked Institution Configs */
+.linked-configs-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: var(--surface-ground);
+  border-radius: 0.375rem;
+  flex-wrap: wrap;
+}
+
+.linked-configs-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-color-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  white-space: nowrap;
+}
+
+.linked-configs-list {
+  display: flex;
+  gap: 0.375rem;
+  flex-wrap: wrap;
 }
 
 /* Loading State */
@@ -589,7 +403,8 @@ onMounted(() => {
   bottom: 1rem;
   left: 1rem;
   padding: 0.75rem;
-  background: white;
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
   border-radius: 0.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   z-index: 10;
@@ -598,7 +413,7 @@ onMounted(() => {
 .legend-title {
   font-weight: 600;
   font-size: 0.75rem;
-  color: #374151;
+  color: var(--text-color);
   margin-bottom: 0.5rem;
 }
 
@@ -614,7 +429,7 @@ onMounted(() => {
   align-items: center;
   gap: 0.25rem;
   font-size: 0.7rem;
-  color: #64748b;
+  color: var(--text-color-secondary);
 }
 
 .legend-dot {
@@ -623,88 +438,38 @@ onMounted(() => {
   border-radius: 2px;
 }
 
-.legend-dot.domain {
-  background: #10b981;
-}
-
-.legend-dot.intent {
-  background: #3b82f6;
-}
-
-.legend-dot.agent {
-  background: #8b5cf6;
-}
-
-.legend-dot.keyword {
-  background: #94a3b8;
-}
-
-.legend-status {
+.legend-edges {
   display: flex;
-  gap: 0.375rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid #e2e8f0;
+  gap: 0.75rem;
+  padding-top: 0.375rem;
+  border-top: 1px solid var(--surface-border);
 }
 
-.status-tag {
-  font-size: 0.6rem;
-  padding: 2px 6px;
+.legend-line {
+  display: inline-block;
+  width: 20px;
+  height: 2px;
 }
 
-/* Create Intent Dialog */
-.dialog-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+.legend-line.solid {
+  background: #64748b;
 }
 
-.domain-info {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  background: var(--surface-ground);
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  color: var(--text-color-secondary);
+.legend-line.dashed {
+  background: repeating-linear-gradient(
+    90deg,
+    #8b5cf6,
+    #8b5cf6 4px,
+    transparent 4px,
+    transparent 8px
+  );
 }
 
-.domain-info i {
-  color: var(--primary-color);
-}
-
-.domain-info strong {
-  color: var(--text-color);
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.field label {
-  font-weight: 500;
-  font-size: 0.875rem;
-}
-
-.field .text-muted {
-  font-size: 0.75rem;
-  color: var(--text-color-secondary);
-}
-
-.field-row {
-  display: flex;
-  gap: 1rem;
-}
-
-.field-row .field {
-  flex: 1;
-}
-
-.checkbox-field {
-  flex-direction: row !important;
-  align-items: center;
-  gap: 0.5rem !important;
+/* Dark mode legend */
+:root.dark .graph-legend,
+.dark-mode .graph-legend,
+[data-theme="dark"] .graph-legend {
+  background: #1e293b;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
 }
 </style>

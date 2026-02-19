@@ -26,6 +26,7 @@ const emit = defineEmits<{
   (e: 'selectInstitution'): void
   (e: 'selectWorkflow'): void
   (e: 'showInstitutionInfo'): void
+  (e: 'newWorkflow'): void
 }>()
 </script>
 
@@ -64,30 +65,40 @@ const emit = defineEmits<{
         <!-- Workflow Selector -->
         <div class="flex-auto">
           <label class="block text-sm font-medium text-gray-700 mb-1 ml-4">Workflow</label>
-          <Select
-            :modelValue="selectedWorkflowId"
-            @update:modelValue="(v) => emit('update:selectedWorkflowId', v)"
-            :options="workflows"
-            optionLabel="display_name"
-            optionValue="id"
-            placeholder="Selecciona un workflow"
-            class="w-full"
-            :disabled="!selectedInstitutionId"
-            showClear
-            @change="emit('selectWorkflow')"
-          >
-            <template #option="{ option }">
-              <div class="flex items-center gap-2">
-                <Tag
-                  :value="option.workflow_type"
-                  :severity="option.is_draft ? 'warn' : 'success'"
-                  class="text-xs"
-                />
-                <span>{{ option.display_name }}</span>
-                <Tag v-if="option.is_draft" value="Draft" severity="secondary" class="text-xs ml-auto" />
-              </div>
-            </template>
-          </Select>
+          <div class="flex items-center gap-2">
+            <Select
+              :modelValue="selectedWorkflowId"
+              @update:modelValue="(v) => emit('update:selectedWorkflowId', v)"
+              :options="workflows"
+              optionLabel="display_name"
+              optionValue="id"
+              placeholder="Selecciona un workflow"
+              class="flex-1"
+              :disabled="!selectedInstitutionId"
+              showClear
+              @change="emit('selectWorkflow')"
+            >
+              <template #option="{ option }">
+                <div class="flex items-center gap-2">
+                  <Tag
+                    :value="option.workflow_type"
+                    :severity="option.is_draft ? 'warn' : 'success'"
+                    class="text-xs"
+                  />
+                  <span>{{ option.display_name }}</span>
+                  <Tag v-if="option.is_draft" value="Draft" severity="secondary" class="text-xs ml-auto" />
+                </div>
+              </template>
+            </Select>
+            <Button
+              icon="pi pi-plus"
+              severity="success"
+              :disabled="!selectedInstitutionId"
+              @click="emit('newWorkflow')"
+              v-tooltip.top="'Nuevo workflow'"
+              class="flex-shrink-0"
+            />
+          </div>
         </div>
 
         <div v-if="currentWorkflow" class="flex gap-4 text-sm">

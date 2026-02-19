@@ -320,26 +320,32 @@ const router = createRouter({
           }
         },
 
-        // Pharmacy Intent Patterns - REDIRECT to Intent Configs
+        // Pharmacy Intent Patterns - REDIRECT to Graph Topology
         {
           path: 'pharmacy-intents',
-          redirect: '/intent-configs'
+          redirect: '/graph-topology'
         },
 
-        // Domain Intents - REDIRECT to Intent Configs (compatibility)
+        // Domain Intents - REDIRECT to Graph Topology (compatibility)
         {
           path: 'domain-intents',
-          redirect: '/intent-configs'
+          redirect: '/graph-topology'
         },
 
-        // Intent Configs - Multi-domain intent and response config management
+        // Intent Configs - REDIRECT to Graph Topology (compatibility)
         {
           path: 'intent-configs',
-          name: 'IntentConfigs',
+          redirect: '/graph-topology'
+        },
+
+        // Graph Topology - LangGraph topology visualizer and config
+        {
+          path: 'graph-topology',
+          name: 'GraphTopology',
           component: () => import('@/pages/admin/IntentConfigsPage.vue'),
           meta: {
-            title: 'Gestión de Intents y Respuestas',
-            icon: 'pi-cog',
+            title: 'Topología del Grafo',
+            icon: 'pi-share-alt',
             requiresOrg: true,
             requiresAdmin: true
           }

@@ -11,7 +11,7 @@
  * Migrated to shadcn-vue components.
  */
 
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import {
   Table,
   TableBody,
@@ -30,6 +30,7 @@ import {
   TooltipTrigger
 } from '@/components/ui/tooltip'
 import type { TenantInstitutionConfig } from '@/types/tenantInstitutionConfig.types'
+import { useDomains } from '@/composables/useDomains'
 
 // ============================================================
 // Props & Emits
@@ -57,6 +58,12 @@ const emit = defineEmits<{
 // ============================================================
 
 const tableConfigs = computed(() => props.configs)
+
+const { fetchDomains, getDomainLabel, getDomainColor } = useDomains()
+
+onMounted(() => {
+  fetchDomains()
+})
 
 // ============================================================
 // Methods
@@ -172,6 +179,7 @@ function formatDate(dateStr: string | null): string {
           <TableHead class="w-[180px]">Clave</TableHead>
           <TableHead>Nombre</TableHead>
           <TableHead class="w-[120px]">Tipo</TableHead>
+          <TableHead class="w-[120px]">Dominio</TableHead>
           <TableHead class="w-[120px]">Conexion</TableHead>
           <TableHead class="w-[100px]">Auth</TableHead>
           <TableHead class="w-[100px]">WhatsApp</TableHead>
@@ -209,6 +217,17 @@ function formatDate(dateStr: string | null): string {
             <Badge :variant="getTypeBadgeVariant(config.institution_type)">
               {{ getTypeLabel(config.institution_type) }}
             </Badge>
+          </TableCell>
+
+          <!-- Dominio -->
+          <TableCell>
+            <Badge
+              v-if="config.domain_key"
+              :variant="getDomainColor(config.domain_key) === 'secondary' ? 'secondary' : 'info'"
+            >
+              {{ getDomainLabel(config.domain_key) }}
+            </Badge>
+            <span v-else class="text-muted-foreground text-sm">-</span>
           </TableCell>
 
           <!-- Conexion -->

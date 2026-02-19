@@ -386,6 +386,10 @@ function handlePaneClick() {
 
     <!-- Workflow Selector (shown when no workflow is loaded) -->
     <div v-if="!currentWorkflow" class="workflow-selector-overlay">
+      <button class="overlay-back-button" @click="router.push('/admin')">
+        <i class="pi pi-arrow-left" />
+        <span>Volver al menú</span>
+      </button>
       <WorkflowSelector
         :institutions="institutions"
         :workflows="workflows"
@@ -397,7 +401,7 @@ function handlePaneClick() {
         :isLoadingInstitutions="isLoadingInstitutions"
         @selectInstitution="onInstitutionSelect"
         @showInstitutionInfo="uiState.openInstitutionInfo"
-        @newWorkflow="uiState.openWorkflowDialog"
+        @newWorkflow="showWorkflowDialog = true"
       />
     </div>
 
@@ -621,6 +625,29 @@ function handlePaneClick() {
   justify-content: center;
   padding: 24px;
   background: linear-gradient(135deg, #0c1d3d 0%, #1e3a5f 50%, #0c1d3d 100%);
+  position: relative;
+}
+
+.overlay-back-button {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.overlay-back-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
 }
 
 .editor-main {

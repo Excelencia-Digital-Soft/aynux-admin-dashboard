@@ -147,6 +147,7 @@ export interface TenantInstitutionConfig {
   institution_name: string
   institution_type: string
   enabled: boolean
+  domain_key?: string | null
   description?: string
   settings: InstitutionSettings
   has_secrets: boolean
@@ -163,6 +164,7 @@ export interface InstitutionConfigCreateRequest {
   institution_name: string
   institution_type?: string
   enabled?: boolean
+  domain_key?: string | null
   description?: string
   settings?: Partial<InstitutionSettings>
 }
@@ -171,6 +173,7 @@ export interface InstitutionConfigUpdateRequest {
   institution_name?: string
   institution_type?: string
   enabled?: boolean
+  domain_key?: string | null
   description?: string
   settings?: Partial<InstitutionSettings>
 }
@@ -194,6 +197,7 @@ export interface InstitutionConfigListParams {
   page?: number
   page_size?: number
   institution_type?: string
+  domain_key?: string
   search?: string
   enabled_only?: boolean
 }
@@ -207,6 +211,7 @@ export interface InstitutionConfigFormState {
   institution_key: string
   institution_name: string
   institution_type: string
+  domain_key: string | null
   enabled: boolean
   description: string
   /** External system institution ID (e.g., HCWeb IdInstitucion) */
@@ -368,6 +373,7 @@ export function getDefaultFormState(): InstitutionConfigFormState {
     institution_key: '',
     institution_name: '',
     institution_type: 'generic',
+    domain_key: null,
     enabled: true,
     description: '',
     institution_id: '',
@@ -389,6 +395,7 @@ export function configToFormState(config: TenantInstitutionConfig): InstitutionC
     institution_key: config.institution_key,
     institution_name: config.institution_name,
     institution_type: config.institution_type,
+    domain_key: config.domain_key || null,
     enabled: config.enabled,
     description: config.description || '',
     institution_id: config.settings.institution_id || '',
@@ -413,6 +420,7 @@ export function formStateToCreateRequest(
     institution_name: state.institution_name,
     institution_type: state.institution_type,
     enabled: state.enabled,
+    domain_key: state.domain_key,
     description: state.description || undefined,
     settings: {
       institution_id: state.institution_id || undefined,
@@ -439,6 +447,7 @@ export function formStateToUpdateRequest(
     institution_name: state.institution_name,
     institution_type: state.institution_type,
     enabled: state.enabled,
+    domain_key: state.domain_key,
     description: state.description || undefined,
     settings: {
       institution_id: state.institution_id || undefined,
