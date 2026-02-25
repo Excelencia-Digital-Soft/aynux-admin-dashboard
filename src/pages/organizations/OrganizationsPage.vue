@@ -7,10 +7,19 @@ import OrganizationList from '@/components/organizations/OrganizationList.vue'
 import OrganizationForm from '@/components/organizations/OrganizationForm.vue'
 import type { Organization } from '@/types/organization.types'
 
-import Card from 'primevue/card'
-import Button from 'primevue/button'
-import Dialog from 'primevue/dialog'
-import Message from 'primevue/message'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction
+} from '@/components/ui/alert-dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 const router = useRouter()
 const store = useOrganizationStore()
@@ -39,11 +48,6 @@ async function confirmDelete() {
     orgToDelete.value = null
   }
 }
-
-function cancelDelete() {
-  showDeleteDialog.value = false
-  orgToDelete.value = null
-}
 </script>
 
 <template>
@@ -51,63 +55,65 @@ function cancelDelete() {
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-2xl font-bold text-gray-800">Organizaciones</h1>
-        <p class="text-gray-500 mt-1">
+        <h1 class="text-2xl font-bold text-foreground">Organizaciones</h1>
+        <p class="text-muted-foreground mt-1">
           Administra las organizaciones del sistema
         </p>
       </div>
-      <Button
-        label="Nueva Organizacion"
-        icon="pi pi-plus"
-        @click="openOrgDialog(null)"
-      />
+      <Button @click="openOrgDialog(null)">
+        <i class="pi pi-plus mr-2" />
+        Nueva Organizacion
+      </Button>
     </div>
 
     <!-- Content -->
-    <Card>
-      <template #content>
+    <Card class="glass-card">
+      <CardContent class="p-4">
         <OrganizationList
           @select="handleSelect"
           @edit="handleEdit"
           @delete="handleDelete"
         />
-      </template>
+      </CardContent>
     </Card>
 
     <!-- Form Dialog -->
     <OrganizationForm />
 
     <!-- Delete Confirmation Dialog -->
-    <Dialog
-      v-model:visible="showDeleteDialog"
-      header="Eliminar Organizacion"
-      :modal="true"
-      :style="{ width: '400px' }"
-    >
-      <div class="flex items-center gap-4">
-        <i class="pi pi-exclamation-triangle text-4xl text-red-500" />
-        <div>
-          <p class="font-medium">Esta seguro de eliminar esta organizacion?</p>
-          <p class="text-sm text-gray-500 mt-1">
-            {{ orgToDelete?.name }}
-          </p>
-        </div>
-      </div>
+    <AlertDialog v-model:open="showDeleteDialog">
+      <AlertDialogContent class="glass-dialog">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Eliminar Organizacion</AlertDialogTitle>
+          <AlertDialogDescription>
+            <div class="flex items-center gap-4 mb-4">
+              <i class="pi pi-exclamation-triangle text-4xl text-destructive" />
+              <div>
+                <p class="font-medium text-foreground">Esta seguro de eliminar esta organizacion?</p>
+                <p class="text-sm text-muted-foreground mt-1">
+                  {{ orgToDelete?.name }}
+                </p>
+              </div>
+            </div>
 
-      <Message severity="warn" :closable="false" class="mt-4">
-        Esta accion eliminara todos los usuarios y documentos asociados.
-      </Message>
-
-      <template #footer>
-        <Button label="Cancelar" severity="secondary" @click="cancelDelete" />
-        <Button label="Eliminar" severity="danger" icon="pi pi-trash" @click="confirmDelete" />
-      </template>
-    </Dialog>
+            <Alert variant="warning">
+              <AlertDescription>
+                Esta accion eliminara todos los usuarios y documentos asociados.
+              </AlertDescription>
+            </Alert>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            @click="confirmDelete"
+          >
+            <i class="pi pi-trash mr-2" />
+            Eliminar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 </template>
-
-<style scoped>
-.organizations-page :deep(.p-card-content) {
-  padding: 1rem;
-}
-</style>

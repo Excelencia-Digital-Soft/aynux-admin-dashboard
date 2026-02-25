@@ -27,7 +27,6 @@ export interface UseWorkflowEditorOptions {
 
 // Workflow type options
 export const workflowTypeOptions = [
-  { value: 'medical_appointment', label: 'Turnos Medicos' },
   { value: 'pharmacy', label: 'Farmacia' },
   { value: 'custom', label: 'Personalizado' }
 ]
@@ -71,7 +70,7 @@ export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}) {
   const newWorkflow = ref<WorkflowCreate>({
     institution_config_id: '',
     workflow_key: '',
-    workflow_type: 'medical_appointment',
+    workflow_type: 'custom',
     display_name: '',
     description: '',
     is_draft: true
@@ -138,7 +137,7 @@ export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}) {
   const validationErrors = computed(() => store.validationErrors)
   const hasValidationErrors = computed(() => store.hasValidationErrors)
 
-  // Load institutions for current organization
+  // Load institutions for current organization (lazy-loaded for NewWorkflowDialog)
   async function loadInstitutions() {
     const orgId = authStore.currentOrgId
     if (!orgId) {
@@ -149,15 +148,9 @@ export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}) {
     isLoadingInstitutions.value = true
     try {
       const response = await tenantInstitutionConfigApi.list(orgId, {
-        enabled_only: true,
-        institution_type: 'medical'
+        enabled_only: true
       })
       institutions.value = response.items
-
-      // Auto-select first institution if none selected
-      if (response.items.length > 0 && !selectedInstitutionId.value) {
-        selectedInstitutionId.value = response.items[0].id
-      }
     } catch (e) {
       toast.error('Error al cargar instituciones')
     } finally {
@@ -165,27 +158,18 @@ export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}) {
     }
   }
 
-  // Initialize with institution context
-  async function initialize(instConfigId?: string) {
-    // If institution ID provided, use it directly
-    if (instConfigId) {
-      selectedInstitutionId.value = instConfigId
-      store.setInstitutionContext(instConfigId)
-      await loadNodeDefinitions()
-      await loadWorkflows()
-      return
+  // Load all workflows across all institutions
+  async function loadAllWorkflows() {
+    try {
+      await store.loadAllWorkflows()
+    } catch (e) {
+      toast.error('Error al cargar workflows')
     }
+  }
 
-    // Otherwise, load institutions first
-    if (authStore.currentOrgId) {
-      await loadInstitutions()
-      // If we have a selected institution, initialize with it
-      if (selectedInstitutionId.value) {
-        store.setInstitutionContext(selectedInstitutionId.value)
-        await loadNodeDefinitions()
-        await loadWorkflows()
-      }
-    }
+  // Initialize: load all workflows + node definitions (no institution pre-selection)
+  async function initialize() {
+    await Promise.all([loadAllWorkflows(), loadNodeDefinitions()])
   }
 
   // Select a different institution
@@ -228,12 +212,10 @@ export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}) {
 
   // Create new workflow
   async function createWorkflow() {
-    if (!institutionConfigId.value) {
+    if (!newWorkflow.value.institution_config_id) {
       toast.error('Debe seleccionar una institucion')
       return
     }
-
-    newWorkflow.value.institution_config_id = institutionConfigId.value
 
     try {
       const created = await store.createWorkflow(newWorkflow.value)
@@ -457,9 +439,9 @@ export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}) {
   // Reset forms
   function resetWorkflowForm() {
     newWorkflow.value = {
-      institution_config_id: institutionConfigId.value || '',
+      institution_config_id: '',
       workflow_key: '',
-      workflow_type: 'medical_appointment',
+      workflow_type: 'custom',
       display_name: '',
       description: '',
       is_draft: true
@@ -503,9 +485,7 @@ export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}) {
   // Auto-fetch on mount
   if (autoFetch) {
     onMounted(() => {
-      if (authStore.currentOrgId) {
-        initialize()
-      }
+      initialize()
     })
   }
 
@@ -514,8 +494,6 @@ export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}) {
     () => authStore.currentOrgId,
     (newOrgId) => {
       if (newOrgId && autoFetch) {
-        // Reset institution selection when org changes
-        selectedInstitutionId.value = null
         institutions.value = []
         initialize()
       }
@@ -569,6 +547,7 @@ export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}) {
     initialize,
     loadInstitutions,
     selectInstitution,
+    loadAllWorkflows,
     loadWorkflows,
     loadWorkflow,
     createWorkflow,

@@ -1,120 +1,131 @@
 <script setup lang="ts">
-import Button from 'primevue/button'
-import Card from 'primevue/card'
-import Select from 'primevue/select'
-import Tag from 'primevue/tag'
-import type { TenantInstitutionConfig } from '@/types/tenantInstitutionConfig.types'
+/**
+ * WorkflowSelector - Selector for picking a workflow from all institutions
+ *
+ * Shows a single workflow dropdown with institution_name per workflow.
+ * No institution pre-selection required.
+ * Migrated from PrimeVue to shadcn-vue with glassmorphism.
+ */
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
 import type { WorkflowDefinition } from '@/types/workflow.types'
 
 defineProps<{
-  institutions: TenantInstitutionConfig[]
   workflows: WorkflowDefinition[]
-  selectedInstitutionId: string | null
   selectedWorkflowId: string | null
-  selectedInstitution: TenantInstitutionConfig | null
   currentWorkflow: WorkflowDefinition | null
   stats: {
     totalNodes: number
     totalTransitions: number
   }
-  isLoadingInstitutions: boolean
+  isLoading: boolean
 }>()
 
 const emit = defineEmits<{
-  (e: 'update:selectedInstitutionId', value: string | null): void
   (e: 'update:selectedWorkflowId', value: string | null): void
-  (e: 'selectInstitution'): void
   (e: 'selectWorkflow'): void
-  (e: 'showInstitutionInfo'): void
   (e: 'newWorkflow'): void
 }>()
+
+function handleWorkflowChange(value: string) {
+  emit('update:selectedWorkflowId', value)
+  emit('selectWorkflow')
+}
 </script>
 
 <template>
-  <Card class="mb-6">
-    <template #content>
+  <Card class="glass-card mb-6">
+    <CardContent class="pt-6">
       <div class="flex items-center gap-4">
-        <!-- Institution Selector -->
-        <div class="flex-auto">
-          <label class="block text-sm font-medium text-gray-700 mb-1">Institución Médica</label>
-          <div class="flex items-center gap-2">
-            <Select
-              :modelValue="selectedInstitutionId"
-              @update:modelValue="(v) => emit('update:selectedInstitutionId', v)"
-              :options="institutions"
-              optionLabel="institution_name"
-              optionValue="id"
-              placeholder="Selecciona institución"
-              class="flex-1"
-              :loading="isLoadingInstitutions"
-              @change="emit('selectInstitution')"
-            />
-            <Button
-              v-if="selectedInstitution"
-              icon="pi pi-info-circle"
-              severity="secondary"
-              text
-              rounded
-              @click="emit('showInstitutionInfo')"
-              v-tooltip.top="'Ver información de institución'"
-              class="flex-shrink-0"
-            />
-          </div>
-        </div>
-
         <!-- Workflow Selector -->
         <div class="flex-auto">
-          <label class="block text-sm font-medium text-gray-700 mb-1 ml-4">Workflow</label>
+          <Label class="mb-1 block text-gray-700 dark:text-gray-300">Workflow</Label>
           <div class="flex items-center gap-2">
             <Select
-              :modelValue="selectedWorkflowId"
-              @update:modelValue="(v) => emit('update:selectedWorkflowId', v)"
-              :options="workflows"
-              optionLabel="display_name"
-              optionValue="id"
-              placeholder="Selecciona un workflow"
-              class="flex-1"
-              :disabled="!selectedInstitutionId"
-              showClear
-              @change="emit('selectWorkflow')"
+              :model-value="selectedWorkflowId ?? undefined"
+              :disabled="isLoading"
+              @update:model-value="handleWorkflowChange"
             >
-              <template #option="{ option }">
-                <div class="flex items-center gap-2">
-                  <Tag
-                    :value="option.workflow_type"
-                    :severity="option.is_draft ? 'warn' : 'success'"
-                    class="text-xs"
-                  />
-                  <span>{{ option.display_name }}</span>
-                  <Tag v-if="option.is_draft" value="Draft" severity="secondary" class="text-xs ml-auto" />
-                </div>
-              </template>
+              <SelectTrigger class="flex-1">
+                <SelectValue
+                  :placeholder="isLoading ? 'Cargando...' : 'Selecciona un workflow'"
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem
+                  v-for="wf in workflows"
+                  :key="wf.id"
+                  :value="wf.id"
+                >
+                  <span class="flex items-center gap-2">
+                    <Badge
+                      :variant="wf.is_draft ? 'secondary' : 'default'"
+                      class="text-xs"
+                    >
+                      {{ wf.workflow_type }}
+                    </Badge>
+                    <span>{{ wf.display_name }}</span>
+                    <Badge v-if="wf.institution_name" variant="outline" class="text-xs">
+                      {{ wf.institution_name }}
+                    </Badge>
+                    <Badge v-if="wf.is_draft" variant="outline" class="ml-auto text-xs opacity-60">
+                      Draft
+                    </Badge>
+                  </span>
+                </SelectItem>
+              </SelectContent>
             </Select>
-            <Button
-              icon="pi pi-plus"
-              severity="success"
-              :disabled="!selectedInstitutionId"
-              @click="emit('newWorkflow')"
-              v-tooltip.top="'Nuevo workflow'"
-              class="flex-shrink-0"
-            />
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    size="icon"
+                    class="flex-shrink-0"
+                    @click="emit('newWorkflow')"
+                  >
+                    <i class="pi pi-plus" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Nuevo workflow</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
 
+        <!-- Stats -->
         <div v-if="currentWorkflow" class="flex gap-4 text-sm">
           <div class="text-center">
-            <div class="text-xl font-bold text-gray-800">{{ stats.totalNodes }}</div>
-            <div class="text-gray-500">Nodos</div>
+            <div class="text-xl font-bold text-gray-800 dark:text-gray-100">{{ stats.totalNodes }}</div>
+            <div class="text-gray-500 dark:text-gray-400">Nodos</div>
           </div>
           <div class="text-center">
-            <div class="text-xl font-bold text-gray-800">{{ stats.totalTransitions }}</div>
-            <div class="text-gray-500">Transiciones</div>
+            <div class="text-xl font-bold text-gray-800 dark:text-gray-100">{{ stats.totalTransitions }}</div>
+            <div class="text-gray-500 dark:text-gray-400">Transiciones</div>
           </div>
           <div class="text-center">
-            <Tag :value="currentWorkflow.is_draft ? 'Borrador' : 'Publicado'" :severity="currentWorkflow.is_draft ? 'warn' : 'success'" />
+            <Badge :variant="currentWorkflow.is_draft ? 'secondary' : 'default'">
+              {{ currentWorkflow.is_draft ? 'Borrador' : 'Publicado' }}
+            </Badge>
           </div>
         </div>
       </div>
-    </template>
+    </CardContent>
   </Card>
 </template>

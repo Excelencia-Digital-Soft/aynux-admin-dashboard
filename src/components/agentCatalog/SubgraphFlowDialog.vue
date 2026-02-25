@@ -11,8 +11,15 @@ import { ref, computed, watch, nextTick } from 'vue'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
-import Dialog from 'primevue/dialog'
-import Button from 'primevue/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import {
   SUBGRAPH_DEFINITIONS,
   type SubgraphDefinition,
@@ -205,155 +212,154 @@ function handleFitView() {
 
 <template>
   <Dialog
-    :visible="visible"
-    @update:visible="handleClose"
-    :header="subgraph?.displayName || 'Flujo del Subgrafo'"
-    :modal="true"
-    :style="{ width: '900px' }"
-    :maximizable="true"
-    :contentStyle="{ padding: 0 }"
-    class="subgraph-dialog"
+    :open="visible"
+    @update:open="(val: boolean) => { if (!val) handleClose() }"
   >
-    <div v-if="!subgraph" class="empty-state">
-      <i class="pi pi-exclamation-circle text-4xl text-gray-400" />
-      <p class="text-gray-500 mt-2">No se encontró la definición del subgrafo</p>
-    </div>
+    <DialogContent class="glass-dialog sm:max-w-[900px] p-0">
+      <DialogHeader class="px-6 pt-6 pb-0">
+        <DialogTitle>{{ subgraph?.displayName || 'Flujo del Subgrafo' }}</DialogTitle>
+        <DialogDescription class="sr-only">
+          Visualizacion del flujo del subgrafo
+        </DialogDescription>
+      </DialogHeader>
 
-    <div v-else class="subgraph-flow-container">
-      <!-- Description -->
-      <div class="flow-description">
-        <i class="pi pi-info-circle text-gray-400" />
-        <span>{{ subgraph.description }}</span>
+      <div v-if="!subgraph" class="empty-state">
+        <i class="pi pi-exclamation-circle text-4xl text-muted-foreground" />
+        <p class="text-muted-foreground mt-2">No se encontro la definicion del subgrafo</p>
       </div>
 
-      <!-- Vue Flow Graph -->
-      <div class="flow-graph" style="height: 400px">
-        <VueFlow
-          v-if="isReady"
-          :nodes="nodes"
-          :edges="edges"
-          :default-viewport="{ zoom: 0.9, x: 50, y: 50 }"
-          :min-zoom="0.3"
-          :max-zoom="2"
-          fit-view-on-init
-        >
-          <!-- Background -->
-          <Background pattern-color="#e2e8f0" :gap="20" />
-
-          <!-- Controls -->
-          <Controls position="top-right" />
-
-          <!-- Custom Node: Entry -->
-          <template #node-entry="{ data }">
-            <div class="custom-node entry-node">
-              <div class="node-icon entry-icon">
-                <i :class="['pi', data.icon || 'pi-sign-in']" class="text-white" />
-              </div>
-              <div class="node-content">
-                <div class="node-label">{{ data.label }}</div>
-                <div v-if="data.description" class="node-description">{{ data.description }}</div>
-              </div>
-            </div>
-          </template>
-
-          <!-- Custom Node: Router -->
-          <template #node-router="{ data }">
-            <div class="custom-node router-node">
-              <div class="node-icon router-icon">
-                <i :class="['pi', data.icon || 'pi-sitemap']" class="text-white" />
-              </div>
-              <div class="node-content">
-                <div class="node-label font-bold">{{ data.label }}</div>
-                <div v-if="data.description" class="node-description">{{ data.description }}</div>
-              </div>
-            </div>
-          </template>
-
-          <!-- Custom Node: Operation -->
-          <template #node-operation="{ data }">
-            <div class="custom-node operation-node" :style="{ borderLeftColor: data.domainColor }">
-              <div class="node-header">
-                <i
-                  :class="['pi', data.icon || 'pi-cog']"
-                  :style="{ color: data.domainColor }"
-                />
-                <span class="node-label">{{ data.label }}</span>
-              </div>
-              <div v-if="data.description" class="node-description px-3 pb-2">
-                {{ data.description }}
-              </div>
-            </div>
-          </template>
-
-          <!-- Custom Node: End -->
-          <template #node-end="{ data }">
-            <div class="custom-node end-node">
-              <div class="node-icon end-icon">
-                <i class="pi pi-check text-white" />
-              </div>
-              <div class="node-content">
-                <div class="node-label">{{ data.label }}</div>
-              </div>
-            </div>
-          </template>
-        </VueFlow>
-
-        <!-- Loading state -->
-        <div v-else class="loading-state">
-          <i class="pi pi-spin pi-spinner text-3xl text-gray-400" />
+      <div v-else class="subgraph-flow-container">
+        <!-- Description -->
+        <div class="flow-description">
+          <i class="pi pi-info-circle text-muted-foreground" />
+          <span>{{ subgraph.description }}</span>
         </div>
 
-        <!-- Fit View Button -->
-        <button v-if="isReady" class="fit-view-btn" @click="handleFitView" title="Ajustar vista">
-          <i class="pi pi-arrows-alt" />
-        </button>
+        <!-- Vue Flow Graph -->
+        <div class="flow-graph" style="height: 400px">
+          <VueFlow
+            v-if="isReady"
+            :nodes="nodes"
+            :edges="edges"
+            :default-viewport="{ zoom: 0.9, x: 50, y: 50 }"
+            :min-zoom="0.3"
+            :max-zoom="2"
+            fit-view-on-init
+          >
+            <!-- Background -->
+            <Background pattern-color="#e2e8f0" :gap="20" />
+
+            <!-- Controls -->
+            <Controls position="top-right" />
+
+            <!-- Custom Node: Entry -->
+            <template #node-entry="{ data }">
+              <div class="custom-node entry-node">
+                <div class="node-icon entry-icon">
+                  <i :class="['pi', data.icon || 'pi-sign-in']" class="text-white" />
+                </div>
+                <div class="node-content">
+                  <div class="node-label">{{ data.label }}</div>
+                  <div v-if="data.description" class="node-description">{{ data.description }}</div>
+                </div>
+              </div>
+            </template>
+
+            <!-- Custom Node: Router -->
+            <template #node-router="{ data }">
+              <div class="custom-node router-node">
+                <div class="node-icon router-icon">
+                  <i :class="['pi', data.icon || 'pi-sitemap']" class="text-white" />
+                </div>
+                <div class="node-content">
+                  <div class="node-label font-bold">{{ data.label }}</div>
+                  <div v-if="data.description" class="node-description">{{ data.description }}</div>
+                </div>
+              </div>
+            </template>
+
+            <!-- Custom Node: Operation -->
+            <template #node-operation="{ data }">
+              <div class="custom-node operation-node" :style="{ borderLeftColor: data.domainColor }">
+                <div class="node-header">
+                  <i
+                    :class="['pi', data.icon || 'pi-cog']"
+                    :style="{ color: data.domainColor }"
+                  />
+                  <span class="node-label">{{ data.label }}</span>
+                </div>
+                <div v-if="data.description" class="node-description px-3 pb-2">
+                  {{ data.description }}
+                </div>
+              </div>
+            </template>
+
+            <!-- Custom Node: End -->
+            <template #node-end="{ data }">
+              <div class="custom-node end-node">
+                <div class="node-icon end-icon">
+                  <i class="pi pi-check text-white" />
+                </div>
+                <div class="node-content">
+                  <div class="node-label">{{ data.label }}</div>
+                </div>
+              </div>
+            </template>
+          </VueFlow>
+
+          <!-- Loading state -->
+          <div v-else class="loading-state">
+            <i class="pi pi-spin pi-spinner text-3xl text-muted-foreground" />
+          </div>
+
+          <!-- Fit View Button -->
+          <button v-if="isReady" class="fit-view-btn" @click="handleFitView" title="Ajustar vista">
+            <i class="pi pi-arrows-alt" />
+          </button>
+        </div>
+
+        <!-- Legend -->
+        <div class="flow-legend">
+          <div class="legend-title">Leyenda</div>
+          <div class="legend-items">
+            <div class="legend-item">
+              <span class="legend-dot" style="background-color: #22c55e" />
+              <span>Entrada</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot" style="background-color: #a855f7" />
+              <span>Router</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot" :style="{ backgroundColor: subgraph.domainColor }" />
+              <span>Operacion</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot" style="background-color: #10b981" />
+              <span>Fin</span>
+            </div>
+          </div>
+          <div class="legend-edges">
+            <div class="legend-item">
+              <span class="legend-line solid" :style="{ backgroundColor: subgraph.domainColor }" />
+              <span>Flujo normal</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-line dashed" />
+              <span>Condicional</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- Legend -->
-      <div class="flow-legend">
-        <div class="legend-title">Leyenda</div>
-        <div class="legend-items">
-          <div class="legend-item">
-            <span class="legend-dot" style="background-color: #22c55e" />
-            <span>Entrada</span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-dot" style="background-color: #a855f7" />
-            <span>Router</span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-dot" :style="{ backgroundColor: subgraph.domainColor }" />
-            <span>Operación</span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-dot" style="background-color: #10b981" />
-            <span>Fin</span>
-          </div>
-        </div>
-        <div class="legend-edges">
-          <div class="legend-item">
-            <span class="legend-line solid" :style="{ backgroundColor: subgraph.domainColor }" />
-            <span>Flujo normal</span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-line dashed" />
-            <span>Condicional</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <template #footer>
-      <Button label="Cerrar" severity="secondary" @click="handleClose" />
-    </template>
+      <DialogFooter class="px-6 pb-6">
+        <Button variant="outline" @click="handleClose">Cerrar</Button>
+      </DialogFooter>
+    </DialogContent>
   </Dialog>
 </template>
 
 <style scoped>
-.subgraph-dialog :deep(.p-dialog-content) {
-  padding: 0;
-}
-
 .subgraph-flow-container {
   display: flex;
   flex-direction: column;
@@ -370,9 +376,19 @@ function handleFitView() {
   color: #64748b;
 }
 
+:root.dark .flow-description {
+  background: rgba(30, 41, 59, 0.5);
+  border-bottom-color: rgba(71, 85, 105, 0.4);
+  color: #94a3b8;
+}
+
 .flow-graph {
   position: relative;
   background-color: #f8fafc;
+}
+
+:root.dark .flow-graph {
+  background-color: rgba(30, 41, 59, 0.3);
 }
 
 .loading-state {
@@ -506,10 +522,19 @@ function handleFitView() {
   border-top: 1px solid #e2e8f0;
 }
 
+:root.dark .flow-legend {
+  background: rgba(30, 41, 59, 0.5);
+  border-top-color: rgba(71, 85, 105, 0.4);
+}
+
 .legend-title {
   font-weight: 600;
   font-size: 0.75rem;
   color: #374151;
+}
+
+:root.dark .legend-title {
+  color: #d1d5db;
 }
 
 .legend-items {
@@ -572,5 +597,15 @@ function handleFitView() {
 
 .fit-view-btn:hover {
   background: #f1f5f9;
+}
+
+:root.dark .fit-view-btn {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(71, 85, 105, 0.4);
+  color: #d1d5db;
+}
+
+:root.dark .fit-view-btn:hover {
+  background: rgba(51, 65, 85, 0.8);
 }
 </style>

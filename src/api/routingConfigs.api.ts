@@ -6,6 +6,7 @@
 import api from './index'
 import type {
   RoutingConfigResponse,
+  RoutingConfigCreate,
   RoutingConfigUpdate,
   RoutingConfigBatchUpdate
 } from '@/types/routingConfigs.types'
@@ -32,6 +33,21 @@ export const routingConfigsApi = {
       `${BASE_PATH}?${params.toString()}`
     )
     return response.data
+  },
+
+  /**
+   * Create a new routing config
+   */
+  async create(data: RoutingConfigCreate): Promise<RoutingConfigResponse> {
+    const response = await api.post<RoutingConfigResponse>(BASE_PATH, data)
+    return response.data
+  },
+
+  /**
+   * Delete a routing config
+   */
+  async delete(configId: string): Promise<void> {
+    await api.delete(`${BASE_PATH}/${configId}`)
   },
 
   /**

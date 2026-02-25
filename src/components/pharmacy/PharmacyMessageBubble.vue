@@ -2,7 +2,7 @@
 import type { PharmacyTestMessage, InteractiveButton, InteractiveListItem } from '@/api/pharmacy.api'
 import WhatsAppButtons from './WhatsAppButtons.vue'
 import WhatsAppList from './WhatsAppList.vue'
-import Tag from 'primevue/tag'
+import { Badge } from '@/components/ui/badge'
 
 interface Props {
   message: PharmacyTestMessage
@@ -49,12 +49,12 @@ function handleListSelect(item: InteractiveListItem) {
   >
     <!-- Interactive response indicator for user messages -->
     <div v-if="isInteractiveReply" class="flex items-center gap-1 mb-1">
-      <Tag
-        :value="message.interactiveResponse?.type === 'button_reply' ? 'Boton' : 'Lista'"
-        severity="success"
-        class="text-xs"
-        style="font-size: 0.6rem; padding: 0.1rem 0.3rem;"
-      />
+      <Badge
+        variant="success"
+        class="text-[0.6rem] px-1.5 py-0"
+      >
+        {{ message.interactiveResponse?.type === 'button_reply' ? 'Boton' : 'Lista' }}
+      </Badge>
     </div>
 
     <!-- Message content -->

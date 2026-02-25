@@ -2,14 +2,15 @@
  * Composable for managing the response config create/edit dialog
  */
 
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { responseConfigsApi } from '@/api/responseConfigs.api'
 import type {
   ResponseConfig,
   ResponseConfigCreate,
   ResponseConfigUpdate,
-  ResponseConfigFormData
+  ResponseConfigFormData,
+  ResponseParam
 } from '@/types/responseConfigs.types'
 import { DEFAULT_RESPONSE_CONFIG_FORM } from '@/types/responseConfigs.types'
 import type { DomainKey } from '@/types/domainIntents.types'
@@ -27,10 +28,38 @@ export function useResponseConfigDialog(
   const editingConfig = ref<ResponseConfig | null>(null)
   const formData = ref<ResponseConfigFormData>({ ...DEFAULT_RESPONSE_CONFIG_FORM })
 
+  // Parameter registry
+  const availableParams = ref<ResponseParam[]>([])
+  const loadingParams = ref(false)
+
   // Computed-like
   const isEditing = () => editingConfig.value !== null
   const dialogTitle = () => (isEditing() ? 'Editar Configuración' : 'Nueva Configuración')
   const submitLabel = () => (isEditing() ? 'Guardar Cambios' : 'Crear Configuración')
+
+  // Load available params when domain changes
+  async function loadParams(domain: string) {
+    loadingParams.value = true
+    try {
+      availableParams.value = await responseConfigsApi.getAvailableParams(domain)
+    } catch (error) {
+      console.error('Error loading params:', error)
+      availableParams.value = []
+    } finally {
+      loadingParams.value = false
+    }
+  }
+
+  // Watch domain changes to load params
+  watch(
+    () => selectedDomain.value,
+    (newDomain) => {
+      if (newDomain) {
+        loadParams(newDomain)
+      }
+    },
+    { immediate: true }
+  )
 
   // Actions
   function openCreateDialog() {
@@ -47,6 +76,8 @@ export function useResponseConfigDialog(
       description: config.description || '',
       task_description: config.task_description,
       fallback_template_key: config.fallback_template_key,
+      response_type: config.response_type || 'fixed',
+      template_text: config.template_text || '',
       priority: config.priority,
       is_critical: config.is_critical,
       is_enabled: config.is_enabled
@@ -73,16 +104,6 @@ export function useResponseConfigDialog(
       return
     }
 
-    if (!formData.value.task_description.trim()) {
-      toast.add({
-        severity: 'warn',
-        summary: 'Validación',
-        detail: 'La descripción de tarea es requerida',
-        life: 3000
-      })
-      return
-    }
-
     if (!formData.value.fallback_template_key.trim()) {
       toast.add({
         severity: 'warn',
@@ -101,6 +122,8 @@ export function useResponseConfigDialog(
           is_critical: formData.value.is_critical,
           task_description: formData.value.task_description,
           fallback_template_key: formData.value.fallback_template_key,
+          response_type: formData.value.response_type,
+          template_text: formData.value.template_text || null,
           display_name: formData.value.display_name || null,
           description: formData.value.description || null,
           priority: formData.value.priority,
@@ -122,6 +145,8 @@ export function useResponseConfigDialog(
           is_critical: formData.value.is_critical,
           task_description: formData.value.task_description,
           fallback_template_key: formData.value.fallback_template_key,
+          response_type: formData.value.response_type,
+          template_text: formData.value.template_text || null,
           display_name: formData.value.display_name || null,
           description: formData.value.description || null,
           priority: formData.value.priority,
@@ -159,6 +184,10 @@ export function useResponseConfigDialog(
     editingConfig,
     formData,
 
+    // Params
+    availableParams,
+    loadingParams,
+
     // Computed-like
     isEditing,
     dialogTitle,
@@ -168,6 +197,7 @@ export function useResponseConfigDialog(
     openCreateDialog,
     openEditDialog,
     closeDialog,
-    saveConfig
+    saveConfig,
+    loadParams
   }
 }

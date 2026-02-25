@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import Dialog from 'primevue/dialog'
-import Button from 'primevue/button'
 import { usePharmacyTesting } from '@/composables/usePharmacyTesting'
 import {
   usePharmacyStream,
@@ -11,6 +9,17 @@ import {
 } from '@/composables/usePharmacyStream'
 import { useToast } from '@/composables/useToast'
 import type { PharmacyTestMessage } from '@/api/pharmacy.api'
+
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction
+} from '@/components/ui/alert-dialog'
 
 // Components
 import PharmacyTestHeader from '@/components/testing/pharmacy/PharmacyTestHeader.vue'
@@ -73,7 +82,6 @@ const chatInputRef = ref<InstanceType<typeof PharmacyChatInput> | null>(null)
 
 // Auto-focus input when response completes
 watch([() => isStreaming.value, () => isSending.value], ([streaming, sending], [wasStreaming, wasSending]) => {
-  // Focus input when streaming or sending finishes
   if ((wasStreaming && !streaming) || (wasSending && !sending)) {
     setTimeout(() => chatInputRef.value?.focus(), 100)
   }
@@ -106,7 +114,6 @@ async function sendMessageWithStream() {
     return
   }
 
-  // Add user message immediately
   const userMessage: ExtendedMessage = {
     id: `user-${Date.now()}`,
     role: 'user',
@@ -127,7 +134,6 @@ async function sendMessageWithStream() {
       sessionId: sessionId.value || undefined
     })
 
-    // Add assistant message with metadata
     const assistantMessage: ExtendedMessage = {
       id: `assistant-${Date.now()}`,
       role: 'assistant',
@@ -137,7 +143,6 @@ async function sendMessageWithStream() {
     }
     messages.value.push(assistantMessage)
 
-    // Update session ID
     if (result.metadata.session_id) {
       sessionId.value = result.metadata.session_id
     } else if (!sessionId.value) {
@@ -150,14 +155,12 @@ async function sendMessageWithStream() {
   }
 }
 
-// Handle button click from streaming response
 async function handleStreamButtonClick(button: StreamButton) {
   if (!selectedPharmacy.value) return
 
   const did = webhookConfig.value.did || selectedPharmacy.value.code
   if (!did) return
 
-  // Add user's button selection as message
   const userMessage: ExtendedMessage = {
     id: `user-${Date.now()}`,
     role: 'user',
@@ -192,7 +195,6 @@ async function handleStreamButtonClick(button: StreamButton) {
   }
 }
 
-// Handle list selection from streaming response
 async function handleStreamListSelect(item: StreamListItem) {
   if (!selectedPharmacy.value) return
 
@@ -234,7 +236,6 @@ async function handleStreamListSelect(item: StreamListItem) {
 }
 
 async function handleAudioSend(file: File) {
-  // Use non-streaming for audio (simpler flow)
   await sendAudioMessage(file)
 }
 
@@ -343,40 +344,39 @@ async function copyAllChat() {
     </div>
 
     <!-- Delete Confirmation Dialog -->
-    <Dialog
-      v-model:visible="showDeleteConfirm"
-      modal
-      header="Eliminar Historial"
-      :style="{ width: '400px' }"
-    >
-      <div class="flex items-start gap-3">
-        <i class="pi pi-exclamation-triangle text-yellow-500 text-2xl" />
-        <div>
-          <p class="text-gray-700 dark:text-gray-300">
-            Esta acción eliminará <strong>TODAS</strong> las conversaciones para el teléfono
-            <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded">{{ webhookConfig.phoneNumber }}</code>.
-          </p>
-          <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
-            Esta acción no se puede deshacer.
-          </p>
-        </div>
-      </div>
-      <template #footer>
-        <Button
-          label="Cancelar"
-          severity="secondary"
-          @click="showDeleteConfirm = false"
-          :disabled="isDeletingHistory"
-        />
-        <Button
-          label="Eliminar"
-          severity="danger"
-          icon="pi pi-trash"
-          @click="deleteAllHistory"
-          :loading="isDeletingHistory"
-        />
-      </template>
-    </Dialog>
+    <AlertDialog v-model:open="showDeleteConfirm">
+      <AlertDialogContent class="glass-dialog">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Eliminar Historial</AlertDialogTitle>
+          <AlertDialogDescription>
+            <div class="flex items-start gap-3">
+              <i class="pi pi-exclamation-triangle text-yellow-500 text-2xl" />
+              <div>
+                <p class="text-foreground">
+                  Esta acción eliminará <strong>TODAS</strong> las conversaciones para el teléfono
+                  <code class="bg-muted px-1 rounded">{{ webhookConfig.phoneNumber }}</code>.
+                </p>
+                <p class="text-sm text-muted-foreground mt-2">
+                  Esta acción no se puede deshacer.
+                </p>
+              </div>
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel :disabled="isDeletingHistory">Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            @click="deleteAllHistory"
+            :disabled="isDeletingHistory"
+          >
+            <i v-if="isDeletingHistory" class="pi pi-spin pi-spinner mr-2" />
+            <i v-else class="pi pi-trash mr-2" />
+            Eliminar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 </template>
 

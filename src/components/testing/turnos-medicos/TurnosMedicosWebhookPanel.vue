@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { MedicalWebhookConfig } from '@/api/medical.api'
-import InputText from 'primevue/inputtext'
-import Button from 'primevue/button'
-import Tag from 'primevue/tag'
-import Message from 'primevue/message'
+import type { MedicalWebhookConfig } from '@/types/turnosMedicos.types'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 const props = defineProps<{
   config: MedicalWebhookConfig
@@ -26,14 +26,12 @@ const PHONE_PRESETS = [
 
 const isDefaultPhone = computed(() => props.config.phoneNumber === DEFAULT_PHONE)
 
-function handlePhoneChange(event: Event) {
-  const target = event.target as HTMLInputElement
-  emit('update', { phoneNumber: target.value })
+function handlePhoneChange(value: string | number) {
+  emit('update', { phoneNumber: String(value) })
 }
 
-function handleNameChange(event: Event) {
-  const target = event.target as HTMLInputElement
-  emit('update', { userName: target.value })
+function handleNameChange(value: string | number) {
+  emit('update', { userName: String(value) })
 }
 
 function handleResetPhone() {
@@ -46,114 +44,100 @@ function selectPreset(value: string) {
 </script>
 
 <template>
-  <div class="webhook-panel p-4">
-    <h3 class="text-lg font-semibold mb-4">Configuracion Webhook</h3>
+  <div class="p-4 space-y-4">
+    <h3 class="text-base font-semibold text-foreground">Configuracion Webhook</h3>
 
-    <Message severity="info" :closable="false" class="mb-4">
-      <template #default>
-        <div class="text-sm">
-          Este modo simula el flujo de WhatsApp usando
-          <code class="bg-blue-100 dark:bg-blue-900 px-1 rounded">TurnosMedicosGraph</code>.
-        </div>
-      </template>
-    </Message>
+    <Alert variant="info" class="bg-blue-50/60 dark:bg-blue-900/20 backdrop-blur-sm border-blue-200/50 dark:border-blue-800/50">
+      <AlertDescription class="text-sm">
+        Este modo simula el flujo de WhatsApp usando
+        <code class="bg-blue-100/80 dark:bg-blue-800/40 px-1 rounded text-xs">TurnosMedicosGraph</code>.
+      </AlertDescription>
+    </Alert>
 
     <div class="space-y-4">
       <div>
-        <label class="text-sm text-gray-600 dark:text-gray-400 block mb-1">Telefono simulado</label>
+        <label class="text-sm text-muted-foreground block mb-1.5">Telefono simulado</label>
         <div class="flex gap-2">
-          <InputText
-            :modelValue="config.phoneNumber"
-            @input="handlePhoneChange"
-            class="flex-1"
+          <Input
+            :model-value="config.phoneNumber"
+            @update:model-value="handlePhoneChange"
+            class="flex-1 bg-white/60 dark:bg-navy-900/40 backdrop-blur-sm border-white/20 dark:border-white/10"
             placeholder="5491100001234"
             :disabled="hasSession"
           />
           <Button
-            icon="pi pi-refresh"
-            severity="secondary"
-            size="small"
+            variant="secondary"
+            size="icon"
+            class="shrink-0"
             @click="handleResetPhone"
             :disabled="hasSession || isDefaultPhone"
-            v-tooltip.top="'Restaurar default'"
-          />
+          >
+            <i class="pi pi-refresh text-sm" />
+          </Button>
         </div>
 
         <!-- Phone Presets -->
-        <div class="flex flex-wrap gap-1 mt-2">
-          <Tag
+        <div class="flex flex-wrap gap-1.5 mt-2">
+          <Badge
             v-for="preset in PHONE_PRESETS"
             :key="preset.value"
-            :value="preset.label"
-            :severity="config.phoneNumber === preset.value ? 'success' : 'secondary'"
-            class="cursor-pointer text-xs"
-            :class="{ 'opacity-50': hasSession }"
+            :variant="config.phoneNumber === preset.value ? 'default' : 'secondary'"
+            :class="`cursor-pointer text-xs transition-all duration-200 hover:shadow-sm ${hasSession ? 'opacity-50 pointer-events-none' : ''}`"
             @click="!hasSession && selectPreset(preset.value)"
-          />
-          <Tag
+          >
+            {{ preset.label }}
+          </Badge>
+          <Badge
             v-if="!PHONE_PRESETS.some(p => p.value === config.phoneNumber)"
-            value="Custom"
-            severity="info"
+            variant="info"
             class="text-xs"
-          />
+          >
+            Custom
+          </Badge>
         </div>
 
-        <small class="text-gray-400 dark:text-gray-500 text-xs block mt-1">
+        <small class="text-muted-foreground text-xs block mt-1.5">
           Selecciona un preset o ingresa un numero personalizado
         </small>
       </div>
 
       <div>
-        <label class="text-sm text-gray-600 dark:text-gray-400 block mb-1">Nombre paciente</label>
-        <InputText
-          :modelValue="config.userName"
-          @input="handleNameChange"
-          class="w-full"
+        <label class="text-sm text-muted-foreground block mb-1.5">Nombre paciente</label>
+        <Input
+          :model-value="config.userName"
+          @update:model-value="handleNameChange"
+          class="bg-white/60 dark:bg-navy-900/40 backdrop-blur-sm border-white/20 dark:border-white/10"
           placeholder="Test Patient"
           :disabled="hasSession"
         />
       </div>
 
       <div>
-        <label class="text-sm text-gray-600 dark:text-gray-400 block mb-1">DID (WhatsApp ID)</label>
-        <code class="text-xs break-all bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded block">
+        <label class="text-sm text-muted-foreground block mb-1.5">DID (WhatsApp ID)</label>
+        <code class="text-xs break-all bg-white/40 dark:bg-navy-900/40 backdrop-blur-sm px-2 py-1.5 rounded-lg block border border-white/10 text-foreground">
           {{ config.did || 'Auto (desde institucion)' }}
         </code>
       </div>
 
       <div>
-        <label class="text-sm text-gray-600 dark:text-gray-400 block mb-1">Dominio</label>
+        <label class="text-sm text-muted-foreground block mb-1.5">Dominio</label>
         <div class="flex items-center gap-2">
-          <Tag value="Turnos Medicos" severity="info" />
-          <span class="text-xs text-gray-500 dark:text-gray-400">(TurnosMedicosGraph)</span>
+          <Badge variant="info">Turnos Medicos</Badge>
+          <span class="text-xs text-muted-foreground">(TurnosMedicosGraph)</span>
         </div>
       </div>
 
       <!-- Info adicional -->
-      <Message severity="secondary" :closable="false" class="mt-4">
-        <template #default>
-          <div class="text-xs">
-            <strong>Flujo de procesamiento:</strong>
-            <ul class="list-disc list-inside mt-1 space-y-1">
-              <li>Usa <code>TurnosMedicosGraph</code> directamente</li>
-              <li>Agente: <code>turnos_medicos_agent</code></li>
-              <li>DID proviene de la institucion seleccionada</li>
-            </ul>
-          </div>
-        </template>
-      </Message>
+      <Alert class="bg-white/40 dark:bg-navy-900/30 backdrop-blur-sm border-white/20 dark:border-white/10">
+        <AlertDescription class="text-xs">
+          <strong class="text-foreground">Flujo de procesamiento:</strong>
+          <ul class="list-disc list-inside mt-1 space-y-1 text-muted-foreground">
+            <li>Usa <code class="text-xs">TurnosMedicosGraph</code> directamente</li>
+            <li>Agente: <code class="text-xs">turnos_medicos_agent</code></li>
+            <li>DID proviene de la institucion seleccionada</li>
+          </ul>
+        </AlertDescription>
+      </Alert>
     </div>
   </div>
 </template>
-
-<style scoped>
-.webhook-panel {
-  background: var(--surface-card);
-  border-radius: 8px;
-}
-
-code {
-  font-family: monospace;
-  font-size: 0.85em;
-}
-</style>

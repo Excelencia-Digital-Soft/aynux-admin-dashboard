@@ -55,6 +55,25 @@ export const useWorkflowCoreStore = defineStore("workflow-core", () => {
     }
   }
 
+  async function loadAllWorkflows(filters?: {
+    workflow_type?: string;
+    active_only?: boolean;
+  }) {
+    isLoading.value = true;
+    error.value = null;
+
+    try {
+      const response = await workflowApi.listAllWorkflows(filters);
+      workflows.value = response.workflows;
+    } catch (e: unknown) {
+      error.value =
+        e instanceof Error ? e.message : "Failed to load all workflows";
+      throw e;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   async function loadWorkflow(workflowId: string): Promise<WorkflowDefinition> {
     isLoading.value = true;
     error.value = null;
@@ -194,6 +213,7 @@ export const useWorkflowCoreStore = defineStore("workflow-core", () => {
     setInstitutionContext,
     reset,
     loadWorkflows,
+    loadAllWorkflows,
     loadWorkflow,
     createWorkflow,
     updateWorkflow,

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import Card from 'primevue/card'
-import Button from 'primevue/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 
 const emit = defineEmits<{
   (e: 'action', message: string): void
@@ -17,26 +17,24 @@ const quickActions = [
 </script>
 
 <template>
-  <Card class="mt-4">
-    <template #title>
-      <div class="flex items-center gap-2 text-sm">
+  <Card class="mt-4 glass-card">
+    <CardContent class="pt-6">
+      <div class="flex items-center gap-2 text-sm font-semibold text-foreground mb-4">
         <i class="pi pi-bolt" />
         <span>Acciones Rápidas</span>
       </div>
-    </template>
 
-    <template #content>
       <div class="grid grid-cols-2 gap-2">
         <Button
           v-for="action in quickActions"
           :key="action.label"
-          :label="action.label"
-          size="small"
-          severity="secondary"
-          outlined
+          variant="outline"
+          size="sm"
           @click="emit('action', action.message)"
-        />
+        >
+          {{ action.label }}
+        </Button>
       </div>
-    </template>
+    </CardContent>
   </Card>
 </template>

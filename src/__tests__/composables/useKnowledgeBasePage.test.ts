@@ -55,7 +55,7 @@ describe('useKnowledgeBasePage', () => {
         showAgentSelector
       } = useKnowledgeBasePage({ syncUrl: false, autoFetchAgents: false })
 
-      expect(activeTab.value).toBe('0')
+      expect(activeTab.value).toBe('browse')
       expect(selectedSource.value).toBe('all')
       expect(selectedAgentKey.value).toBe('')
       expect(availableAgents.value).toEqual([])
@@ -178,11 +178,11 @@ describe('useKnowledgeBasePage', () => {
         autoFetchAgents: false
       })
 
-      activeTab.value = '1' // Search tab
+      activeTab.value = 'search'
 
       handleSearchSelect('doc-123')
 
-      expect(activeTab.value).toBe('0') // Browse tab
+      expect(activeTab.value).toBe('browse')
     })
   })
 
@@ -194,13 +194,13 @@ describe('useKnowledgeBasePage', () => {
           autoFetchAgents: false
         })
 
-      activeTab.value = '2' // Dashboard tab
+      activeTab.value = 'dashboard'
 
       handleSelectAgentFromDashboard('support_agent')
 
       expect(selectedSource.value).toBe('agent')
       expect(selectedAgentKey.value).toBe('support_agent')
-      expect(activeTab.value).toBe('0')
+      expect(activeTab.value).toBe('browse')
     })
   })
 

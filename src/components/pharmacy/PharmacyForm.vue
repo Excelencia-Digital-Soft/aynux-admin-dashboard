@@ -9,16 +9,20 @@ import type {
 } from '@/types/pharmacyConfig.types'
 import { DEFAULT_PHARMACY_HOURS } from '@/types/pharmacyConfig.types'
 
-import Dialog from 'primevue/dialog'
-import InputText from 'primevue/inputtext'
-import Textarea from 'primevue/textarea'
-import InputNumber from 'primevue/inputnumber'
-import Checkbox from 'primevue/checkbox'
-import Button from 'primevue/button'
-import Divider from 'primevue/divider'
-import Password from 'primevue/password'
-import Message from 'primevue/message'
-import ToggleSwitch from 'primevue/toggleswitch'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Switch } from '@/components/ui/switch'
+import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 const store = usePharmacyStore()
 const authStore = useAuthStore()
@@ -118,9 +122,7 @@ watch(
         mp_notification_url: pharmacy.mp_notification_url || '',
         receipt_public_url_base: pharmacy.receipt_public_url_base || ''
       }
-      // Sync hours entries array
       hoursEntries.value = hoursObjectToArray(hours)
-      // Reset credential modification tracking
       credentialsModified.value = {
         mp_access_token: false,
         mp_public_key: false,
@@ -166,10 +168,8 @@ function onCredentialChange(field: 'mp_access_token' | 'mp_public_key' | 'mp_web
   credentialsModified.value[field] = true
 }
 
-// Helper to get valid hours (excludes empty values)
 function getValidHours(): Record<string, string> | undefined {
   if (formData.value.pharmacy_is_24h) return undefined
-  // Convert array to object, filtering out empty entries
   const validEntries = hoursEntries.value.filter(
     (entry) => entry.day.trim() && entry.hours.trim()
   )
@@ -177,12 +177,10 @@ function getValidHours(): Record<string, string> | undefined {
   return hoursArrayToObject(validEntries)
 }
 
-// Add a new hour entry
 function addHourEntry() {
   hoursEntries.value.push({ day: '', hours: '' })
 }
 
-// Remove an hour entry by index
 function removeHourEntry(index: number) {
   hoursEntries.value.splice(index, 1)
 }
@@ -191,7 +189,6 @@ async function handleSubmit() {
   if (!canSave.value) return
 
   if (isEditing.value && store.editingPharmacy) {
-    // Build update request - only include modified credentials
     const updateData: PharmacyConfigUpdateRequest = {
       pharmacy_name: formData.value.pharmacy_name,
       pharmacy_address: formData.value.pharmacy_address || undefined,
@@ -210,7 +207,6 @@ async function handleSubmit() {
       receipt_public_url_base: formData.value.receipt_public_url_base || undefined
     }
 
-    // Only include credentials if they were modified
     if (credentialsModified.value.mp_access_token) {
       updateData.mp_access_token = formData.value.mp_access_token || undefined
     }
@@ -223,7 +219,6 @@ async function handleSubmit() {
 
     await updatePharmacy(store.editingPharmacy.id, updateData)
   } else {
-    // Create request
     const currentOrgId = authStore.currentOrganization?.id
     if (!currentOrgId) {
       console.error('No organization selected')
@@ -260,345 +255,340 @@ function handleClose() {
   resetForm()
   closePharmacyDialog()
 }
+
+function handleOpenChange(open: boolean) {
+  if (!open) handleClose()
+}
 </script>
 
 <template>
-  <Dialog
-    :visible="store.showPharmacyDialog"
-    :header="dialogTitle"
-    :modal="true"
-    :style="{ width: '600px' }"
-    @update:visible="handleClose"
-  >
-    <div class="space-y-4">
-      <!-- Basic Info Section -->
-      <div>
-        <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-          <i class="pi pi-building" />
-          Informacion Basica
-        </h3>
+  <Dialog :open="store.showPharmacyDialog" @update:open="handleOpenChange">
+    <DialogContent class="sm:max-w-[600px] glass-dialog max-h-[85vh] overflow-y-auto">
+      <DialogHeader>
+        <DialogTitle>{{ dialogTitle }}</DialogTitle>
+        <DialogDescription class="sr-only">
+          {{ isEditing ? 'Editar configuracion de farmacia' : 'Crear nueva configuracion de farmacia' }}
+        </DialogDescription>
+      </DialogHeader>
 
-        <div class="space-y-3">
-          <!-- Name -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Nombre de la Farmacia *
-            </label>
-            <InputText
-              v-model="formData.pharmacy_name"
-              placeholder="Ej: Farmacia San Juan"
-              class="w-full"
-            />
-          </div>
-
-          <!-- Address -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Direccion
-            </label>
-            <Textarea
-              v-model="formData.pharmacy_address"
-              rows="2"
-              placeholder="Direccion completa"
-              class="w-full"
-            />
-          </div>
-
-          <!-- Phone and Logo -->
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Telefono
-              </label>
-              <InputText
-                v-model="formData.pharmacy_phone"
-                placeholder="Ej: +54 9 11 1234-5678"
-                class="w-full"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Logo (URL)
-              </label>
-              <InputText
-                v-model="formData.pharmacy_logo_path"
-                placeholder="https://..."
-                class="w-full"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <Divider />
-
-      <!-- Contact & Hours Section -->
-      <div>
-        <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-          <i class="pi pi-clock" />
-          Contacto y Horarios
-        </h3>
-
-        <div class="space-y-3">
-          <!-- Email and Website -->
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Email
-              </label>
-              <InputText
-                v-model="formData.pharmacy_email"
-                placeholder="contacto@farmacia.com"
-                class="w-full"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Sitio Web
-              </label>
-              <InputText
-                v-model="formData.pharmacy_website"
-                placeholder="https://farmacia.com"
-                class="w-full"
-              />
-            </div>
-          </div>
-
-          <!-- 24h Toggle -->
-          <div class="flex items-center gap-3 py-2">
-            <ToggleSwitch v-model="formData.pharmacy_is_24h" inputId="is_24h" />
-            <label for="is_24h" class="text-sm font-medium text-gray-700">
-              Farmacia 24 horas
-            </label>
-          </div>
-
-          <!-- Hours Editor (hidden if 24h) -->
-          <div v-if="!formData.pharmacy_is_24h" class="space-y-2">
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              Horarios de Atencion
-            </label>
-
-            <div
-              v-for="(entry, index) in hoursEntries"
-              :key="index"
-              class="flex items-center gap-2"
-            >
-              <InputText
-                v-model="entry.day"
-                placeholder="lun-vie, sab, dom..."
-                class="w-28"
-              />
-              <span class="text-gray-400">:</span>
-              <InputText
-                v-model="entry.hours"
-                placeholder="08:00-20:00 o cerrado"
-                class="flex-1"
-              />
-              <Button
-                icon="pi pi-times"
-                severity="danger"
-                text
-                rounded
-                size="small"
-                @click="removeHourEntry(index)"
-              />
-            </div>
-
-            <Button
-              label="Agregar horario"
-              icon="pi pi-plus"
-              severity="secondary"
-              text
-              size="small"
-              @click="addHourEntry"
-            />
-
-            <p class="text-xs text-gray-400 mt-1">
-              Formato: "08:00-20:00" o "cerrado". Dias: lun-vie, sab, dom, etc.
-            </p>
-          </div>
-
-          <Message v-if="formData.pharmacy_is_24h" severity="info" :closable="false">
-            La farmacia esta configurada como 24 horas
-          </Message>
-        </div>
-      </div>
-
-      <Divider />
-
-      <!-- WhatsApp Section -->
-      <div>
-        <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-          <i class="pi pi-whatsapp text-green-500" />
-          WhatsApp Business
-        </h3>
-
+      <div class="space-y-4 py-4">
+        <!-- Basic Info Section -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
-            Numero de WhatsApp
-          </label>
-          <InputText
-            v-model="formData.whatsapp_phone_number"
-            placeholder="Ej: 5491155667788 (sin + ni espacios)"
-            class="w-full"
-          />
-          <p class="text-xs text-gray-400 mt-1">
-            Numero utilizado para recibir mensajes vía webhook
-          </p>
-        </div>
-      </div>
+          <h3 class="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+            <i class="pi pi-building" />
+            Informacion Basica
+          </h3>
 
-      <Divider />
-
-      <!-- Mercado Pago Section -->
-      <div>
-        <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-          <i class="pi pi-credit-card text-blue-500" />
-          Mercado Pago
-        </h3>
-
-        <!-- Enable toggle -->
-        <div class="flex items-center gap-2 mb-4">
-          <Checkbox v-model="formData.mp_enabled" :binary="true" inputId="mp_enabled" />
-          <label for="mp_enabled" class="text-sm font-medium">
-            Habilitar integracion con Mercado Pago
-          </label>
-        </div>
-
-        <div v-if="formData.mp_enabled" class="space-y-4">
-          <!-- Sandbox Mode Warning -->
-          <div class="flex items-center gap-2 mb-3">
-            <Checkbox v-model="formData.mp_sandbox" :binary="true" inputId="mp_sandbox" />
-            <label for="mp_sandbox" class="text-sm">
-              Modo Sandbox (pruebas)
-            </label>
-          </div>
-
-          <Message v-if="formData.mp_sandbox" severity="warn" :closable="false">
-            Modo Sandbox activo - Los pagos no son reales
-          </Message>
-
-          <!-- Credentials -->
           <div class="space-y-3">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Access Token
+              <label class="block text-sm font-medium text-foreground mb-1">
+                Nombre de la Farmacia *
               </label>
-              <Password
-                v-model="formData.mp_access_token"
-                :feedback="false"
-                toggleMask
-                placeholder="APP_USR-xxx..."
-                class="w-full"
-                inputClass="w-full"
-                @input="onCredentialChange('mp_access_token')"
+              <Input
+                v-model="formData.pharmacy_name"
+                placeholder="Ej: Farmacia San Juan"
               />
-              <p v-if="isEditing && !credentialsModified.mp_access_token" class="text-xs text-gray-400 mt-1">
-                Dejar vacio para mantener el valor actual
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-foreground mb-1">
+                Direccion
+              </label>
+              <Textarea
+                v-model="formData.pharmacy_address"
+                :rows="2"
+                placeholder="Direccion completa"
+              />
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-foreground mb-1">
+                  Telefono
+                </label>
+                <Input
+                  v-model="formData.pharmacy_phone"
+                  placeholder="Ej: +54 9 11 1234-5678"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-foreground mb-1">
+                  Logo (URL)
+                </label>
+                <Input
+                  v-model="formData.pharmacy_logo_path"
+                  placeholder="https://..."
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <hr class="border-border" />
+
+        <!-- Contact & Hours Section -->
+        <div>
+          <h3 class="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+            <i class="pi pi-clock" />
+            Contacto y Horarios
+          </h3>
+
+          <div class="space-y-3">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-foreground mb-1">
+                  Email
+                </label>
+                <Input
+                  v-model="formData.pharmacy_email"
+                  placeholder="contacto@farmacia.com"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-foreground mb-1">
+                  Sitio Web
+                </label>
+                <Input
+                  v-model="formData.pharmacy_website"
+                  placeholder="https://farmacia.com"
+                />
+              </div>
+            </div>
+
+            <!-- 24h Toggle -->
+            <div class="flex items-center gap-3 py-2">
+              <Switch
+                :checked="formData.pharmacy_is_24h"
+                @update:checked="formData.pharmacy_is_24h = $event"
+              />
+              <label class="text-sm font-medium text-foreground">
+                Farmacia 24 horas
+              </label>
+            </div>
+
+            <!-- Hours Editor (hidden if 24h) -->
+            <div v-if="!formData.pharmacy_is_24h" class="space-y-2">
+              <label class="block text-sm font-medium text-foreground mb-2">
+                Horarios de Atencion
+              </label>
+
+              <div
+                v-for="(entry, index) in hoursEntries"
+                :key="index"
+                class="flex items-center gap-2"
+              >
+                <Input
+                  v-model="entry.day"
+                  placeholder="lun-vie, sab, dom..."
+                  class="w-28"
+                />
+                <span class="text-muted-foreground">:</span>
+                <Input
+                  v-model="entry.hours"
+                  placeholder="08:00-20:00 o cerrado"
+                  class="flex-1"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-8 w-8 text-destructive hover:text-destructive"
+                  @click="removeHourEntry(index)"
+                >
+                  <i class="pi pi-times text-sm" />
+                </Button>
+              </div>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                @click="addHourEntry"
+              >
+                <i class="pi pi-plus mr-1" />
+                Agregar horario
+              </Button>
+
+              <p class="text-xs text-muted-foreground mt-1">
+                Formato: "08:00-20:00" o "cerrado". Dias: lun-vie, sab, dom, etc.
               </p>
             </div>
 
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Public Key
-              </label>
-              <Password
-                v-model="formData.mp_public_key"
-                :feedback="false"
-                toggleMask
-                placeholder="APP_USR-xxx..."
-                class="w-full"
-                inputClass="w-full"
-                @input="onCredentialChange('mp_public_key')"
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Webhook Secret
-              </label>
-              <Password
-                v-model="formData.mp_webhook_secret"
-                :feedback="false"
-                toggleMask
-                placeholder="Secret para validar webhooks"
-                class="w-full"
-                inputClass="w-full"
-                @input="onCredentialChange('mp_webhook_secret')"
-              />
-            </div>
+            <Alert v-if="formData.pharmacy_is_24h" variant="info">
+              <AlertDescription>
+                La farmacia esta configurada como 24 horas
+              </AlertDescription>
+            </Alert>
           </div>
+        </div>
 
-          <Divider />
+        <hr class="border-border" />
 
-          <!-- URLs and Settings -->
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Timeout (segundos)
-              </label>
-              <InputNumber
-                v-model="formData.mp_timeout"
-                :min="5"
-                :max="120"
-                class="w-full"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Cuotas Maximas
-              </label>
-              <InputNumber
-                v-model="formData.mp_max_installments"
-                :min="1"
-                :max="12"
-                class="w-full"
-              />
-              <p class="text-xs text-gray-400 mt-1">
-                1 = Pago unico (sin cuotas)
-              </p>
-            </div>
-          </div>
+        <!-- WhatsApp Section -->
+        <div>
+          <h3 class="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+            <i class="pi pi-whatsapp text-green-500" />
+            WhatsApp Business
+          </h3>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              URL de Notificaciones
+            <label class="block text-sm font-medium text-foreground mb-1">
+              Numero de WhatsApp
             </label>
-            <InputText
-              v-model="formData.mp_notification_url"
-              placeholder="https://tu-dominio.com/webhook/mp"
-              class="w-full"
+            <Input
+              v-model="formData.whatsapp_phone_number"
+              placeholder="Ej: 5491155667788 (sin + ni espacios)"
             />
+            <p class="text-xs text-muted-foreground mt-1">
+              Numero utilizado para recibir mensajes vía webhook
+            </p>
+          </div>
+        </div>
+
+        <hr class="border-border" />
+
+        <!-- Mercado Pago Section -->
+        <div>
+          <h3 class="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+            <i class="pi pi-credit-card text-blue-500" />
+            Mercado Pago
+          </h3>
+
+          <!-- Enable toggle -->
+          <div class="flex items-center gap-2 mb-4">
+            <Checkbox
+              id="mp_enabled"
+              :checked="formData.mp_enabled"
+              @update:checked="formData.mp_enabled = !!$event"
+            />
+            <label for="mp_enabled" class="text-sm font-medium text-foreground">
+              Habilitar integracion con Mercado Pago
+            </label>
           </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              URL Base de Recibos
-            </label>
-            <InputText
-              v-model="formData.receipt_public_url_base"
-              placeholder="https://tu-dominio.com/recibos"
-              class="w-full"
-            />
+          <div v-if="formData.mp_enabled" class="space-y-4">
+            <!-- Sandbox Mode -->
+            <div class="flex items-center gap-2 mb-3">
+              <Checkbox
+                id="mp_sandbox"
+                :checked="formData.mp_sandbox"
+                @update:checked="formData.mp_sandbox = !!$event"
+              />
+              <label for="mp_sandbox" class="text-sm text-foreground">
+                Modo Sandbox (pruebas)
+              </label>
+            </div>
+
+            <Alert v-if="formData.mp_sandbox" variant="warning">
+              <AlertDescription>
+                Modo Sandbox activo - Los pagos no son reales
+              </AlertDescription>
+            </Alert>
+
+            <!-- Credentials -->
+            <div class="space-y-3">
+              <div>
+                <label class="block text-sm font-medium text-foreground mb-1">
+                  Access Token
+                </label>
+                <Input
+                  v-model="formData.mp_access_token"
+                  type="password"
+                  placeholder="APP_USR-xxx..."
+                  @input="onCredentialChange('mp_access_token')"
+                />
+                <p v-if="isEditing && !credentialsModified.mp_access_token" class="text-xs text-muted-foreground mt-1">
+                  Dejar vacio para mantener el valor actual
+                </p>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-foreground mb-1">
+                  Public Key
+                </label>
+                <Input
+                  v-model="formData.mp_public_key"
+                  type="password"
+                  placeholder="APP_USR-xxx..."
+                  @input="onCredentialChange('mp_public_key')"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-foreground mb-1">
+                  Webhook Secret
+                </label>
+                <Input
+                  v-model="formData.mp_webhook_secret"
+                  type="password"
+                  placeholder="Secret para validar webhooks"
+                  @input="onCredentialChange('mp_webhook_secret')"
+                />
+              </div>
+            </div>
+
+            <hr class="border-border" />
+
+            <!-- URLs and Settings -->
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-foreground mb-1">
+                  Timeout (segundos)
+                </label>
+                <Input
+                  v-model.number="formData.mp_timeout"
+                  type="number"
+                  :min="5"
+                  :max="120"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-foreground mb-1">
+                  Cuotas Maximas
+                </label>
+                <Input
+                  v-model.number="formData.mp_max_installments"
+                  type="number"
+                  :min="1"
+                  :max="12"
+                />
+                <p class="text-xs text-muted-foreground mt-1">
+                  1 = Pago unico (sin cuotas)
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-foreground mb-1">
+                URL de Notificaciones
+              </label>
+              <Input
+                v-model="formData.mp_notification_url"
+                placeholder="https://tu-dominio.com/webhook/mp"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-foreground mb-1">
+                URL Base de Recibos
+              </label>
+              <Input
+                v-model="formData.receipt_public_url_base"
+                placeholder="https://tu-dominio.com/recibos"
+              />
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <template #footer>
-      <Button
-        label="Cancelar"
-        severity="secondary"
-        @click="handleClose"
-        :disabled="isLoading"
-      />
-      <Button
-        :label="isEditing ? 'Guardar' : 'Crear'"
-        icon="pi pi-check"
-        @click="handleSubmit"
-        :disabled="!canSave"
-        :loading="isLoading"
-      />
-    </template>
+      <DialogFooter>
+        <Button variant="outline" @click="handleClose" :disabled="isLoading">
+          Cancelar
+        </Button>
+        <Button @click="handleSubmit" :disabled="!canSave || isLoading">
+          <i v-if="isLoading" class="pi pi-spin pi-spinner mr-2" />
+          <i v-else class="pi pi-check mr-2" />
+          {{ isEditing ? 'Guardar' : 'Crear' }}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
   </Dialog>
 </template>

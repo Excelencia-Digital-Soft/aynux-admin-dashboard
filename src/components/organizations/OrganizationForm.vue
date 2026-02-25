@@ -4,13 +4,25 @@ import { useOrganizationStore } from '@/stores/organization.store'
 import { useOrganization } from '@/composables/useOrganization'
 import type { OrganizationCreateRequest, OrganizationUpdateRequest } from '@/types/organization.types'
 
-import Dialog from 'primevue/dialog'
-import InputText from 'primevue/inputtext'
-import Textarea from 'primevue/textarea'
-import InputNumber from 'primevue/inputnumber'
-import Select from 'primevue/select'
-import Checkbox from 'primevue/checkbox'
-import Button from 'primevue/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
+} from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Button } from '@/components/ui/button'
 
 const store = useOrganizationStore()
 const { createOrganization, updateOrganization, isLoading, closeOrgDialog } = useOrganization()
@@ -111,125 +123,135 @@ function handleClose() {
   resetForm()
   closeOrgDialog()
 }
+
+function handleOpenChange(open: boolean) {
+  if (!open) handleClose()
+}
 </script>
 
 <template>
-  <Dialog
-    :visible="store.showOrgDialog"
-    :header="dialogTitle"
-    :modal="true"
-    :style="{ width: '500px' }"
-    @update:visible="handleClose"
-  >
-    <div class="space-y-4">
-      <!-- Name -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">
-          Nombre *
-        </label>
-        <InputText
-          v-model="formData.name"
-          placeholder="Nombre de la organizacion"
-          class="w-full"
-          @blur="!isEditing && generateSlug()"
-        />
-      </div>
+  <Dialog :open="store.showOrgDialog" @update:open="handleOpenChange">
+    <DialogContent class="sm:max-w-[500px] glass-dialog">
+      <DialogHeader>
+        <DialogTitle>{{ dialogTitle }}</DialogTitle>
+        <DialogDescription class="sr-only">
+          {{ isEditing ? 'Editar datos de la organizacion' : 'Crear una nueva organizacion' }}
+        </DialogDescription>
+      </DialogHeader>
 
-      <!-- Slug (only for creation) -->
-      <div v-if="!isEditing">
-        <label class="block text-sm font-medium text-gray-700 mb-1">
-          Slug *
-        </label>
-        <InputText
-          v-model="formData.slug"
-          placeholder="slug-organizacion"
-          class="w-full"
-        />
-        <p class="text-xs text-gray-400 mt-1">
-          Identificador unico (solo letras, numeros y guiones)
-        </p>
-      </div>
-
-      <!-- Description -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">
-          Descripcion
-        </label>
-        <Textarea
-          v-model="formData.description"
-          rows="3"
-          placeholder="Descripcion opcional"
-          class="w-full"
-        />
-      </div>
-
-      <!-- Status -->
-      <div v-if="isEditing">
-        <label class="block text-sm font-medium text-gray-700 mb-1">
-          Estado
-        </label>
-        <Select
-          v-model="formData.status"
-          :options="statusOptions"
-          optionLabel="label"
-          optionValue="value"
-          class="w-full"
-        />
-      </div>
-
-      <!-- Limits -->
-      <div class="grid grid-cols-2 gap-4">
+      <div class="space-y-4 py-4">
+        <!-- Name -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
-            Limite de usuarios
+          <label class="block text-sm font-medium text-foreground mb-1">
+            Nombre *
           </label>
-          <InputNumber
-            v-model="formData.max_users"
-            :min="1"
-            placeholder="Sin limite"
-            class="w-full"
+          <Input
+            v-model="formData.name"
+            placeholder="Nombre de la organizacion"
+            @blur="!isEditing && generateSlug()"
           />
         </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
-            Limite de documentos
+
+        <!-- Slug (only for creation) -->
+        <div v-if="!isEditing">
+          <label class="block text-sm font-medium text-foreground mb-1">
+            Slug *
           </label>
-          <InputNumber
-            v-model="formData.max_documents"
-            :min="1"
-            placeholder="Sin limite"
-            class="w-full"
+          <Input
+            v-model="formData.slug"
+            placeholder="slug-organizacion"
+          />
+          <p class="text-xs text-muted-foreground mt-1">
+            Identificador unico (solo letras, numeros y guiones)
+          </p>
+        </div>
+
+        <!-- Description -->
+        <div>
+          <label class="block text-sm font-medium text-foreground mb-1">
+            Descripcion
+          </label>
+          <Textarea
+            v-model="formData.description"
+            :rows="3"
+            placeholder="Descripcion opcional"
           />
         </div>
+
+        <!-- Status -->
+        <div v-if="isEditing">
+          <label class="block text-sm font-medium text-foreground mb-1">
+            Estado
+          </label>
+          <Select v-model="formData.status">
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar estado" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="opt in statusOptions" :key="opt.value" :value="opt.value">
+                {{ opt.label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <!-- Limits -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-foreground mb-1">
+              Limite de usuarios
+            </label>
+            <Input
+              v-model.number="formData.max_users"
+              type="number"
+              :min="1"
+              placeholder="Sin limite"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-foreground mb-1">
+              Limite de documentos
+            </label>
+            <Input
+              v-model.number="formData.max_documents"
+              type="number"
+              :min="1"
+              placeholder="Sin limite"
+            />
+          </div>
+        </div>
+
+        <!-- Features -->
+        <div class="space-y-3 pt-2">
+          <div class="flex items-center gap-2">
+            <Checkbox
+              id="branding"
+              :checked="formData.custom_branding"
+              @update:checked="formData.custom_branding = !!$event"
+            />
+            <label for="branding" class="text-sm text-foreground">Branding personalizado</label>
+          </div>
+          <div class="flex items-center gap-2">
+            <Checkbox
+              id="api"
+              :checked="formData.api_access"
+              @update:checked="formData.api_access = !!$event"
+            />
+            <label for="api" class="text-sm text-foreground">Acceso API</label>
+          </div>
+        </div>
       </div>
 
-      <!-- Features -->
-      <div class="space-y-2 pt-2">
-        <div class="flex items-center gap-2">
-          <Checkbox v-model="formData.custom_branding" :binary="true" inputId="branding" />
-          <label for="branding" class="text-sm">Branding personalizado</label>
-        </div>
-        <div class="flex items-center gap-2">
-          <Checkbox v-model="formData.api_access" :binary="true" inputId="api" />
-          <label for="api" class="text-sm">Acceso API</label>
-        </div>
-      </div>
-    </div>
-
-    <template #footer>
-      <Button
-        label="Cancelar"
-        severity="secondary"
-        @click="handleClose"
-        :disabled="isLoading"
-      />
-      <Button
-        :label="isEditing ? 'Guardar' : 'Crear'"
-        icon="pi pi-check"
-        @click="handleSubmit"
-        :disabled="!canSave"
-        :loading="isLoading"
-      />
-    </template>
+      <DialogFooter>
+        <Button variant="outline" @click="handleClose" :disabled="isLoading">
+          Cancelar
+        </Button>
+        <Button @click="handleSubmit" :disabled="!canSave || isLoading">
+          <i v-if="isLoading" class="pi pi-spin pi-spinner mr-2" />
+          <i v-else class="pi pi-check mr-2" />
+          {{ isEditing ? 'Guardar' : 'Crear' }}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
   </Dialog>
 </template>

@@ -14,6 +14,7 @@ export interface GraphNode {
   has_conditional_output: boolean
   routing_config_count: number
   awaiting_type_config_count: number
+  subgraph?: string
 }
 
 export interface GraphEdge {

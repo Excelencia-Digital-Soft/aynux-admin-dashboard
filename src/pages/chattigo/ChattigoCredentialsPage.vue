@@ -6,10 +6,19 @@ import ChattigoCredentialsForm from '@/components/chattigo/ChattigoCredentialsFo
 import ChattigoTestDialog from '@/components/chattigo/ChattigoTestDialog.vue'
 import type { ChattigoCredential } from '@/types/chattigoCredentials.types'
 
-import Card from 'primevue/card'
-import Button from 'primevue/button'
-import Dialog from 'primevue/dialog'
-import Message from 'primevue/message'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction
+} from '@/components/ui/alert-dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 const store = useChattigoCredentialsStore()
 const { deleteCredential, openCredentialDialog, closeDeleteDialog, isLoading, totalCredentials } =
@@ -35,79 +44,78 @@ async function confirmDelete() {
 </script>
 
 <template>
-  <div class="chattigo-credentials-page p-4">
+  <div class="max-w-6xl mx-auto p-6">
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+        <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
           <i class="pi pi-whatsapp text-green-500" />
           Credenciales Chattigo
         </h1>
-        <p class="text-gray-500 mt-1">
-          Administra las credenciales de integración con Chattigo WhatsApp Business
+        <p class="text-gray-500 dark:text-gray-400 mt-1">
+          Administra las credenciales de integracion con Chattigo WhatsApp Business
         </p>
       </div>
-      <Button
-        label="Nueva Credencial"
-        icon="pi pi-plus"
-        @click="openCredentialDialog(null)"
-      />
+      <Button @click="openCredentialDialog(null)">
+        <i class="pi pi-plus mr-2" />
+        Nueva Credencial
+      </Button>
     </div>
 
     <!-- Stats Cards -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-      <Card class="shadow-sm">
-        <template #content>
+      <Card class="glass-panel">
+        <CardContent class="pt-6">
           <div class="flex items-center gap-3">
-            <div class="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
-              <i class="pi pi-list text-blue-600 text-xl" />
+            <div class="w-12 h-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+              <i class="pi pi-list text-blue-600 dark:text-blue-400 text-xl" />
             </div>
             <div>
-              <div class="text-2xl font-bold text-gray-800">{{ totalCredentials }}</div>
-              <div class="text-sm text-gray-500">Total Credenciales</div>
+              <div class="text-2xl font-bold text-gray-800 dark:text-gray-100">{{ totalCredentials }}</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">Total Credenciales</div>
             </div>
           </div>
-        </template>
+        </CardContent>
       </Card>
 
-      <Card class="shadow-sm">
-        <template #content>
+      <Card class="glass-panel">
+        <CardContent class="pt-6">
           <div class="flex items-center gap-3">
-            <div class="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
-              <i class="pi pi-check-circle text-green-600 text-xl" />
+            <div class="w-12 h-12 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+              <i class="pi pi-check-circle text-green-600 dark:text-green-400 text-xl" />
             </div>
             <div>
-              <div class="text-2xl font-bold text-gray-800">{{ store.enabledCount }}</div>
-              <div class="text-sm text-gray-500">Activas</div>
+              <div class="text-2xl font-bold text-gray-800 dark:text-gray-100">{{ store.enabledCount }}</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">Activas</div>
             </div>
           </div>
-        </template>
+        </CardContent>
       </Card>
 
-      <Card class="shadow-sm">
-        <template #content>
+      <Card class="glass-panel">
+        <CardContent class="pt-6">
           <div class="flex items-center gap-3">
-            <div class="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center">
-              <i class="pi pi-ban text-gray-600 text-xl" />
+            <div class="w-12 h-12 rounded-lg bg-gray-100 dark:bg-gray-800/50 flex items-center justify-center">
+              <i class="pi pi-ban text-gray-600 dark:text-gray-400 text-xl" />
             </div>
             <div>
-              <div class="text-2xl font-bold text-gray-800">{{ store.disabledCount }}</div>
-              <div class="text-sm text-gray-500">Inactivas</div>
+              <div class="text-2xl font-bold text-gray-800 dark:text-gray-100">{{ store.disabledCount }}</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">Inactivas</div>
             </div>
           </div>
-        </template>
+        </CardContent>
       </Card>
     </div>
 
     <!-- Content -->
-    <Card class="shadow-sm">
-      <template #content>
+    <Card class="glass-card">
+      <CardContent class="pt-6">
         <ChattigoCredentialsList
           @edit="handleEdit"
           @delete="handleDelete"
           @test="handleTest"
         />
-      </template>
+      </CardContent>
     </Card>
 
     <!-- Form Dialog -->
@@ -117,46 +125,50 @@ async function confirmDelete() {
     <ChattigoTestDialog />
 
     <!-- Delete Confirmation Dialog -->
-    <Dialog
-      v-model:visible="store.showDeleteDialog"
-      header="Eliminar Credencial"
-      :modal="true"
-      :style="{ width: '420px' }"
+    <AlertDialog
+      :open="store.showDeleteDialog"
+      @update:open="(val: boolean) => { if (!val) closeDeleteDialog() }"
     >
-      <div class="flex items-start gap-4">
-        <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-          <i class="pi pi-exclamation-triangle text-red-500 text-xl" />
-        </div>
-        <div>
-          <p class="font-medium text-gray-800">¿Está seguro de eliminar esta credencial?</p>
-          <p class="text-sm text-gray-500 mt-1">
-            <strong>{{ store.deletingCredential?.name }}</strong>
-            <br />
-            DID: {{ store.deletingCredential?.did }}
-          </p>
-        </div>
-      </div>
+      <AlertDialogContent class="glass-dialog">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Eliminar Credencial</AlertDialogTitle>
+          <AlertDialogDescription>
+            <div class="flex items-start gap-4">
+              <div class="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
+                <i class="pi pi-exclamation-triangle text-red-500 dark:text-red-400 text-xl" />
+              </div>
+              <div>
+                <p class="font-medium text-foreground">Esta seguro de eliminar esta credencial?</p>
+                <p class="text-sm text-muted-foreground mt-1">
+                  <strong>{{ store.deletingCredential?.name }}</strong>
+                  <br />
+                  DID: {{ store.deletingCredential?.did }}
+                </p>
+              </div>
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
 
-      <Message severity="warn" :closable="false" class="mt-4">
-        Esta acción no se puede deshacer. Los mensajes ya no podrán enviarse usando esta
-        credencial.
-      </Message>
+        <Alert variant="warning" class="mt-2">
+          <AlertDescription>
+            Esta accion no se puede deshacer. Los mensajes ya no podran enviarse usando esta
+            credencial.
+          </AlertDescription>
+        </Alert>
 
-      <template #footer>
-        <Button
-          label="Cancelar"
-          severity="secondary"
-          :disabled="isLoading"
-          @click="closeDeleteDialog"
-        />
-        <Button
-          label="Eliminar"
-          severity="danger"
-          icon="pi pi-trash"
-          :loading="isLoading"
-          @click="confirmDelete"
-        />
-      </template>
-    </Dialog>
+        <AlertDialogFooter>
+          <AlertDialogCancel :disabled="isLoading">Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            :disabled="isLoading"
+            @click="confirmDelete"
+          >
+            <i v-if="isLoading" class="pi pi-spinner pi-spin mr-2" />
+            <i v-else class="pi pi-trash mr-2" />
+            Eliminar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 </template>

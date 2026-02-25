@@ -6,9 +6,9 @@
  * Used in node definition editor for selecting node icons.
  */
 import { ref, computed } from 'vue'
-import Button from 'primevue/button'
-import Popover from 'primevue/popover'
-import InputText from 'primevue/inputtext'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 interface Props {
   modelValue?: string
@@ -24,7 +24,7 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: string): void
 }>()
 
-const popover = ref()
+const isOpen = ref(false)
 const searchQuery = ref('')
 
 // Common PrimeIcons used for workflow nodes
@@ -71,34 +71,26 @@ const filteredIcons = computed(() => {
   return icons.filter(icon => icon.toLowerCase().includes(query))
 })
 
-function toggle(event: Event) {
-  popover.value.toggle(event)
-}
-
 function selectIcon(icon: string) {
   emit('update:modelValue', icon)
-  popover.value.hide()
+  isOpen.value = false
 }
 </script>
 
 <template>
   <div class="icon-picker">
-    <Button
-      type="button"
-      :label="modelValue || placeholder"
-      :icon="`pi ${modelValue}`"
-      severity="secondary"
-      outlined
-      class="w-full justify-start"
-      @click="toggle"
-    />
-
-    <Popover ref="popover" class="icon-picker-popover">
-      <div class="p-3 w-80">
-        <InputText
+    <Popover v-model:open="isOpen">
+      <PopoverTrigger as-child>
+        <Button variant="outline" class="w-full justify-start">
+          <i :class="`pi ${modelValue}`" class="mr-2" />
+          {{ modelValue || placeholder }}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent class="w-80 p-3" align="start">
+        <Input
           v-model="searchQuery"
           placeholder="Buscar icono..."
-          class="w-full mb-3"
+          class="mb-3"
         />
         <div class="icon-grid">
           <button
@@ -113,10 +105,10 @@ function selectIcon(icon: string) {
             <i :class="`pi ${icon}`" />
           </button>
         </div>
-        <div v-if="filteredIcons.length === 0" class="text-center text-gray-400 py-4">
+        <div v-if="filteredIcons.length === 0" class="text-center text-muted-foreground py-4">
           No se encontraron iconos
         </div>
-      </div>
+      </PopoverContent>
     </Popover>
   </div>
 </template>
@@ -141,18 +133,18 @@ function selectIcon(icon: string) {
   cursor: pointer;
   transition: all 0.15s;
   background: transparent;
-  color: var(--p-text-color);
+  color: hsl(var(--foreground));
 }
 
 .icon-item:hover {
-  background: var(--p-surface-100);
-  border-color: var(--p-surface-300);
+  background: hsl(var(--muted));
+  border-color: hsl(var(--border));
 }
 
 .icon-item.icon-selected {
-  background: var(--p-primary-100);
-  border-color: var(--p-primary-500);
-  color: var(--p-primary-700);
+  background: hsl(var(--primary) / 0.1);
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary));
 }
 
 .icon-item i {

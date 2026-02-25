@@ -44,7 +44,7 @@ const presets: Preset[] = [
       did: 'TEST_MEDICAL_001',
       phoneNumber: '5491100001234',
       userName: 'Test Patient',
-      businessDomain: 'medical_appointments'
+      businessDomain: 'turnos_medicos'
     }
   },
   {

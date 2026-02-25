@@ -321,6 +321,8 @@ export function useResponseConfigs(selectedDomain: Ref<DomainKey | null>) {
           is_critical: config.is_critical,
           task_description: config.task_description,
           fallback_template_key: config.fallback_template_key,
+          response_type: config.response_type,
+          template_text: config.template_text,
           display_name: config.display_name,
           description: config.description,
           priority: config.priority,

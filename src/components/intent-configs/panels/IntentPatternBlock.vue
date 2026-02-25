@@ -4,10 +4,16 @@
  * with inline add/remove for lemmas, keywords, phrases, and confirmations.
  */
 import { ref } from 'vue'
-import InputText from 'primevue/inputtext'
-import Select from 'primevue/select'
-import Button from 'primevue/button'
-import Tag from 'primevue/tag'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue
+} from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import type { DomainIntent, MatchType } from '@/types/domainIntents.types'
 
 interface Props {
@@ -111,38 +117,35 @@ function handleAddConfirmation() {
           <span class="count">({{ intent.lemmas.length }})</span>
         </div>
         <div class="tags-area">
-          <Tag
+          <Badge
             v-for="lemma in intent.lemmas"
             :key="lemma"
-            :value="lemma"
-            severity="secondary"
+            variant="secondary"
             class="pattern-tag"
           >
-            <template #default>
-              <span class="tag-text">{{ lemma }}</span>
-              <i
-                class="pi pi-times tag-remove"
-                @click.stop="emit('removeLemma', intent.id, lemma)"
-              />
-            </template>
-          </Tag>
+            <span class="tag-text">{{ lemma }}</span>
+            <i
+              class="pi pi-times tag-remove"
+              @click.stop="emit('removeLemma', intent.id, lemma)"
+            />
+          </Badge>
         </div>
         <div class="add-row">
-          <InputText
+          <Input
             v-model="newLemma"
             placeholder="Nuevo lemma..."
-            class="add-input"
-            size="small"
+            class="add-input h-7 text-xs"
             @keydown.enter="handleAddLemma"
           />
           <Button
-            icon="pi pi-plus"
-            severity="secondary"
-            text
-            size="small"
+            variant="ghost"
+            size="icon"
+            class="h-7 w-7"
             @click="handleAddLemma"
             :disabled="!newLemma.trim()"
-          />
+          >
+            <i class="pi pi-plus text-xs" />
+          </Button>
         </div>
       </div>
 
@@ -154,38 +157,35 @@ function handleAddConfirmation() {
           <span class="count">({{ intent.keywords.length }})</span>
         </div>
         <div class="tags-area">
-          <Tag
+          <Badge
             v-for="kw in intent.keywords"
             :key="kw"
-            :value="kw"
-            severity="secondary"
+            variant="secondary"
             class="pattern-tag"
           >
-            <template #default>
-              <span class="tag-text">{{ kw }}</span>
-              <i
-                class="pi pi-times tag-remove"
-                @click.stop="emit('removeKeyword', intent.id, kw)"
-              />
-            </template>
-          </Tag>
+            <span class="tag-text">{{ kw }}</span>
+            <i
+              class="pi pi-times tag-remove"
+              @click.stop="emit('removeKeyword', intent.id, kw)"
+            />
+          </Badge>
         </div>
         <div class="add-row">
-          <InputText
+          <Input
             v-model="newKeyword"
             placeholder="Nuevo keyword..."
-            class="add-input"
-            size="small"
+            class="add-input h-7 text-xs"
             @keydown.enter="handleAddKeyword"
           />
           <Button
-            icon="pi pi-plus"
-            severity="secondary"
-            text
-            size="small"
+            variant="ghost"
+            size="icon"
+            class="h-7 w-7"
             @click="handleAddKeyword"
             :disabled="!newKeyword.trim()"
-          />
+          >
+            <i class="pi pi-plus text-xs" />
+          </Button>
         </div>
       </div>
 
@@ -197,48 +197,52 @@ function handleAddConfirmation() {
           <span class="count">({{ intent.phrases.length }})</span>
         </div>
         <div class="tags-area">
-          <Tag
+          <Badge
             v-for="p in intent.phrases"
             :key="p.phrase"
-            severity="success"
-            class="pattern-tag phrase-tag"
+            variant="success"
+            class="pattern-tag"
           >
-            <template #default>
-              <span class="match-badge">{{ matchTypeShort(p.match_type) }}</span>
-              <span class="tag-text">{{ p.phrase }}</span>
-              <i
-                class="pi pi-times tag-remove"
-                @click.stop="emit('removePhrase', intent.id, p.phrase)"
-              />
-            </template>
-          </Tag>
+            <span class="match-badge">{{ matchTypeShort(p.match_type) }}</span>
+            <span class="tag-text">{{ p.phrase }}</span>
+            <i
+              class="pi pi-times tag-remove"
+              @click.stop="emit('removePhrase', intent.id, p.phrase)"
+            />
+          </Badge>
         </div>
         <div class="add-row stacked">
           <div class="add-input-row">
-            <InputText
+            <Input
               v-model="newPhrase"
               placeholder="Nueva frase..."
-              class="add-input"
-              size="small"
+              class="add-input h-7 text-xs"
               @keydown.enter="handleAddPhrase"
             />
             <Button
-              icon="pi pi-plus"
-              severity="secondary"
-              text
-              size="small"
+              variant="ghost"
+              size="icon"
+              class="h-7 w-7"
               @click="handleAddPhrase"
               :disabled="!newPhrase.trim()"
-            />
+            >
+              <i class="pi pi-plus text-xs" />
+            </Button>
           </div>
-          <Select
-            v-model="newPhraseMatchType"
-            :options="matchTypeOptions"
-            optionLabel="label"
-            optionValue="value"
-            class="match-select"
-            size="small"
-          />
+          <Select v-model="newPhraseMatchType">
+            <SelectTrigger class="h-7 text-xs">
+              <SelectValue placeholder="Match type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                v-for="opt in matchTypeOptions"
+                :key="opt.value"
+                :value="opt.value"
+              >
+                {{ opt.label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -250,48 +254,52 @@ function handleAddConfirmation() {
           <span class="count">({{ intent.confirmation_patterns.length }})</span>
         </div>
         <div class="tags-area">
-          <Tag
+          <Badge
             v-for="cp in intent.confirmation_patterns"
             :key="cp.pattern"
-            severity="warn"
-            class="pattern-tag confirmation-tag"
+            variant="warning"
+            class="pattern-tag"
           >
-            <template #default>
-              <span class="match-badge">{{ matchTypeShort(cp.pattern_type) }}</span>
-              <span class="tag-text">{{ cp.pattern }}</span>
-              <i
-                class="pi pi-times tag-remove"
-                @click.stop="emit('removeConfirmation', intent.id, cp.pattern)"
-              />
-            </template>
-          </Tag>
+            <span class="match-badge">{{ matchTypeShort(cp.pattern_type) }}</span>
+            <span class="tag-text">{{ cp.pattern }}</span>
+            <i
+              class="pi pi-times tag-remove"
+              @click.stop="emit('removeConfirmation', intent.id, cp.pattern)"
+            />
+          </Badge>
         </div>
         <div class="add-row stacked">
           <div class="add-input-row">
-            <InputText
+            <Input
               v-model="newConfirmation"
               placeholder="Nuevo patron..."
-              class="add-input"
-              size="small"
+              class="add-input h-7 text-xs"
               @keydown.enter="handleAddConfirmation"
             />
             <Button
-              icon="pi pi-plus"
-              severity="secondary"
-              text
-              size="small"
+              variant="ghost"
+              size="icon"
+              class="h-7 w-7"
               @click="handleAddConfirmation"
               :disabled="!newConfirmation.trim()"
-            />
+            >
+              <i class="pi pi-plus text-xs" />
+            </Button>
           </div>
-          <Select
-            v-model="newConfirmationMatchType"
-            :options="matchTypeOptions"
-            optionLabel="label"
-            optionValue="value"
-            class="match-select"
-            size="small"
-          />
+          <Select v-model="newConfirmationMatchType">
+            <SelectTrigger class="h-7 text-xs">
+              <SelectValue placeholder="Match type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                v-for="opt in matchTypeOptions"
+                :key="opt.value"
+                :value="opt.value"
+              >
+                {{ opt.label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
     </div>
@@ -386,8 +394,8 @@ function handleAddConfirmation() {
 }
 
 .pattern-tag {
-  font-size: 0.7rem !important;
-  padding: 2px 6px !important;
+  font-size: 0.7rem;
+  padding: 2px 6px;
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
@@ -443,11 +451,6 @@ function handleAddConfirmation() {
 
 .add-input {
   flex: 1;
-  font-size: 0.75rem !important;
-}
-
-.match-select {
-  font-size: 0.75rem !important;
 }
 
 /* Dark mode adjustments */

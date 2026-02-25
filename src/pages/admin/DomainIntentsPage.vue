@@ -1,678 +1,1002 @@
 <template>
-  <div class="domain-intents-page">
+  <div class="p-6 space-y-6">
     <!-- Header with Domain Selector -->
-    <div class="page-header">
-      <div class="header-left">
-        <h1>
-          <i class="pi pi-tags mr-2"></i>
-          Gestión de Intents
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <h1 class="flex items-center gap-2 text-2xl font-semibold text-foreground">
+          <Tags class="h-6 w-6" />
+          Gestion de Intents
         </h1>
-        <p class="text-muted">Configura intents y patrones por dominio</p>
+        <p class="mt-1 text-sm text-muted-foreground">Configura intents y patrones por dominio</p>
       </div>
-      <div class="header-right">
+      <div class="flex flex-wrap items-center gap-3">
         <!-- Domain Selector -->
-        <Select
-          v-model="selectedDomain"
-          :options="availableDomains"
-          optionLabel="name"
-          optionValue="key"
-          placeholder="Seleccionar Dominio"
-          class="domain-selector"
-        >
-          <template #value="slotProps">
-            <div v-if="slotProps.value" class="domain-option">
-              <i :class="getDomainIcon(slotProps.value)" :style="{ color: getDomainColor(slotProps.value) }"></i>
-              <span>{{ getDomainName(slotProps.value) }}</span>
-            </div>
-            <span v-else>{{ slotProps.placeholder }}</span>
-          </template>
-          <template #option="slotProps">
-            <div class="domain-option">
-              <i :class="slotProps.option.icon" :style="{ color: slotProps.option.color }"></i>
-              <span>{{ slotProps.option.name }}</span>
-            </div>
-          </template>
+        <Select :model-value="selectedDomain ?? undefined" @update:model-value="(v: string) => selectedDomain = v as any">
+          <SelectTrigger class="min-w-[200px]">
+            <SelectValue :placeholder="'Seleccionar Dominio'">
+              <span v-if="selectedDomain" class="flex items-center gap-2">
+                <i :class="getDomainIcon(selectedDomain)" :style="{ color: getDomainColor(selectedDomain) }"></i>
+                {{ getDomainName(selectedDomain) }}
+              </span>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem
+              v-for="domain in availableDomains"
+              :key="domain.key"
+              :value="domain.key"
+            >
+              <span class="flex items-center gap-2">
+                <i :class="domain.icon" :style="{ color: domain.color }"></i>
+                {{ domain.name }}
+              </span>
+            </SelectItem>
+          </SelectContent>
         </Select>
 
-        <Button
-          label="Nuevo Intent"
-          icon="pi pi-plus"
-          severity="success"
-          @click="openCreateDialog"
-          :disabled="!selectedDomain"
-        />
-        <Button
-          label="Seed"
-          icon="pi pi-database"
-          severity="secondary"
-          outlined
-          @click="openSeedDialog"
-          :disabled="!selectedDomain"
-          v-tooltip="'Cargar intents por defecto'"
-        />
-        <Button
-          label="Exportar"
-          icon="pi pi-download"
-          severity="secondary"
-          outlined
-          @click="exportIntents"
-          :disabled="!selectedDomain || intents.length === 0"
-          v-tooltip="'Exportar intents a JSON'"
-        />
-        <Button
-          label="Importar"
-          icon="pi pi-upload"
-          severity="secondary"
-          outlined
-          @click="openImportDialog"
-          :disabled="!selectedDomain"
-          v-tooltip="'Importar intents desde JSON'"
-        />
-        <Button
-          icon="pi pi-chart-bar"
-          severity="secondary"
-          text
-          rounded
-          @click="fetchCacheStats"
-          :loading="loadingCacheStats"
-          v-tooltip="'Estadísticas del cache'"
-        />
-        <Button
-          icon="pi pi-refresh"
-          severity="secondary"
-          text
-          rounded
-          @click="invalidateCache"
-          :disabled="!selectedDomain"
-          v-tooltip="'Invalidar cache'"
-        />
+        <Button class="gap-2" @click="openCreateDialog" :disabled="!selectedDomain">
+          <Plus class="h-4 w-4" />
+          Nuevo Intent
+        </Button>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button variant="outline" class="gap-2" @click="openSeedDialog" :disabled="!selectedDomain">
+                <Database class="h-4 w-4" />
+                Seed
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Cargar intents por defecto</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button variant="outline" class="gap-2" @click="exportIntents" :disabled="!selectedDomain || intents.length === 0">
+                <Download class="h-4 w-4" />
+                Exportar
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Exportar intents a JSON</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button variant="outline" class="gap-2" @click="openImportDialog" :disabled="!selectedDomain">
+                <Upload class="h-4 w-4" />
+                Importar
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Importar intents desde JSON</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button variant="ghost" size="icon" @click="fetchCacheStats" :disabled="loadingCacheStats">
+                <BarChart3 class="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Estadisticas del cache</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button variant="ghost" size="icon" @click="invalidateCache" :disabled="!selectedDomain">
+                <RefreshCw class="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Invalidar cache</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </div>
 
-    <!-- Domain Stats Card -->
-    <div v-if="selectedDomain" class="stats-cards">
-      <div class="stat-card">
-        <i class="pi pi-list"></i>
-        <div class="stat-content">
-          <span class="stat-value">{{ intents.length }}</span>
-          <span class="stat-label">Intents</span>
+    <!-- Domain Stats Cards -->
+    <div v-if="selectedDomain" class="flex flex-wrap gap-4">
+      <div class="glass-card flex items-center gap-4 px-6 py-4 min-w-[150px]">
+        <List class="h-6 w-6 text-primary" />
+        <div class="flex flex-col">
+          <span class="text-2xl font-semibold text-foreground">{{ intents.length }}</span>
+          <span class="text-sm text-muted-foreground">Intents</span>
         </div>
       </div>
-      <div class="stat-card">
-        <i class="pi pi-check-circle"></i>
-        <div class="stat-content">
-          <span class="stat-value">{{ enabledIntents }}</span>
-          <span class="stat-label">Activos</span>
+      <div class="glass-card flex items-center gap-4 px-6 py-4 min-w-[150px]">
+        <CheckCircle class="h-6 w-6 text-primary" />
+        <div class="flex flex-col">
+          <span class="text-2xl font-semibold text-foreground">{{ enabledIntents }}</span>
+          <span class="text-sm text-muted-foreground">Activos</span>
         </div>
       </div>
-      <div class="stat-card">
-        <i class="pi pi-tags"></i>
-        <div class="stat-content">
-          <span class="stat-value">{{ totalPatterns }}</span>
-          <span class="stat-label">Patrones</span>
+      <div class="glass-card flex items-center gap-4 px-6 py-4 min-w-[150px]">
+        <Tags class="h-6 w-6 text-primary" />
+        <div class="flex flex-col">
+          <span class="text-2xl font-semibold text-foreground">{{ totalPatterns }}</span>
+          <span class="text-sm text-muted-foreground">Patrones</span>
         </div>
       </div>
     </div>
 
     <!-- No Domain Selected -->
-    <div v-if="!selectedDomain" class="empty-state">
-      <i class="pi pi-inbox"></i>
-      <h3>Selecciona un Dominio</h3>
-      <p>Elige un dominio del selector para ver y gestionar sus intents</p>
+    <div v-if="!selectedDomain" class="glass-card flex flex-col items-center justify-center py-16 px-8 text-center">
+      <Inbox class="h-12 w-12 text-muted-foreground mb-4" />
+      <h3 class="text-lg font-semibold text-foreground mb-2">Selecciona un Dominio</h3>
+      <p class="text-muted-foreground">Elige un dominio del selector para ver y gestionar sus intents</p>
     </div>
 
     <!-- Intents Table -->
-    <DataTable
-      v-else
-      :value="intents"
-      :loading="loading"
-      dataKey="id"
-      stripedRows
-      showGridlines
-      :paginator="true"
-      :rows="10"
-      :rowsPerPageOptions="[5, 10, 25, 50]"
-      paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
-      currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} intents"
-      v-model:expandedRows="expandedRows"
-      class="intents-table"
-    >
-      <template #header>
-        <div class="table-header">
-          <span class="p-input-icon-left">
-            <i class="pi pi-search" />
-            <InputText v-model="searchQuery" placeholder="Buscar intents..." @input="onSearch" />
-          </span>
-          <div class="header-actions">
-            <ToggleSwitch v-model="showOnlyEnabled" />
-            <label>Solo activos</label>
-          </div>
-        </div>
-      </template>
-
-      <Column expander style="width: 3rem" />
-
-      <Column field="intent_key" header="Key" sortable style="min-width: 150px">
-        <template #body="{ data }">
-          <code class="intent-key">{{ data.intent_key }}</code>
-        </template>
-      </Column>
-
-      <Column field="name" header="Nombre" sortable style="min-width: 200px" />
-
-      <Column field="weight" header="Peso" sortable style="width: 100px">
-        <template #body="{ data }">
-          <Tag :value="data.weight.toFixed(2)" :severity="getWeightSeverity(data.weight)" />
-        </template>
-      </Column>
-
-      <Column field="priority" header="Prioridad" sortable style="width: 100px">
-        <template #body="{ data }">
-          <span class="priority-badge">{{ data.priority }}</span>
-        </template>
-      </Column>
-
-      <Column field="is_enabled" header="Estado" sortable style="width: 100px">
-        <template #body="{ data }">
-          <Tag :value="data.is_enabled ? 'Activo' : 'Inactivo'" :severity="data.is_enabled ? 'success' : 'secondary'" />
-        </template>
-      </Column>
-
-      <Column header="Patrones" style="width: 200px">
-        <template #body="{ data }">
-          <div class="pattern-counts">
-            <span v-if="getLemmaCount(data) > 0" class="pattern-badge lemma" v-tooltip="'Lemmas'">
-              <i class="pi pi-book"></i> {{ getLemmaCount(data) }}
-            </span>
-            <span v-if="getPhraseCount(data) > 0" class="pattern-badge phrase" v-tooltip="'Frases'">
-              <i class="pi pi-comments"></i> {{ getPhraseCount(data) }}
-            </span>
-            <span v-if="getConfirmationCount(data) > 0" class="pattern-badge confirmation" v-tooltip="'Confirmaciones'">
-              <i class="pi pi-check-circle"></i> {{ getConfirmationCount(data) }}
-            </span>
-            <span v-if="getKeywordCount(data) > 0" class="pattern-badge keyword" v-tooltip="'Keywords'">
-              <i class="pi pi-key"></i> {{ getKeywordCount(data) }}
-            </span>
-          </div>
-        </template>
-      </Column>
-
-      <Column header="Acciones" style="width: 150px">
-        <template #body="{ data }">
-          <div class="action-buttons">
-            <Button
-              icon="pi pi-pencil"
-              severity="info"
-              text
-              rounded
-              v-tooltip="'Editar'"
-              @click="openEditDialog(data)"
-            />
-            <Button
-              icon="pi pi-trash"
-              severity="danger"
-              text
-              rounded
-              v-tooltip="'Eliminar'"
-              @click="confirmDeleteIntent(data)"
-            />
-          </div>
-        </template>
-      </Column>
-
-      <!-- Expanded Row - Pattern Details -->
-      <template #expansion="{ data }">
-        <div class="expanded-content">
-          <Tabs value="0">
-            <TabList>
-              <Tab value="0">
-                <i class="pi pi-book mr-2"></i>Lemmas ({{ getLemmaCount(data) }})
-              </Tab>
-              <Tab value="1">
-                <i class="pi pi-comments mr-2"></i>Frases ({{ getPhraseCount(data) }})
-              </Tab>
-              <Tab value="2">
-                <i class="pi pi-check-circle mr-2"></i>Confirmaciones ({{ getConfirmationCount(data) }})
-              </Tab>
-              <Tab value="3">
-                <i class="pi pi-key mr-2"></i>Keywords ({{ getKeywordCount(data) }})
-              </Tab>
-            </TabList>
-            <TabPanels>
-              <!-- Lemmas Panel -->
-              <TabPanel value="0">
-                <div class="pattern-section">
-                  <div class="pattern-input-row">
-                    <InputText
-                      v-model="newLemma"
-                      placeholder="Agregar lemma (Enter para guardar)"
-                      @keyup.enter="addLemma(data)"
-                    />
-                    <Button icon="pi pi-plus" @click="addLemma(data)" :disabled="!newLemma" />
-                  </div>
-                  <div class="pattern-chips">
-                    <Chip
-                      v-for="lemma in getLemmas(data)"
-                      :key="lemma"
-                      :label="lemma"
-                      removable
-                      @remove="removeLemma(data, lemma)"
-                    />
-                    <span v-if="getLemmaCount(data) === 0" class="no-patterns">
-                      No hay lemmas configurados
-                    </span>
-                  </div>
-                </div>
-              </TabPanel>
-
-              <!-- Phrases Panel -->
-              <TabPanel value="1">
-                <div class="pattern-section">
-                  <div class="pattern-input-row phrase-input">
-                    <InputText
-                      v-model="newPhrase.value"
-                      placeholder="Agregar frase"
-                      class="phrase-text"
-                    />
-                    <Select
-                      v-model="newPhrase.match_type"
-                      :options="matchTypeOptions"
-                      optionLabel="label"
-                      optionValue="value"
-                      placeholder="Tipo"
-                      class="match-type-select"
-                    />
-                    <Button icon="pi pi-plus" @click="addPhrase(data)" :disabled="!newPhrase.value" />
-                  </div>
-                  <DataTable :value="getPhrases(data)" size="small" class="pattern-table">
-                    <Column field="phrase" header="Frase" />
-                    <Column field="match_type" header="Tipo" style="width: 120px">
-                      <template #body="{ data: phraseData }">
-                        <Tag :value="getMatchTypeLabel(phraseData.match_type)" :severity="getMatchTypeSeverity(phraseData.match_type)" />
-                      </template>
-                    </Column>
-                    <Column style="width: 60px">
-                      <template #body="{ data: phraseData }">
-                        <Button icon="pi pi-trash" severity="danger" text size="small" @click="removePhrase(data, phraseData.phrase)" />
-                      </template>
-                    </Column>
-                  </DataTable>
-                </div>
-              </TabPanel>
-
-              <!-- Confirmations Panel -->
-              <TabPanel value="2">
-                <div class="pattern-section">
-                  <div class="pattern-input-row phrase-input">
-                    <InputText
-                      v-model="newConfirmation.value"
-                      placeholder="Agregar confirmación"
-                      class="phrase-text"
-                    />
-                    <Select
-                      v-model="newConfirmation.match_type"
-                      :options="matchTypeOptions"
-                      optionLabel="label"
-                      optionValue="value"
-                      placeholder="Tipo"
-                      class="match-type-select"
-                    />
-                    <Button icon="pi pi-plus" @click="addConfirmation(data)" :disabled="!newConfirmation.value" />
-                  </div>
-                  <DataTable :value="getConfirmations(data)" size="small" class="pattern-table">
-                    <Column field="pattern" header="Confirmación" />
-                    <Column field="pattern_type" header="Tipo" style="width: 120px">
-                      <template #body="{ data: confData }">
-                        <Tag :value="getMatchTypeLabel(confData.pattern_type)" :severity="getMatchTypeSeverity(confData.pattern_type)" />
-                      </template>
-                    </Column>
-                    <Column style="width: 60px">
-                      <template #body>
-                        <!-- Note: Backend doesn't have individual confirmation delete endpoint yet -->
-                        <Button icon="pi pi-trash" severity="danger" text size="small" disabled v-tooltip="'Eliminar via edición de intent'" />
-                      </template>
-                    </Column>
-                  </DataTable>
-                </div>
-              </TabPanel>
-
-              <!-- Keywords Panel -->
-              <TabPanel value="3">
-                <div class="pattern-section">
-                  <div class="pattern-input-row">
-                    <InputText
-                      v-model="newKeyword"
-                      placeholder="Agregar keyword (Enter para guardar)"
-                      @keyup.enter="addKeyword(data)"
-                    />
-                    <Button icon="pi pi-plus" @click="addKeyword(data)" :disabled="!newKeyword" />
-                  </div>
-                  <div class="pattern-chips">
-                    <Chip
-                      v-for="keyword in getKeywords(data)"
-                      :key="keyword"
-                      :label="keyword"
-                      removable
-                      @remove="removeKeyword(data, keyword)"
-                    />
-                    <span v-if="getKeywordCount(data) === 0" class="no-patterns">
-                      No hay keywords configurados
-                    </span>
-                  </div>
-                </div>
-              </TabPanel>
-            </TabPanels>
-          </Tabs>
-        </div>
-      </template>
-
-      <template #empty>
-        <div class="empty-table">
-          <i class="pi pi-inbox"></i>
-          <p>No hay intents configurados para este dominio</p>
-          <Button label="Crear primer intent" icon="pi pi-plus" @click="openCreateDialog" />
-        </div>
-      </template>
-    </DataTable>
-
-    <!-- Create/Edit Dialog -->
-    <Dialog
-      v-model:visible="showDialog"
-      :header="dialogTitle()"
-      :modal="true"
-      :style="{ width: '500px' }"
-      class="intent-dialog"
-    >
-      <div class="dialog-content">
-        <div class="field">
-          <label for="intent_key">Intent Key *</label>
-          <InputText
-            id="intent_key"
-            v-model="formData.intent_key"
-            :disabled="isEditing()"
-            placeholder="ej: check_stock, request_price"
-            class="w-full"
-          />
-          <small class="text-muted">Identificador único del intent (snake_case)</small>
-        </div>
-
-        <div class="field">
-          <label for="name">Nombre *</label>
-          <InputText
-            id="name"
-            v-model="formData.name"
-            placeholder="ej: Consulta de Stock"
-            class="w-full"
+    <div v-else class="space-y-4">
+      <!-- Table Header / Search -->
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div class="relative">
+          <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            v-model="searchQuery"
+            placeholder="Buscar intents..."
+            class="pl-10 w-[280px]"
+            @input="onSearch"
           />
         </div>
-
-        <div class="field">
-          <label for="description">Descripción</label>
-          <Textarea
-            id="description"
-            v-model="formData.description"
-            rows="3"
-            placeholder="Descripción del intent y cuándo se activa"
-            class="w-full"
+        <div class="flex items-center gap-2">
+          <Switch
+            :checked="showOnlyEnabled"
+            @update:checked="(v: boolean) => showOnlyEnabled = v"
           />
-        </div>
-
-        <div class="field-row">
-          <div class="field">
-            <label for="weight">Peso</label>
-            <InputNumber
-              id="weight"
-              v-model="formData.weight"
-              :min="0"
-              :max="9.99"
-              :minFractionDigits="2"
-              :maxFractionDigits="2"
-              class="w-full"
-            />
-          </div>
-          <div class="field">
-            <label for="priority">Prioridad</label>
-            <InputNumber
-              id="priority"
-              v-model="formData.priority"
-              :min="0"
-              :max="100"
-              class="w-full"
-            />
-          </div>
-        </div>
-
-        <div class="field-row">
-          <div class="field checkbox-field">
-            <Checkbox v-model="formData.is_enabled" :binary="true" inputId="is_enabled" />
-            <label for="is_enabled">Activo</label>
-          </div>
-          <div class="field checkbox-field">
-            <Checkbox v-model="formData.exact_match" :binary="true" inputId="exact_match" />
-            <label for="exact_match">Match Exacto</label>
-          </div>
+          <label class="text-sm text-foreground">Solo activos</label>
         </div>
       </div>
 
-      <template #footer>
-        <Button label="Cancelar" severity="secondary" text @click="closeDialog" />
-        <Button
-          :label="submitLabel()"
-          icon="pi pi-check"
-          @click="saveIntent"
-          :loading="saving"
-        />
-      </template>
+      <!-- Loading State -->
+      <div v-if="loading" class="flex items-center justify-center py-12">
+        <RefreshCw class="h-6 w-6 animate-spin text-muted-foreground" />
+        <span class="ml-2 text-muted-foreground">Cargando intents...</span>
+      </div>
+
+      <!-- Empty State -->
+      <div v-else-if="intents.length === 0" class="flex flex-col items-center py-12 text-center">
+        <Inbox class="h-10 w-10 text-muted-foreground mb-4" />
+        <p class="text-muted-foreground mb-4">No hay intents configurados para este dominio</p>
+        <Button class="gap-2" @click="openCreateDialog">
+          <Plus class="h-4 w-4" />
+          Crear primer intent
+        </Button>
+      </div>
+
+      <!-- Data Table -->
+      <div v-else>
+        <div class="rounded-lg border border-border overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead class="w-[3rem]"></TableHead>
+                <TableHead class="min-w-[150px] cursor-pointer select-none" @click="toggleSort('intent_key')">
+                  <span class="flex items-center gap-1">
+                    Key
+                    <component :is="getSortIcon('intent_key')" class="h-3 w-3" />
+                  </span>
+                </TableHead>
+                <TableHead class="min-w-[200px] cursor-pointer select-none" @click="toggleSort('name')">
+                  <span class="flex items-center gap-1">
+                    Nombre
+                    <component :is="getSortIcon('name')" class="h-3 w-3" />
+                  </span>
+                </TableHead>
+                <TableHead class="w-[100px] cursor-pointer select-none" @click="toggleSort('weight')">
+                  <span class="flex items-center gap-1">
+                    Peso
+                    <component :is="getSortIcon('weight')" class="h-3 w-3" />
+                  </span>
+                </TableHead>
+                <TableHead class="w-[100px] cursor-pointer select-none" @click="toggleSort('priority')">
+                  <span class="flex items-center gap-1">
+                    Prioridad
+                    <component :is="getSortIcon('priority')" class="h-3 w-3" />
+                  </span>
+                </TableHead>
+                <TableHead class="w-[100px] cursor-pointer select-none" @click="toggleSort('is_enabled')">
+                  <span class="flex items-center gap-1">
+                    Estado
+                    <component :is="getSortIcon('is_enabled')" class="h-3 w-3" />
+                  </span>
+                </TableHead>
+                <TableHead class="w-[200px]">Patrones</TableHead>
+                <TableHead class="w-[120px]">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <template v-for="intent in paginatedIntents" :key="intent.id">
+                <!-- Data Row -->
+                <TableRow class="group">
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-7 w-7"
+                      @click="toggleExpand(intent.id)"
+                    >
+                      <ChevronDown v-if="expandedRowIds.has(intent.id)" class="h-4 w-4 transition-transform" />
+                      <ChevronRight v-else class="h-4 w-4 transition-transform" />
+                    </Button>
+                  </TableCell>
+                  <TableCell>
+                    <code class="rounded bg-muted px-2 py-1 text-sm">{{ intent.intent_key }}</code>
+                  </TableCell>
+                  <TableCell class="font-medium">{{ intent.name }}</TableCell>
+                  <TableCell>
+                    <Badge :variant="getWeightVariant(intent.weight)">
+                      {{ intent.weight.toFixed(2) }}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <span class="inline-block rounded bg-muted px-2 py-1 text-sm font-semibold">
+                      {{ intent.priority }}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <Badge :variant="intent.is_enabled ? 'success' : 'secondary'">
+                      {{ intent.is_enabled ? 'Activo' : 'Inactivo' }}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div class="flex flex-wrap gap-1.5">
+                      <TooltipProvider v-if="getLemmaCount(intent) > 0">
+                        <Tooltip>
+                          <TooltipTrigger as-child>
+                            <span class="inline-flex items-center gap-1 rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-100">
+                              <BookOpen class="h-3 w-3" /> {{ getLemmaCount(intent) }}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>Lemmas</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider v-if="getPhraseCount(intent) > 0">
+                        <Tooltip>
+                          <TooltipTrigger as-child>
+                            <span class="inline-flex items-center gap-1 rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-100">
+                              <MessageSquare class="h-3 w-3" /> {{ getPhraseCount(intent) }}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>Frases</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider v-if="getConfirmationCount(intent) > 0">
+                        <Tooltip>
+                          <TooltipTrigger as-child>
+                            <span class="inline-flex items-center gap-1 rounded bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100">
+                              <CheckCircle class="h-3 w-3" /> {{ getConfirmationCount(intent) }}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>Confirmaciones</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider v-if="getKeywordCount(intent) > 0">
+                        <Tooltip>
+                          <TooltipTrigger as-child>
+                            <span class="inline-flex items-center gap-1 rounded bg-pink-100 px-2 py-0.5 text-xs font-medium text-pink-800 dark:bg-pink-900 dark:text-pink-100">
+                              <Key class="h-3 w-3" /> {{ getKeywordCount(intent) }}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>Keywords</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div class="flex gap-1">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger as-child>
+                            <Button variant="ghost" size="icon" class="h-8 w-8" @click="openEditDialog(intent)">
+                              <Pencil class="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Editar</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger as-child>
+                            <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive hover:text-destructive" @click="handleDeleteIntent(intent)">
+                              <Trash2 class="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Eliminar</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </TableCell>
+                </TableRow>
+
+                <!-- Expanded Row -->
+                <TableRow v-if="expandedRowIds.has(intent.id)">
+                  <TableCell :colspan="8" class="p-0">
+                    <div class="glass-panel m-2 p-4">
+                      <Tabs default-value="lemmas">
+                        <TabsList>
+                          <TabsTrigger value="lemmas" class="gap-1.5">
+                            <BookOpen class="h-3.5 w-3.5" />
+                            Lemmas ({{ getLemmaCount(intent) }})
+                          </TabsTrigger>
+                          <TabsTrigger value="phrases" class="gap-1.5">
+                            <MessageSquare class="h-3.5 w-3.5" />
+                            Frases ({{ getPhraseCount(intent) }})
+                          </TabsTrigger>
+                          <TabsTrigger value="confirmations" class="gap-1.5">
+                            <CheckCircle class="h-3.5 w-3.5" />
+                            Confirmaciones ({{ getConfirmationCount(intent) }})
+                          </TabsTrigger>
+                          <TabsTrigger value="keywords" class="gap-1.5">
+                            <Key class="h-3.5 w-3.5" />
+                            Keywords ({{ getKeywordCount(intent) }})
+                          </TabsTrigger>
+                        </TabsList>
+
+                        <!-- Lemmas Tab -->
+                        <TabsContent value="lemmas" class="pt-4">
+                          <div class="space-y-4">
+                            <div class="flex gap-2">
+                              <Input
+                                v-model="newLemma"
+                                placeholder="Agregar lemma (Enter para guardar)"
+                                class="max-w-sm"
+                                @keyup.enter="addLemma(intent)"
+                              />
+                              <Button size="icon" @click="addLemma(intent)" :disabled="!newLemma">
+                                <Plus class="h-4 w-4" />
+                              </Button>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                              <RemovableBadge
+                                v-for="lemma in getLemmas(intent)"
+                                :key="lemma"
+                                :label="lemma"
+                                @remove="removeLemma(intent, lemma)"
+                              />
+                              <span v-if="getLemmaCount(intent) === 0" class="text-sm italic text-muted-foreground">
+                                No hay lemmas configurados
+                              </span>
+                            </div>
+                          </div>
+                        </TabsContent>
+
+                        <!-- Phrases Tab -->
+                        <TabsContent value="phrases" class="pt-4">
+                          <div class="space-y-4">
+                            <div class="flex gap-2">
+                              <Input
+                                v-model="newPhrase.value"
+                                placeholder="Agregar frase"
+                                class="flex-1"
+                              />
+                              <Select v-model="newPhrase.match_type">
+                                <SelectTrigger class="w-[150px]">
+                                  <SelectValue placeholder="Tipo" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem
+                                    v-for="opt in matchTypeOptions"
+                                    :key="opt.value"
+                                    :value="opt.value"
+                                  >
+                                    {{ opt.label }}
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Button size="icon" @click="addPhrase(intent)" :disabled="!newPhrase.value">
+                                <Plus class="h-4 w-4" />
+                              </Button>
+                            </div>
+                            <div class="rounded-lg border border-border overflow-hidden">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>Frase</TableHead>
+                                    <TableHead class="w-[120px]">Tipo</TableHead>
+                                    <TableHead class="w-[60px]"></TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  <TableRow v-for="phraseData in getPhrases(intent)" :key="phraseData.phrase">
+                                    <TableCell>{{ phraseData.phrase }}</TableCell>
+                                    <TableCell>
+                                      <Badge :variant="getMatchTypeVariant(phraseData.match_type)">
+                                        {{ getMatchTypeLabel(phraseData.match_type) }}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        class="h-7 w-7 text-destructive hover:text-destructive"
+                                        @click="removePhrase(intent, phraseData.phrase)"
+                                      >
+                                        <Trash2 class="h-3.5 w-3.5" />
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                  <TableRow v-if="getPhrases(intent).length === 0">
+                                    <TableCell :colspan="3" class="text-center text-muted-foreground italic">
+                                      No hay frases configuradas
+                                    </TableCell>
+                                  </TableRow>
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </div>
+                        </TabsContent>
+
+                        <!-- Confirmations Tab -->
+                        <TabsContent value="confirmations" class="pt-4">
+                          <div class="space-y-4">
+                            <div class="flex gap-2">
+                              <Input
+                                v-model="newConfirmation.value"
+                                placeholder="Agregar confirmacion"
+                                class="flex-1"
+                              />
+                              <Select v-model="newConfirmation.match_type">
+                                <SelectTrigger class="w-[150px]">
+                                  <SelectValue placeholder="Tipo" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem
+                                    v-for="opt in matchTypeOptions"
+                                    :key="opt.value"
+                                    :value="opt.value"
+                                  >
+                                    {{ opt.label }}
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Button size="icon" @click="addConfirmation(intent)" :disabled="!newConfirmation.value">
+                                <Plus class="h-4 w-4" />
+                              </Button>
+                            </div>
+                            <div class="rounded-lg border border-border overflow-hidden">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>Confirmacion</TableHead>
+                                    <TableHead class="w-[120px]">Tipo</TableHead>
+                                    <TableHead class="w-[60px]"></TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  <TableRow v-for="confData in getConfirmations(intent)" :key="confData.pattern">
+                                    <TableCell>{{ confData.pattern }}</TableCell>
+                                    <TableCell>
+                                      <Badge :variant="getMatchTypeVariant(confData.pattern_type)">
+                                        {{ getMatchTypeLabel(confData.pattern_type) }}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                      <TooltipProvider>
+                                        <Tooltip>
+                                          <TooltipTrigger as-child>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              class="h-7 w-7"
+                                              disabled
+                                            >
+                                              <Trash2 class="h-3.5 w-3.5" />
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent>Eliminar via edicion de intent</TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                    </TableCell>
+                                  </TableRow>
+                                  <TableRow v-if="getConfirmations(intent).length === 0">
+                                    <TableCell :colspan="3" class="text-center text-muted-foreground italic">
+                                      No hay confirmaciones configuradas
+                                    </TableCell>
+                                  </TableRow>
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </div>
+                        </TabsContent>
+
+                        <!-- Keywords Tab -->
+                        <TabsContent value="keywords" class="pt-4">
+                          <div class="space-y-4">
+                            <div class="flex gap-2">
+                              <Input
+                                v-model="newKeyword"
+                                placeholder="Agregar keyword (Enter para guardar)"
+                                class="max-w-sm"
+                                @keyup.enter="addKeyword(intent)"
+                              />
+                              <Button size="icon" @click="addKeyword(intent)" :disabled="!newKeyword">
+                                <Plus class="h-4 w-4" />
+                              </Button>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                              <RemovableBadge
+                                v-for="keyword in getKeywords(intent)"
+                                :key="keyword"
+                                :label="keyword"
+                                @remove="removeKeyword(intent, keyword)"
+                              />
+                              <span v-if="getKeywordCount(intent) === 0" class="text-sm italic text-muted-foreground">
+                                No hay keywords configurados
+                              </span>
+                            </div>
+                          </div>
+                        </TabsContent>
+                      </Tabs>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              </template>
+            </TableBody>
+          </Table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="flex items-center justify-between pt-2">
+          <p class="text-sm text-muted-foreground">
+            Mostrando {{ paginationStart }} a {{ paginationEnd }} de {{ sortedIntents.length }} intents
+          </p>
+          <div class="flex items-center gap-2">
+            <Select v-model="rowsPerPageStr">
+              <SelectTrigger class="w-[80px] h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5</SelectItem>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+              </SelectContent>
+            </Select>
+            <div class="flex gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                class="h-8 w-8"
+                :disabled="currentPage === 1"
+                @click="currentPage = 1"
+              >
+                <ChevronsLeft class="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                class="h-8 w-8"
+                :disabled="currentPage === 1"
+                @click="currentPage--"
+              >
+                <ChevronLeft class="h-4 w-4" />
+              </Button>
+              <span class="flex items-center px-2 text-sm text-muted-foreground">
+                {{ currentPage }} / {{ totalPages }}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                class="h-8 w-8"
+                :disabled="currentPage >= totalPages"
+                @click="currentPage++"
+              >
+                <ChevronRight class="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                class="h-8 w-8"
+                :disabled="currentPage >= totalPages"
+                @click="currentPage = totalPages"
+              >
+                <ChevronsRight class="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create/Edit Dialog -->
+    <Dialog :open="showDialog" @update:open="(v: boolean) => { if (!v) closeDialog() }">
+      <DialogContent class="glass-dialog sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>{{ dialogTitle() }}</DialogTitle>
+          <DialogDescription class="sr-only">
+            {{ isEditing() ? 'Editar un intent existente' : 'Crear un nuevo intent para el dominio' }}
+          </DialogDescription>
+        </DialogHeader>
+        <div class="space-y-4 py-2">
+          <div class="space-y-1">
+            <label for="intent_key" class="text-sm font-medium text-foreground">Intent Key *</label>
+            <Input
+              id="intent_key"
+              v-model="formData.intent_key"
+              :disabled="isEditing()"
+              placeholder="ej: check_stock, request_price"
+            />
+            <p class="text-xs text-muted-foreground">Identificador unico del intent (snake_case)</p>
+          </div>
+
+          <div class="space-y-1">
+            <label for="name" class="text-sm font-medium text-foreground">Nombre *</label>
+            <Input
+              id="name"
+              v-model="formData.name"
+              placeholder="ej: Consulta de Stock"
+            />
+          </div>
+
+          <div class="space-y-1">
+            <label for="description" class="text-sm font-medium text-foreground">Descripcion</label>
+            <Textarea
+              id="description"
+              :model-value="formData.description ?? ''"
+              @update:model-value="(v: string) => formData.description = v"
+              :rows="3"
+              placeholder="Descripcion del intent y cuando se activa"
+            />
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-1">
+              <label for="weight" class="text-sm font-medium text-foreground">Peso</label>
+              <Input
+                id="weight"
+                type="number"
+                :min="0"
+                :max="9.99"
+                step="0.01"
+                v-model.number="formData.weight"
+              />
+            </div>
+            <div class="space-y-1">
+              <label for="priority" class="text-sm font-medium text-foreground">Prioridad</label>
+              <Input
+                id="priority"
+                type="number"
+                :min="0"
+                :max="100"
+                step="1"
+                v-model.number="formData.priority"
+              />
+            </div>
+          </div>
+
+          <div class="flex gap-6">
+            <div class="flex items-center gap-2">
+              <Checkbox
+                id="is_enabled"
+                :checked="formData.is_enabled"
+                @update:checked="(v: boolean) => formData.is_enabled = v"
+              />
+              <label for="is_enabled" class="text-sm font-medium text-foreground">Activo</label>
+            </div>
+            <div class="flex items-center gap-2">
+              <Checkbox
+                id="exact_match"
+                :checked="formData.exact_match"
+                @update:checked="(v: boolean) => formData.exact_match = v"
+              />
+              <label for="exact_match" class="text-sm font-medium text-foreground">Match Exacto</label>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="closeDialog">Cancelar</Button>
+          <Button @click="saveIntent" :disabled="saving" class="gap-2">
+            <RefreshCw v-if="saving" class="h-4 w-4 animate-spin" />
+            <Check v-else class="h-4 w-4" />
+            {{ submitLabel() }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
     </Dialog>
 
     <!-- Delete Confirmation -->
     <ConfirmDialog />
 
-    <!-- Toast -->
+    <!-- Toast (kept PrimeVue) -->
     <Toast />
 
     <!-- Seed Dialog -->
-    <Dialog
-      v-model:visible="showSeedDialog"
-      header="Sembrar Intents por Defecto"
-      :modal="true"
-      :style="{ width: '450px' }"
-    >
-      <div class="seed-dialog-content">
-        <p>
-          Esto creará los intents predefinidos para el dominio
-          <strong>{{ getDomainName(selectedDomain!) }}</strong>.
-        </p>
+    <Dialog :open="showSeedDialog" @update:open="(v: boolean) => { if (!v) closeSeedDialog() }">
+      <DialogContent class="glass-dialog sm:max-w-[450px]">
+        <DialogHeader>
+          <DialogTitle>Sembrar Intents por Defecto</DialogTitle>
+          <DialogDescription class="sr-only">
+            Crear intents predefinidos para el dominio seleccionado
+          </DialogDescription>
+        </DialogHeader>
+        <div class="space-y-4 py-2">
+          <p class="text-sm text-foreground">
+            Esto creara los intents predefinidos para el dominio
+            <strong>{{ selectedDomain ? getDomainName(selectedDomain) : '' }}</strong>.
+          </p>
 
-        <div class="seed-option">
-          <Checkbox v-model="seedOverwrite" :binary="true" inputId="seedOverwrite" />
-          <label for="seedOverwrite">Sobrescribir intents existentes</label>
+          <div class="flex items-center gap-2">
+            <Checkbox
+              id="seedOverwrite"
+              :checked="seedOverwrite"
+              @update:checked="(v: boolean) => seedOverwrite = v"
+            />
+            <label for="seedOverwrite" class="text-sm font-medium text-foreground">Sobrescribir intents existentes</label>
+          </div>
+
+          <Alert v-if="seedOverwrite" variant="destructive">
+            <AlertDescription>
+              Los intents existentes con las mismas claves seran reemplazados.
+            </AlertDescription>
+          </Alert>
+
+          <!-- Seed Results -->
+          <div v-if="lastSeedResult">
+            <Alert :variant="lastSeedResult.success ? 'default' : 'destructive'">
+              <AlertDescription>
+                <div>
+                  <strong>{{ lastSeedResult.added }}</strong> intents creados,
+                  <strong>{{ lastSeedResult.skipped }}</strong> omitidos
+                </div>
+                <div v-if="lastSeedResult.errors?.length" class="mt-2">
+                  <small class="text-muted-foreground">Errores:</small>
+                  <ul class="mt-1 list-disc pl-5 text-sm">
+                    <li v-for="(error, idx) in lastSeedResult.errors" :key="idx">{{ error }}</li>
+                  </ul>
+                </div>
+              </AlertDescription>
+            </Alert>
+          </div>
         </div>
-
-        <Message v-if="seedOverwrite" severity="warn" :closable="false">
-          Los intents existentes con las mismas claves serán reemplazados.
-        </Message>
-
-        <!-- Seed Results -->
-        <div v-if="lastSeedResult" class="seed-results">
-          <Message :severity="lastSeedResult.success ? 'success' : 'warn'" :closable="false">
-            <template #default>
-              <div>
-                <strong>{{ lastSeedResult.added }}</strong> intents creados,
-                <strong>{{ lastSeedResult.skipped }}</strong> omitidos
-              </div>
-              <div v-if="lastSeedResult.errors?.length" class="seed-errors">
-                <small>Errores:</small>
-                <ul>
-                  <li v-for="(error, idx) in lastSeedResult.errors" :key="idx">{{ error }}</li>
-                </ul>
-              </div>
-            </template>
-          </Message>
-        </div>
-      </div>
-
-      <template #footer>
-        <Button label="Cancelar" severity="secondary" text @click="closeSeedDialog" />
-        <Button
-          label="Sembrar"
-          icon="pi pi-database"
-          @click="seedDefaults"
-          :loading="seedingIntents"
-        />
-      </template>
+        <DialogFooter>
+          <Button variant="outline" @click="closeSeedDialog">Cancelar</Button>
+          <Button @click="seedDefaults" :disabled="seedingIntents" class="gap-2">
+            <RefreshCw v-if="seedingIntents" class="h-4 w-4 animate-spin" />
+            <Database v-else class="h-4 w-4" />
+            Sembrar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
     </Dialog>
 
     <!-- Cache Stats Dialog -->
-    <Dialog
-      v-model:visible="showCacheStatsDialog"
-      header="Estadísticas del Cache"
-      :modal="true"
-      :style="{ width: '500px' }"
-    >
-      <div v-if="cacheStats" class="cache-stats-content">
-        <div class="stat-grid">
-          <div class="stat-item">
-            <span class="stat-title">Memory Hits</span>
-            <span class="stat-number">{{ cacheStats.memory_hits }}</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-title">Memory Misses</span>
-            <span class="stat-number">{{ cacheStats.memory_misses }}</span>
-          </div>
-          <div class="stat-item highlight">
-            <span class="stat-title">Memory Hit Rate</span>
-            <span class="stat-number">{{ (cacheStats.memory_hit_rate * 100).toFixed(1) }}%</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-title">Redis Hits</span>
-            <span class="stat-number">{{ cacheStats.redis_hits }}</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-title">Redis Misses</span>
-            <span class="stat-number">{{ cacheStats.redis_misses }}</span>
-          </div>
-          <div class="stat-item highlight">
-            <span class="stat-title">Redis Hit Rate</span>
-            <span class="stat-number">{{ (cacheStats.redis_hit_rate * 100).toFixed(1) }}%</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-title">DB Loads</span>
-            <span class="stat-number">{{ cacheStats.db_loads }}</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-title">Invalidaciones</span>
-            <span class="stat-number">{{ cacheStats.invalidations }}</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-title">Orgs en Cache</span>
-            <span class="stat-number">{{ cacheStats.cached_organizations }}</span>
+    <Dialog :open="showCacheStatsDialog" @update:open="(v: boolean) => { if (!v) closeCacheStatsDialog() }">
+      <DialogContent class="glass-dialog sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Estadisticas del Cache</DialogTitle>
+          <DialogDescription class="sr-only">
+            Metricas de rendimiento del cache de intents
+          </DialogDescription>
+        </DialogHeader>
+        <div v-if="cacheStats" class="py-2">
+          <div class="grid grid-cols-3 gap-3">
+            <div class="glass-panel flex flex-col items-center rounded-lg p-3 text-center">
+              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Memory Hits</span>
+              <span class="mt-1 text-xl font-bold text-foreground">{{ cacheStats.memory_hits }}</span>
+            </div>
+            <div class="glass-panel flex flex-col items-center rounded-lg p-3 text-center">
+              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Memory Misses</span>
+              <span class="mt-1 text-xl font-bold text-foreground">{{ cacheStats.memory_misses }}</span>
+            </div>
+            <div class="flex flex-col items-center rounded-lg bg-primary p-3 text-center text-primary-foreground">
+              <span class="text-xs font-medium uppercase tracking-wide">Memory Hit Rate</span>
+              <span class="mt-1 text-xl font-bold">{{ (cacheStats.memory_hit_rate * 100).toFixed(1) }}%</span>
+            </div>
+            <div class="glass-panel flex flex-col items-center rounded-lg p-3 text-center">
+              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Redis Hits</span>
+              <span class="mt-1 text-xl font-bold text-foreground">{{ cacheStats.redis_hits }}</span>
+            </div>
+            <div class="glass-panel flex flex-col items-center rounded-lg p-3 text-center">
+              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Redis Misses</span>
+              <span class="mt-1 text-xl font-bold text-foreground">{{ cacheStats.redis_misses }}</span>
+            </div>
+            <div class="flex flex-col items-center rounded-lg bg-primary p-3 text-center text-primary-foreground">
+              <span class="text-xs font-medium uppercase tracking-wide">Redis Hit Rate</span>
+              <span class="mt-1 text-xl font-bold">{{ (cacheStats.redis_hit_rate * 100).toFixed(1) }}%</span>
+            </div>
+            <div class="glass-panel flex flex-col items-center rounded-lg p-3 text-center">
+              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">DB Loads</span>
+              <span class="mt-1 text-xl font-bold text-foreground">{{ cacheStats.db_loads }}</span>
+            </div>
+            <div class="glass-panel flex flex-col items-center rounded-lg p-3 text-center">
+              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Invalidaciones</span>
+              <span class="mt-1 text-xl font-bold text-foreground">{{ cacheStats.invalidations }}</span>
+            </div>
+            <div class="glass-panel flex flex-col items-center rounded-lg p-3 text-center">
+              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Orgs en Cache</span>
+              <span class="mt-1 text-xl font-bold text-foreground">{{ cacheStats.cached_organizations }}</span>
+            </div>
           </div>
         </div>
-      </div>
-
-      <template #footer>
-        <Button label="Cerrar" severity="secondary" @click="closeCacheStatsDialog" />
-      </template>
+        <DialogFooter>
+          <Button variant="outline" @click="closeCacheStatsDialog">Cerrar</Button>
+        </DialogFooter>
+      </DialogContent>
     </Dialog>
 
     <!-- Import Dialog -->
-    <Dialog
-      v-model:visible="showImportDialog"
-      header="Importar Intents"
-      :modal="true"
-      :style="{ width: '600px' }"
-    >
-      <div class="import-dialog-content">
-        <div class="field">
-          <label>Archivo JSON</label>
-          <FileUpload
-            mode="basic"
-            accept=".json"
-            :maxFileSize="1000000"
-            chooseLabel="Seleccionar archivo"
-            :auto="false"
-            @select="onFileSelect"
-          />
-          <small class="text-muted">Formato: archivo JSON exportado desde esta página</small>
-        </div>
+    <Dialog :open="showImportDialog" @update:open="(v: boolean) => { if (!v) closeImportDialog() }">
+      <DialogContent class="glass-dialog sm:max-w-[600px]">
+        <DialogHeader>
+          <DialogTitle>Importar Intents</DialogTitle>
+          <DialogDescription class="sr-only">
+            Importar intents desde un archivo JSON exportado
+          </DialogDescription>
+        </DialogHeader>
+        <div class="space-y-4 py-2">
+          <div class="space-y-1">
+            <label class="text-sm font-medium text-foreground">Archivo JSON</label>
+            <Input
+              type="file"
+              accept=".json"
+              @change="onFileInput"
+              class="cursor-pointer"
+            />
+            <p class="text-xs text-muted-foreground">Formato: archivo JSON exportado desde esta pagina</p>
+          </div>
 
-        <!-- Preview -->
-        <div v-if="importPreview.length > 0" class="import-preview">
-          <h4>Vista previa ({{ importPreview.length }} intents)</h4>
-          <DataTable :value="importPreview" size="small" :rows="5" :paginator="importPreview.length > 5">
-            <Column field="intent_key" header="Key" style="width: 40%" />
-            <Column field="name" header="Nombre" style="width: 40%" />
-            <Column field="priority" header="Prioridad" style="width: 20%" />
-          </DataTable>
-        </div>
+          <!-- Preview -->
+          <div v-if="importPreview.length > 0" class="space-y-2">
+            <h4 class="text-sm font-medium text-muted-foreground">
+              Vista previa ({{ importPreview.length }} intents)
+            </h4>
+            <div class="rounded-lg border border-border overflow-hidden max-h-[250px] overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Key</TableHead>
+                    <TableHead>Nombre</TableHead>
+                    <TableHead class="w-[100px]">Prioridad</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="item in importPreview.slice(0, importPreviewLimit)" :key="item.intent_key">
+                    <TableCell class="font-mono text-sm">{{ item.intent_key }}</TableCell>
+                    <TableCell>{{ item.name }}</TableCell>
+                    <TableCell>{{ item.priority }}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+            <Button
+              v-if="importPreview.length > importPreviewLimit"
+              variant="link"
+              size="sm"
+              @click="importPreviewLimit = importPreview.length"
+            >
+              Ver todos ({{ importPreview.length }})
+            </Button>
+          </div>
 
-        <!-- Import Results -->
-        <div v-if="lastImportResult" class="import-results">
-          <Message :severity="lastImportResult.success ? 'success' : 'warn'" :closable="false">
-            <template #default>
-              <div>
-                <strong>{{ lastImportResult.created }}</strong> intents importados,
-                <strong>{{ lastImportResult.skipped }}</strong> omitidos
-              </div>
-              <div v-if="lastImportResult.errors?.length" class="import-errors">
-                <small>Errores:</small>
-                <ul>
-                  <li v-for="(error, idx) in lastImportResult.errors" :key="idx">{{ error }}</li>
-                </ul>
-              </div>
-            </template>
-          </Message>
+          <!-- Import Results -->
+          <div v-if="lastImportResult">
+            <Alert :variant="lastImportResult.success ? 'default' : 'destructive'">
+              <AlertDescription>
+                <div>
+                  <strong>{{ lastImportResult.created }}</strong> intents importados,
+                  <strong>{{ lastImportResult.skipped }}</strong> omitidos
+                </div>
+                <div v-if="lastImportResult.errors?.length" class="mt-2">
+                  <small class="text-muted-foreground">Errores:</small>
+                  <ul class="mt-1 list-disc pl-5 text-sm">
+                    <li v-for="(error, idx) in lastImportResult.errors" :key="idx">{{ error }}</li>
+                  </ul>
+                </div>
+              </AlertDescription>
+            </Alert>
+          </div>
         </div>
-      </div>
-
-      <template #footer>
-        <Button label="Cancelar" severity="secondary" text @click="closeImportDialog" />
-        <Button
-          label="Importar"
-          icon="pi pi-upload"
-          @click="importIntents"
-          :loading="importing"
-          :disabled="importPreview.length === 0"
-        />
-      </template>
+        <DialogFooter>
+          <Button variant="outline" @click="closeImportDialog">Cancelar</Button>
+          <Button
+            @click="importIntents"
+            :disabled="importing || importPreview.length === 0"
+            class="gap-2"
+          >
+            <RefreshCw v-if="importing" class="h-4 w-4 animate-spin" />
+            <Upload v-else class="h-4 w-4" />
+            Importar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
     </Dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import Button from 'primevue/button'
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
-import InputText from 'primevue/inputtext'
-import InputNumber from 'primevue/inputnumber'
-import Textarea from 'primevue/textarea'
-import Select from 'primevue/select'
-import Checkbox from 'primevue/checkbox'
-import ToggleSwitch from 'primevue/toggleswitch'
-import Tag from 'primevue/tag'
-import Chip from 'primevue/chip'
-import Dialog from 'primevue/dialog'
-import ConfirmDialog from 'primevue/confirmdialog'
+import { ref, computed, reactive, watch } from 'vue'
 import Toast from 'primevue/toast'
-import Message from 'primevue/message'
-import FileUpload from 'primevue/fileupload'
-import Tabs from 'primevue/tabs'
-import TabList from 'primevue/tablist'
-import Tab from 'primevue/tab'
-import TabPanels from 'primevue/tabpanels'
-import TabPanel from 'primevue/tabpanel'
 
+// shadcn-vue components
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Badge, RemovableBadge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Switch } from '@/components/ui/switch'
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
+} from '@/components/ui/select'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog'
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider
+} from '@/components/ui/tooltip'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
+
+// Lucide icons
+import {
+  Tags,
+  Plus,
+  Pencil,
+  Trash2,
+  Search,
+  ChevronDown,
+  ChevronRight,
+  ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
+  Database,
+  Download,
+  Upload,
+  BarChart3,
+  RefreshCw,
+  List,
+  CheckCircle,
+  Inbox,
+  BookOpen,
+  MessageSquare,
+  Key,
+  Check,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
+} from 'lucide-vue-next'
+
+// Composables
 import { useDomainIntents } from '@/composables/useDomainIntents'
 import { useIntentPatterns } from '@/composables/useIntentPatterns'
 import { useIntentDialog } from '@/composables/useIntentDialog'
+import type { DomainIntent } from '@/types/domainIntents.types'
+
+// Confirm dialog composable (shadcn-vue based)
+const confirmDialog = useConfirmDialog()
 
 // Domain Intents composable
 const {
   selectedDomain,
   intents,
   loading,
-  expandedRows,
   searchQuery,
   showOnlyEnabled,
   availableDomains,
@@ -701,7 +1025,7 @@ const {
   // Actions
   loadIntents,
   onSearch,
-  confirmDeleteIntent,
+  deleteIntent,
   invalidateCache,
   // Cache stats actions
   fetchCacheStats,
@@ -758,403 +1082,149 @@ const {
   saveIntent
 } = useIntentDialog(selectedDomain, organizationId, loadIntents)
 
+// =========================================================================
+// Expandable rows state
+// =========================================================================
+const expandedRowIds = reactive(new Set<string>())
+
+function toggleExpand(id: string) {
+  if (expandedRowIds.has(id)) {
+    expandedRowIds.delete(id)
+  } else {
+    expandedRowIds.add(id)
+  }
+}
+
+// =========================================================================
+// Sort + Pagination state
+// =========================================================================
+type SortField = 'intent_key' | 'name' | 'weight' | 'priority' | 'is_enabled'
+
+const sortField = ref<SortField | null>(null)
+const sortOrder = ref<'asc' | 'desc'>('asc')
+const currentPage = ref(1)
+const rowsPerPage = ref(10)
+
+// String wrapper for Select component (which uses string values)
+const rowsPerPageStr = computed({
+  get: () => String(rowsPerPage.value),
+  set: (v: string) => {
+    rowsPerPage.value = Number(v)
+    currentPage.value = 1
+  }
+})
+
+function toggleSort(field: SortField) {
+  if (sortField.value === field) {
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortField.value = field
+    sortOrder.value = 'asc'
+  }
+  currentPage.value = 1
+}
+
+function getSortIcon(field: SortField) {
+  if (sortField.value !== field) return ArrowUpDown
+  return sortOrder.value === 'asc' ? ArrowUp : ArrowDown
+}
+
+const sortedIntents = computed(() => {
+  if (!sortField.value) return intents.value
+
+  const field = sortField.value
+  const order = sortOrder.value === 'asc' ? 1 : -1
+
+  return [...intents.value].sort((a, b) => {
+    const aVal = a[field]
+    const bVal = b[field]
+
+    if (typeof aVal === 'string' && typeof bVal === 'string') {
+      return aVal.localeCompare(bVal) * order
+    }
+    if (typeof aVal === 'number' && typeof bVal === 'number') {
+      return (aVal - bVal) * order
+    }
+    if (typeof aVal === 'boolean' && typeof bVal === 'boolean') {
+      return (Number(aVal) - Number(bVal)) * order
+    }
+    return 0
+  })
+})
+
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(sortedIntents.value.length / rowsPerPage.value))
+)
+
+const paginatedIntents = computed(() => {
+  const start = (currentPage.value - 1) * rowsPerPage.value
+  return sortedIntents.value.slice(start, start + rowsPerPage.value)
+})
+
+const paginationStart = computed(() =>
+  sortedIntents.value.length === 0 ? 0 : (currentPage.value - 1) * rowsPerPage.value + 1
+)
+
+const paginationEnd = computed(() =>
+  Math.min(currentPage.value * rowsPerPage.value, sortedIntents.value.length)
+)
+
+// Reset page when intents change
+watch(() => intents.value.length, () => {
+  currentPage.value = 1
+})
+
+// =========================================================================
+// Delete intent (using shadcn ConfirmDialog instead of PrimeVue useConfirm)
+// =========================================================================
+async function handleDeleteIntent(intent: DomainIntent) {
+  const confirmed = await confirmDialog.confirm({
+    title: 'Confirmar eliminacion',
+    message: `Eliminar el intent "${intent.name}"? Esta accion no se puede deshacer.`,
+    confirmLabel: 'Eliminar',
+    variant: 'destructive'
+  })
+  if (confirmed) {
+    await deleteIntent(intent)
+  }
+}
+
+// =========================================================================
 // UI helpers
-function getWeightSeverity(weight: number): string {
-  if (weight >= 1.5) return 'danger'
+// =========================================================================
+function getWeightVariant(weight: number): 'destructive' | 'warning' | 'success' | 'secondary' {
+  if (weight >= 1.5) return 'destructive'
   if (weight >= 1.2) return 'warning'
   if (weight >= 1.0) return 'success'
   return 'secondary'
 }
 
-// FileUpload event handler
-function onFileSelect(event: { files: File[] }) {
-  handleImportFileChange(event.files[0] || null)
-}
-</script>
-
-<style scoped>
-.domain-intents-page {
-  padding: 1.5rem;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.header-left h1 {
-  margin: 0;
-  font-size: 1.5rem;
-  display: flex;
-  align-items: center;
-}
-
-.header-left .text-muted {
-  margin: 0.25rem 0 0 0;
-  color: var(--text-color-secondary);
-}
-
-.header-right {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-}
-
-.domain-selector {
-  min-width: 200px;
-}
-
-.domain-option {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.stats-cards {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-}
-
-.stat-card {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem 1.5rem;
-  background: var(--surface-card);
-  border-radius: 8px;
-  border: 1px solid var(--surface-border);
-  min-width: 150px;
-}
-
-.stat-card i {
-  font-size: 1.5rem;
-  color: var(--primary-color);
-}
-
-.stat-content {
-  display: flex;
-  flex-direction: column;
-}
-
-.stat-value {
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-.stat-label {
-  font-size: 0.875rem;
-  color: var(--text-color-secondary);
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem 2rem;
-  background: var(--surface-card);
-  border-radius: 8px;
-  border: 1px solid var(--surface-border);
-  text-align: center;
-}
-
-.empty-state i {
-  font-size: 3rem;
-  color: var(--text-color-secondary);
-  margin-bottom: 1rem;
-}
-
-.empty-state h3 {
-  margin: 0 0 0.5rem 0;
-}
-
-.empty-state p {
-  color: var(--text-color-secondary);
-  margin: 0;
-}
-
-.table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.intent-key {
-  background: var(--surface-ground);
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.875rem;
-}
-
-.priority-badge {
-  display: inline-block;
-  padding: 0.25rem 0.5rem;
-  background: var(--surface-ground);
-  border-radius: 4px;
-  font-weight: 600;
-}
-
-.pattern-counts {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.pattern-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-.pattern-badge.lemma {
-  background: #dbeafe;
-  color: #1d4ed8;
-}
-
-.pattern-badge.phrase {
-  background: #dcfce7;
-  color: #15803d;
-}
-
-.pattern-badge.confirmation {
-  background: #fef3c7;
-  color: #b45309;
-}
-
-.pattern-badge.keyword {
-  background: #fce7f3;
-  color: #be185d;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.expanded-content {
-  padding: 1rem;
-  background: var(--surface-ground);
-  border-radius: 8px;
-}
-
-.pattern-section {
-  padding: 1rem 0;
-}
-
-.pattern-input-row {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.pattern-input-row.phrase-input .phrase-text {
-  flex: 1;
-}
-
-.pattern-input-row.phrase-input .match-type-select {
-  width: 150px;
-}
-
-.pattern-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.no-patterns {
-  color: var(--text-color-secondary);
-  font-style: italic;
-}
-
-.pattern-table {
-  margin-top: 0.5rem;
-}
-
-.empty-table {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 3rem;
-  text-align: center;
-}
-
-.empty-table i {
-  font-size: 2.5rem;
-  color: var(--text-color-secondary);
-  margin-bottom: 1rem;
-}
-
-.empty-table p {
-  color: var(--text-color-secondary);
-  margin-bottom: 1rem;
-}
-
-.dialog-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.field label {
-  font-weight: 500;
-}
-
-.field .text-muted {
-  font-size: 0.75rem;
-  color: var(--text-color-secondary);
-}
-
-.field-row {
-  display: flex;
-  gap: 1rem;
-}
-
-.field-row .field {
-  flex: 1;
-}
-
-.checkbox-field {
-  flex-direction: row !important;
-  align-items: center;
-  gap: 0.5rem !important;
-}
-
-/* Dark mode adjustments */
-:deep(.dark-mode) .pattern-badge.lemma {
-  background: #1e3a5f;
-  color: #93c5fd;
-}
-
-:deep(.dark-mode) .pattern-badge.phrase {
-  background: #14532d;
-  color: #86efac;
-}
-
-:deep(.dark-mode) .pattern-badge.confirmation {
-  background: #713f12;
-  color: #fcd34d;
-}
-
-:deep(.dark-mode) .pattern-badge.keyword {
-  background: #701a75;
-  color: #f9a8d4;
-}
-
-/* Seed Dialog */
-.seed-dialog-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.seed-option {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.seed-results {
-  margin-top: 1rem;
-}
-
-.seed-errors ul {
-  margin: 0.5rem 0 0 0;
-  padding-left: 1.5rem;
-}
-
-/* Cache Stats Dialog */
-.cache-stats-content {
-  padding: 0.5rem 0;
-}
-
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-}
-
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 1rem;
-  background: var(--surface-ground);
-  border-radius: 8px;
-  text-align: center;
-}
-
-.stat-item.highlight {
-  background: var(--primary-color);
-  color: var(--primary-color-text);
-}
-
-.stat-title {
-  font-size: 0.75rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 0.25rem;
-}
-
-.stat-number {
-  font-size: 1.5rem;
-  font-weight: 700;
-}
-
-/* Import Dialog */
-.import-dialog-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.import-preview {
-  margin-top: 1rem;
-}
-
-.import-preview h4 {
-  margin: 0 0 0.5rem 0;
-  font-size: 0.875rem;
-  color: var(--text-color-secondary);
-}
-
-.import-results {
-  margin-top: 1rem;
-}
-
-.import-errors ul {
-  margin: 0.5rem 0 0 0;
-  padding-left: 1.5rem;
-}
-
-/* Responsive adjustments for header */
-@media (max-width: 1200px) {
-  .header-right {
-    flex-wrap: wrap;
+function getMatchTypeVariant(matchType: string | null): 'success' | 'info' | 'warning' | 'secondary' {
+  switch (matchType) {
+    case 'exact':
+      return 'success'
+    case 'contains':
+      return 'info'
+    case 'prefix':
+      return 'warning'
+    default:
+      return 'secondary'
   }
 }
-</style>
+
+// =========================================================================
+// File input handler (replacing PrimeVue FileUpload)
+// =========================================================================
+function onFileInput(event: Event) {
+  const target = event.target as HTMLInputElement
+  handleImportFileChange(target.files?.[0] ?? null)
+}
+
+// Import preview limit
+const importPreviewLimit = ref(5)
+
+// Reset preview limit when dialog opens
+watch(showImportDialog, (v) => {
+  if (v) importPreviewLimit.value = 5
+})
+</script>

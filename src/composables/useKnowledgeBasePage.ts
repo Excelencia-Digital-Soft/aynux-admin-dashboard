@@ -28,7 +28,7 @@ export function useKnowledgeBasePage(options: UseKnowledgeBasePageOptions = {}) 
   const { fetchDocuments } = useKnowledge()
 
   // State
-  const activeTab = ref('0')
+  const activeTab = ref('browse')
   const selectedSource = ref((route.query.source as string) || 'all')
   const selectedAgentKey = ref((route.query.agent as string) || '')
   const availableAgents = ref<AgentOption[]>([])
@@ -74,7 +74,7 @@ export function useKnowledgeBasePage(options: UseKnowledgeBasePageOptions = {}) 
    * Handle document selection from search.
    */
   function handleSearchSelect(docId: string): void {
-    activeTab.value = '0'
+    activeTab.value = 'browse'
   }
 
   /**
@@ -83,7 +83,7 @@ export function useKnowledgeBasePage(options: UseKnowledgeBasePageOptions = {}) 
   function handleSelectAgentFromDashboard(agentKey: string): void {
     selectedSource.value = 'agent'
     selectedAgentKey.value = agentKey
-    activeTab.value = '0'
+    activeTab.value = 'browse'
   }
 
   /**

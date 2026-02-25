@@ -8,10 +8,19 @@ import PharmacyList from '@/components/pharmacy/PharmacyList.vue'
 import PharmacyForm from '@/components/pharmacy/PharmacyForm.vue'
 import type { PharmacyConfig } from '@/types/pharmacyConfig.types'
 
-import Card from 'primevue/card'
-import Button from 'primevue/button'
-import Dialog from 'primevue/dialog'
-import Message from 'primevue/message'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction
+} from '@/components/ui/alert-dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 const router = useRouter()
 const store = usePharmacyStore()
@@ -52,10 +61,6 @@ async function confirmDelete() {
     }
   }
 }
-
-function cancelDelete() {
-  closeDeleteDialog()
-}
 </script>
 
 <template>
@@ -63,70 +68,73 @@ function cancelDelete() {
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">Farmacias</h1>
-        <p class="text-gray-500 dark:text-gray-400 mt-1">
+        <h1 class="text-2xl font-bold text-foreground">Farmacias</h1>
+        <p class="text-muted-foreground mt-1">
           Administra las configuraciones de farmacias e historial de mensajes
         </p>
       </div>
-      <Button
-        label="Nueva Farmacia"
-        icon="pi pi-plus"
-        :disabled="!currentOrgId"
-        @click="openPharmacyDialog(null)"
-      />
+      <Button :disabled="!currentOrgId" @click="openPharmacyDialog(null)">
+        <i class="pi pi-plus mr-2" />
+        Nueva Farmacia
+      </Button>
     </div>
 
     <!-- No org selected warning -->
-    <Message v-if="!currentOrgId" severity="warn" :closable="false" class="mb-6">
-      Selecciona una organizacion para ver las farmacias.
-    </Message>
+    <Alert v-if="!currentOrgId" variant="warning" class="mb-6">
+      <AlertDescription>
+        Selecciona una organizacion para ver las farmacias.
+      </AlertDescription>
+    </Alert>
 
     <!-- Content -->
-    <Card v-if="currentOrgId">
-      <template #content>
+    <Card v-if="currentOrgId" class="glass-card">
+      <CardContent class="p-4">
         <PharmacyList
           :organization-id="currentOrgId"
           @select="handleSelect"
           @edit="handleEdit"
           @delete="handleDelete"
         />
-      </template>
+      </CardContent>
     </Card>
 
     <!-- Form Dialog -->
     <PharmacyForm />
 
     <!-- Delete Confirmation Dialog -->
-    <Dialog
-      v-model:visible="store.showDeleteDialog"
-      header="Eliminar Farmacia"
-      :modal="true"
-      :style="{ width: '400px' }"
-    >
-      <div class="flex items-center gap-4">
-        <i class="pi pi-exclamation-triangle text-4xl text-red-500" />
-        <div>
-          <p class="font-medium">Esta seguro de eliminar esta farmacia?</p>
-          <p class="text-sm text-gray-500 mt-1">
-            {{ store.deletingPharmacy?.pharmacy_name }}
-          </p>
-        </div>
-      </div>
+    <AlertDialog v-model:open="store.showDeleteDialog">
+      <AlertDialogContent class="glass-dialog">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Eliminar Farmacia</AlertDialogTitle>
+          <AlertDialogDescription>
+            <div class="flex items-center gap-4 mb-4">
+              <i class="pi pi-exclamation-triangle text-4xl text-destructive" />
+              <div>
+                <p class="font-medium text-foreground">Esta seguro de eliminar esta farmacia?</p>
+                <p class="text-sm text-muted-foreground mt-1">
+                  {{ store.deletingPharmacy?.pharmacy_name }}
+                </p>
+              </div>
+            </div>
 
-      <Message severity="warn" :closable="false" class="mt-4">
-        Esta accion eliminara la configuracion de la farmacia. El historial de mensajes se mantendra.
-      </Message>
-
-      <template #footer>
-        <Button label="Cancelar" severity="secondary" @click="cancelDelete" />
-        <Button label="Eliminar" severity="danger" icon="pi pi-trash" @click="confirmDelete" />
-      </template>
-    </Dialog>
+            <Alert variant="warning">
+              <AlertDescription>
+                Esta accion eliminara la configuracion de la farmacia. El historial de mensajes se mantendra.
+              </AlertDescription>
+            </Alert>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel @click="closeDeleteDialog">Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            @click="confirmDelete"
+          >
+            <i class="pi pi-trash mr-2" />
+            Eliminar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 </template>
-
-<style scoped>
-.pharmacy-page :deep(.p-card-content) {
-  padding: 1rem;
-}
-</style>

@@ -154,6 +154,13 @@ export const AVAILABLE_DOMAINS: DomainConfig[] = [
     description: 'Intents para servicios de salud',
     icon: 'pi pi-heart-fill',
     color: '#ef4444'
+  },
+  {
+    key: 'turnos_medicos',
+    name: 'Turnos Medicos',
+    description: 'Intents para agendamiento de turnos',
+    icon: 'pi pi-calendar',
+    color: '#0ea5e9'
   }
 ]
 

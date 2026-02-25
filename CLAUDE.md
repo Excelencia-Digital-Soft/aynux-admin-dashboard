@@ -48,7 +48,9 @@ npx playwright test --project=chromium
 
 ## Architecture Overview
 
-**Stack**: Vue 3 + TypeScript + Vite + PrimeVue + Tailwind CSS + Pinia
+**Stack**: Vue 3 + TypeScript + Vite + shadcn-vue + Tailwind CSS + Pinia
+
+> **UI Migration**: PrimeVue is **LEGACY** — do NOT use PrimeVue for new components or pages. All new UI must use **shadcn-vue** (Radix Vue + Tailwind). Existing PrimeVue pages should be migrated to shadcn-vue when touched.
 
 ### Core Patterns
 
@@ -75,20 +77,23 @@ npx playwright test --project=chromium
 
 **Components** (`src/components/`):
 - Organized by domain: analytics, chat, documents, organizations
-- Uses PrimeVue components with Aura theme
+- **New components**: Use shadcn-vue (`src/components/ui/`) — Radix Vue primitives styled with Tailwind
+- **Legacy components**: Some still use PrimeVue with Aura theme — migrate when modifying
 - Dark mode via `.dark-mode` class selector
 
 ### Key Integrations
 
-**PrimeVue v4**: Configured in main.ts with Aura theme, ToastService, and ConfirmationService. CSS layer order: `tailwind-base, primevue, tailwind-utilities`.
+**shadcn-vue** (PRIMARY): Radix Vue primitives + Tailwind CSS. Use for all new UI development. Components live in `src/components/ui/`.
+
+**PrimeVue v4** (LEGACY): Still configured in main.ts with Aura theme, ToastService, and ConfirmationService. CSS layer order: `tailwind-base, primevue, tailwind-utilities`. **Do NOT use for new components** — only maintain existing PrimeVue code until migrated.
 
 **Vue Flow**: Used for workflow visualization (`@vue-flow/core` with background, controls, minimap addons).
 
 **Charts**: Chart.js integration via vue-chartjs for analytics/statistics pages.
 
-### PrimeVue v4 Component Guidelines
+### PrimeVue v4 Component Guidelines (LEGACY)
 
-**IMPORTANT**: This project uses PrimeVue v4.2.5. Always use MCP PrimeVue.
+**IMPORTANT**: PrimeVue v4.2.5 is LEGACY. Only use MCP PrimeVue when maintaining existing PrimeVue code. All new development must use shadcn-vue.
 
 ### Build Configuration
 
@@ -102,6 +107,31 @@ Vite is configured with manual chunks for optimal splitting:
 ### Path Alias
 
 `@` maps to `./src` directory.
+
+## Critical Frontend Rules
+
+### 1. shadcn-vue Dialog - Always include DialogDescription
+
+Every `DialogContent` MUST have a `DialogDescription` inside `DialogHeader`. Without it, radix-vue logs a console warning: `Missing Description or aria-describedby for DialogContent`.
+
+```vue
+<!-- ✅ CORRECT -->
+<DialogHeader>
+  <DialogTitle>My Title</DialogTitle>
+  <DialogDescription class="sr-only">Accessible description</DialogDescription>
+</DialogHeader>
+
+<!-- ❌ WRONG - missing DialogDescription -->
+<DialogHeader>
+  <DialogTitle>My Title</DialogTitle>
+</DialogHeader>
+```
+
+Use `class="sr-only"` when the description should be accessible but not visible.
+
+### 2. Vue Flow - Non-passive touch event warnings are expected
+
+`@vue-flow/core` internally registers non-passive `touchstart`/`touchmove` listeners for canvas pan/drag. These Chrome DevTools violations **cannot be fixed from our code** - they originate from the library. Do not attempt to fix them.
 
 ## Database Connection
 

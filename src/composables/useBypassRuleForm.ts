@@ -4,7 +4,9 @@ import { useBypassRules } from '@/composables/useBypassRules'
 import { useDomains } from '@/composables/useDomains'
 import { agentCatalogApi } from '@/api/agentCatalog.api'
 import { pharmacyApi, type Pharmacy } from '@/api/pharmacy.api'
-import { medicalApi, type Institution } from '@/api/medical.api'
+import { tenantInstitutionConfigApi } from '@/api/tenantInstitutionConfig.api'
+import type { TenantInstitutionConfig } from '@/types/tenantInstitutionConfig.types'
+import { useAuthStore } from '@/stores/auth.store'
 import type {
   BypassRuleCreateRequest,
   BypassRuleUpdateRequest,
@@ -25,7 +27,7 @@ export function useBypassRuleForm() {
   const loadingPharmacies = ref(false)
 
   // Available institutions
-  const availableInstitutions = ref<Institution[]>([])
+  const availableInstitutions = ref<TenantInstitutionConfig[]>([])
   const loadingInstitutions = ref(false)
 
   // Form state
@@ -61,8 +63,10 @@ export function useBypassRuleForm() {
   // Show pharmacy selector
   const showPharmacySelector = computed(() => formData.value.target_domain === 'pharmacy')
 
-  // Show institution selector
-  const showInstitutionSelector = computed(() => formData.value.target_domain === 'medical_appointments')
+  // Show institution selector (not needed for pharmacy or enav domains)
+  const showInstitutionSelector = computed(() =>
+    formData.value.target_domain !== 'pharmacy' && formData.value.target_domain !== 'enav'
+  )
 
   const isEditing = computed(() => store.editingRule !== null)
   const dialogTitle = computed(() =>
@@ -79,8 +83,12 @@ export function useBypassRuleForm() {
       return false
     }
 
-    // Institution validation
-    if (formData.value.target_domain === 'medical_appointments' && !formData.value.institution_id) {
+    // Institution validation (not required for pharmacy or enav)
+    if (
+      formData.value.target_domain !== 'pharmacy' &&
+      formData.value.target_domain !== 'enav' &&
+      !formData.value.institution_id
+    ) {
       return false
     }
 
@@ -131,7 +139,7 @@ export function useBypassRuleForm() {
       if (newDomain !== 'pharmacy') {
         formData.value.pharmacy_id = undefined
       }
-      if (newDomain !== 'medical_appointments') {
+      if (newDomain === 'pharmacy' || newDomain === 'enav') {
         formData.value.institution_id = undefined
       }
     }
@@ -184,7 +192,14 @@ export function useBypassRuleForm() {
   async function fetchInstitutions() {
     loadingInstitutions.value = true
     try {
-      availableInstitutions.value = await medicalApi.getInstitutions()
+      const authStore = useAuthStore()
+      const orgId = authStore.currentOrgId
+      if (!orgId) {
+        availableInstitutions.value = []
+        return
+      }
+      const response = await tenantInstitutionConfigApi.list(orgId)
+      availableInstitutions.value = response.items
     } catch (error) {
       console.error('Error fetching institutions:', error)
       availableInstitutions.value = []
@@ -209,7 +224,9 @@ export function useBypassRuleForm() {
       formData.value.target_domain === 'pharmacy' ? formData.value.pharmacy_id : null
 
     const institutionId =
-      formData.value.target_domain === 'medical_appointments' ? formData.value.institution_id : null
+      formData.value.target_domain !== 'pharmacy' && formData.value.target_domain !== 'enav'
+        ? formData.value.institution_id
+        : null
 
     const baseData = {
       rule_name: formData.value.rule_name,

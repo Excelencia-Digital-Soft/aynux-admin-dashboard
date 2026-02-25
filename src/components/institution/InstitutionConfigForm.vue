@@ -127,35 +127,35 @@ function handleCancel() {
     <!-- Tabs -->
     <Tabs v-model="activeTab" class="w-full">
       <TabsList class="flex w-full overflow-x-auto">
-        <TabsTrigger value="general" class="flex items-center gap-2">
+        <TabsTrigger value="general" class="flex shrink-0 items-center gap-2">
           <i class="pi pi-info-circle" />
           <span class="hidden sm:inline">General</span>
         </TabsTrigger>
-        <TabsTrigger value="connection" class="flex items-center gap-2">
+        <TabsTrigger value="connection" class="flex shrink-0 items-center gap-2">
           <i class="pi pi-globe" />
           <span class="hidden sm:inline">Conexion</span>
         </TabsTrigger>
-        <TabsTrigger value="auth" class="flex items-center gap-2">
+        <TabsTrigger value="auth" class="flex shrink-0 items-center gap-2">
           <i class="pi pi-lock" />
           <span class="hidden sm:inline">Auth</span>
         </TabsTrigger>
-        <TabsTrigger value="scheduler" class="flex items-center gap-2">
+        <TabsTrigger value="scheduler" class="flex shrink-0 items-center gap-2">
           <i class="pi pi-clock" />
           <span class="hidden sm:inline">Scheduler</span>
         </TabsTrigger>
-        <TabsTrigger value="branding" class="flex items-center gap-2">
+        <TabsTrigger value="branding" class="flex shrink-0 items-center gap-2">
           <i class="pi pi-image" />
           <span class="hidden sm:inline">Marca</span>
         </TabsTrigger>
-        <TabsTrigger value="whatsapp" class="flex items-center gap-2">
+        <TabsTrigger value="whatsapp" class="flex shrink-0 items-center gap-2">
           <i class="pi pi-whatsapp" />
           <span class="hidden sm:inline">WhatsApp</span>
         </TabsTrigger>
-        <TabsTrigger value="chattigo" class="flex items-center gap-2">
+        <TabsTrigger value="chattigo" class="flex shrink-0 items-center gap-2">
           <i class="pi pi-comments" />
           <span class="hidden sm:inline">Chattigo</span>
         </TabsTrigger>
-        <TabsTrigger value="handoff" class="flex items-center gap-2">
+        <TabsTrigger value="handoff" class="flex shrink-0 items-center gap-2">
           <i class="pi pi-users" />
           <span class="hidden sm:inline">Handoff</span>
         </TabsTrigger>

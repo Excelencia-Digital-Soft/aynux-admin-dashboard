@@ -1,18 +1,21 @@
 <script setup lang="ts">
-import { watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useInstitutionConversation } from '@/composables/useInstitutionConversation'
 import type { InstitutionCustomer } from '@/types/institutionConversation.types'
 import { formatPhoneNumber } from '@/types/institutionConversation.types'
 
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
-import Button from 'primevue/button'
-import InputText from 'primevue/inputtext'
-import IconField from 'primevue/iconfield'
-import InputIcon from 'primevue/inputicon'
-import Paginator from 'primevue/paginator'
-import Skeleton from 'primevue/skeleton'
-import Tag from 'primevue/tag'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { Pagination } from '@/components/ui/pagination'
 
 const props = defineProps<{
   orgId: string
@@ -32,6 +35,8 @@ const {
   setCustomerFilters,
   store
 } = useInstitutionConversation()
+
+const searchQuery = ref('')
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return '-'
@@ -65,14 +70,13 @@ function truncateSummary(summary: string | null): string {
   return summary.length > 80 ? summary.substring(0, 80) + '...' : summary
 }
 
-function onPageChange(event: { page: number; rows: number }) {
-  setCustomerPage(event.page + 1)
+function handlePageChange(page: number) {
+  setCustomerPage(page)
   fetchCustomers(props.orgId, props.configId)
 }
 
-function handleSearch(event: Event) {
-  const value = (event.target as HTMLInputElement).value
-  setCustomerFilters({ search: value || undefined })
+function handleSearch() {
+  setCustomerFilters({ search: searchQuery.value || undefined })
   fetchCustomers(props.orgId, props.configId)
 }
 
@@ -92,103 +96,107 @@ watch(
 </script>
 
 <template>
-  <div class="institution-customer-list">
+  <div>
     <!-- Search -->
     <div class="mb-4">
-      <IconField class="w-full md:w-80">
-        <InputIcon class="pi pi-search" />
-        <InputText
+      <div class="relative w-full md:w-80">
+        <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm" />
+        <Input
+          v-model="searchQuery"
           placeholder="Buscar por telefono..."
-          class="w-full"
-          @input="handleSearch"
+          class="pl-9"
+          @keyup.enter="handleSearch"
         />
-      </IconField>
+      </div>
     </div>
 
     <!-- Loading -->
     <div v-if="isLoading && customers.length === 0" class="space-y-2">
-      <Skeleton v-for="i in 5" :key="i" height="60px" />
+      <div v-for="i in 5" :key="i" class="h-[60px] rounded-lg bg-muted animate-pulse" />
+    </div>
+
+    <!-- Empty -->
+    <div v-else-if="customers.length === 0" class="text-center py-8 text-muted-foreground">
+      <i class="pi pi-users text-4xl mb-2" />
+      <p>No se encontraron clientes</p>
     </div>
 
     <!-- Table -->
-    <DataTable
-      v-else
-      :value="customers"
-      :loading="isLoading"
-      stripedRows
-      class="p-datatable-sm cursor-pointer"
-      @row-click="(e: any) => handleRowClick(e.data)"
-    >
-      <template #empty>
-        <div class="text-center py-8 text-gray-500">
-          <i class="pi pi-users text-4xl mb-2" />
-          <p>No se encontraron clientes</p>
-        </div>
-      </template>
-
-      <Column field="user_phone" header="Cliente" style="min-width: 180px">
-        <template #body="{ data }">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-              <i class="pi pi-user text-blue-500" />
-            </div>
-            <div>
-              <div class="font-medium">{{ formatPhoneNumber(data.user_phone) }}</div>
-              <div class="text-xs text-gray-500">
-                {{ data.total_messages }} mensajes
+    <Table v-else>
+      <TableHeader>
+        <TableRow>
+          <TableHead class="min-w-[180px]">Cliente</TableHead>
+          <TableHead class="w-[180px]">Ultima Actividad</TableHead>
+          <TableHead class="w-[100px]">Mensajes</TableHead>
+          <TableHead class="min-w-[200px]">Resumen</TableHead>
+          <TableHead class="w-[60px]"></TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        <TableRow
+          v-for="customer in customers"
+          :key="customer.conversation_id"
+          class="cursor-pointer"
+          @click="handleRowClick(customer)"
+        >
+          <!-- Cliente -->
+          <TableCell>
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-950/40 flex items-center justify-center">
+                <i class="pi pi-user text-blue-500" />
+              </div>
+              <div>
+                <div class="font-medium text-foreground">{{ formatPhoneNumber(customer.user_phone) }}</div>
+                <div class="text-xs text-muted-foreground">
+                  {{ customer.total_messages }} mensajes
+                </div>
               </div>
             </div>
-          </div>
-        </template>
-      </Column>
+          </TableCell>
 
-      <Column field="last_activity" header="Ultima Actividad" style="width: 180px">
-        <template #body="{ data }">
-          <div class="flex flex-col">
-            <span class="text-sm font-medium">{{ formatRelativeTime(data.last_activity) }}</span>
-            <span class="text-xs text-gray-400">{{ formatDate(data.last_activity) }}</span>
-          </div>
-        </template>
-      </Column>
+          <!-- Ultima Actividad -->
+          <TableCell>
+            <div class="flex flex-col">
+              <span class="text-sm font-medium text-foreground">{{ formatRelativeTime(customer.last_activity) }}</span>
+              <span class="text-xs text-muted-foreground">{{ formatDate(customer.last_activity) }}</span>
+            </div>
+          </TableCell>
 
-      <Column field="total_messages" header="Mensajes" style="width: 100px">
-        <template #body="{ data }">
-          <Tag :value="String(data.total_messages)" severity="info" />
-        </template>
-      </Column>
+          <!-- Mensajes -->
+          <TableCell>
+            <Badge variant="info">{{ customer.total_messages }}</Badge>
+          </TableCell>
 
-      <Column field="rolling_summary" header="Resumen" style="min-width: 200px">
-        <template #body="{ data }">
-          <p class="text-sm text-gray-600 italic">
-            {{ truncateSummary(data.rolling_summary) }}
-          </p>
-        </template>
-      </Column>
+          <!-- Resumen -->
+          <TableCell>
+            <p class="text-sm text-muted-foreground italic">
+              {{ truncateSummary(customer.rolling_summary) }}
+            </p>
+          </TableCell>
 
-      <Column header="" style="width: 60px">
-        <template #body="{ data }">
-          <Button
-            icon="pi pi-comments"
-            severity="secondary"
-            text
-            rounded
-            size="small"
-            @click.stop="handleRowClick(data)"
-            v-tooltip="'Ver conversacion'"
-          />
-        </template>
-      </Column>
-    </DataTable>
+          <!-- Action -->
+          <TableCell>
+            <Button
+              variant="ghost"
+              size="icon"
+              class="h-8 w-8"
+              @click.stop="handleRowClick(customer)"
+            >
+              <i class="pi pi-comments text-sm" />
+            </Button>
+          </TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
 
     <!-- Pagination -->
-    <Paginator
-      v-if="totalCustomers > 0"
-      :first="(store.customerPage - 1) * store.customerPageSize"
-      :rows="store.customerPageSize"
+    <Pagination
+      v-if="totalCustomers > store.customerPageSize"
       :totalRecords="totalCustomers"
-      :rowsPerPageOptions="[10, 25, 50]"
-      @page="onPageChange"
-      class="mt-4"
+      :rows="store.customerPageSize"
+      :currentPage="store.customerPage"
+      @pageChange="handlePageChange"
+      class="mt-4 justify-center"
     />
   </div>
 </template>

@@ -3,21 +3,32 @@ import { ref, computed, watch } from 'vue'
 import { useChattigoCredentialsStore } from '@/stores/chattigoCredentials.store'
 import { useChattigoCredentials } from '@/composables/useChattigoCredentials'
 import { useAuthStore } from '@/stores/auth.store'
-import { useToast } from 'primevue/usetoast'
+import { useToast } from '@/composables/useToast'
 import type {
   ChattigoCredentialCreateRequest,
   ChattigoCredentialUpdateRequest
 } from '@/types/chattigoCredentials.types'
 import { CHATTIGO_DEFAULTS, validateDID } from '@/types/chattigoCredentials.types'
 
-import Dialog from 'primevue/dialog'
-import InputText from 'primevue/inputtext'
-import InputNumber from 'primevue/inputnumber'
-import Button from 'primevue/button'
-import Divider from 'primevue/divider'
-import Password from 'primevue/password'
-import Message from 'primevue/message'
-import ToggleSwitch from 'primevue/toggleswitch'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Switch } from '@/components/ui/switch'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
 
 const store = useChattigoCredentialsStore()
 const authStore = useAuthStore()
@@ -38,6 +49,10 @@ const formData = ref({
   enabled: true
 })
 
+// Password visibility toggles
+const showUsername = ref(false)
+const showPassword = ref(false)
+
 // Track if credentials have been modified (they come masked as ***)
 const credentialsModified = ref({
   username: false,
@@ -53,7 +68,7 @@ const dialogTitle = computed(() =>
 const didError = computed(() => {
   if (!formData.value.did) return ''
   if (!validateDID(formData.value.did)) {
-    return 'El DID debe tener entre 10 y 15 dígitos'
+    return 'El DID debe tener entre 10 y 15 digitos'
   }
   return ''
 })
@@ -116,6 +131,8 @@ function resetForm() {
     username: false,
     password: false
   }
+  showUsername.value = false
+  showPassword.value = false
 }
 
 function onCredentialChange(field: 'username' | 'password') {
@@ -125,19 +142,9 @@ function onCredentialChange(field: 'username' | 'password') {
 async function copyToClipboard(text: string, fieldName: string) {
   try {
     await navigator.clipboard.writeText(text)
-    toast.add({
-      severity: 'info',
-      summary: 'Copiado',
-      detail: `${fieldName} copiado al portapapeles`,
-      life: 2000
-    })
+    toast.info(`${fieldName} copiado al portapapeles`, 'Copiado')
   } catch {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'No se pudo copiar al portapapeles',
-      life: 3000
-    })
+    toast.error('No se pudo copiar al portapapeles')
   }
 }
 
@@ -197,193 +204,251 @@ function handleClose() {
 
 <template>
   <Dialog
-    :visible="store.showCredentialDialog"
-    :header="dialogTitle"
-    :modal="true"
-    :style="{ width: '550px' }"
-    @update:visible="handleClose"
+    :open="store.showCredentialDialog"
+    @update:open="(val: boolean) => { if (!val) handleClose() }"
   >
-    <div class="space-y-4">
-      <!-- Basic Info Section -->
-      <div>
-        <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-          <i class="pi pi-whatsapp text-green-500" />
-          Información Básica
-        </h3>
+    <DialogContent class="glass-dialog sm:max-w-[550px] max-h-[85vh] overflow-y-auto">
+      <DialogHeader>
+        <DialogTitle>{{ dialogTitle }}</DialogTitle>
+        <DialogDescription class="sr-only">
+          Formulario para crear o editar credenciales de Chattigo
+        </DialogDescription>
+      </DialogHeader>
 
-        <div class="grid grid-cols-2 gap-4">
-          <!-- DID -->
-          <div class="col-span-2 md:col-span-1">
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              DID (Número WhatsApp) *
-            </label>
-            <InputText
-              v-model="formData.did"
-              placeholder="5492644710400"
-              class="w-full"
-              :disabled="isEditing"
-              :class="{ 'p-invalid': didError }"
-            />
-            <small v-if="didError" class="text-red-500">{{ didError }}</small>
-            <small v-else class="text-gray-500">10-15 dígitos, sin espacios ni guiones</small>
-          </div>
+      <div class="space-y-4">
+        <!-- Basic Info Section -->
+        <div>
+          <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+            <i class="pi pi-whatsapp text-green-500" />
+            Informacion Basica
+          </h3>
 
-          <!-- Name -->
-          <div class="col-span-2 md:col-span-1">
-            <label class="block text-sm font-medium text-gray-700 mb-1"> Nombre * </label>
-            <InputText v-model="formData.name" placeholder="Turmedica" class="w-full" />
-          </div>
-
-          <!-- Bot Name -->
-          <div class="col-span-2 md:col-span-1">
-            <label class="block text-sm font-medium text-gray-700 mb-1"> Nombre del Bot </label>
-            <InputText
-              v-model="formData.bot_name"
-              :placeholder="CHATTIGO_DEFAULTS.BOT_NAME"
-              class="w-full"
-            />
-          </div>
-
-          <!-- Enabled -->
-          <div class="col-span-2 md:col-span-1 flex items-center gap-3 pt-6">
-            <ToggleSwitch v-model="formData.enabled" />
-            <label class="text-sm text-gray-700">Habilitado</label>
-          </div>
-        </div>
-      </div>
-
-      <Divider />
-
-      <!-- Credentials Section -->
-      <div>
-        <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-          <i class="pi pi-lock text-orange-500" />
-          Credenciales
-        </h3>
-
-        <Message v-if="isEditing" severity="info" :closable="false" class="mb-3">
-          Las credenciales están enmascaradas. Solo se actualizarán si las modificas.
-        </Message>
-
-        <div class="grid grid-cols-2 gap-4">
-          <!-- Username -->
-          <div class="col-span-2 md:col-span-1">
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Usuario {{ !isEditing ? '*' : '' }}
-            </label>
-            <Password
-              v-model="formData.username"
-              placeholder="Usuario Chattigo ISV"
-              class="w-full"
-              :feedback="false"
-              toggleMask
-              @input="onCredentialChange('username')"
-            />
-          </div>
-
-          <!-- Password -->
-          <div class="col-span-2 md:col-span-1">
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Contraseña {{ !isEditing ? '*' : '' }}
-            </label>
-            <Password
-              v-model="formData.password"
-              placeholder="Contraseña Chattigo ISV"
-              class="w-full"
-              :feedback="false"
-              toggleMask
-              @input="onCredentialChange('password')"
-            />
-          </div>
-        </div>
-      </div>
-
-      <Divider />
-
-      <!-- URLs Section -->
-      <div>
-        <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-          <i class="pi pi-link text-blue-500" />
-          URLs de Configuración
-        </h3>
-
-        <div class="space-y-4">
-          <!-- Login URL -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1"> URL de Login </label>
-            <div class="flex gap-2">
-              <InputText
-                v-model="formData.login_url"
-                :placeholder="CHATTIGO_DEFAULTS.LOGIN_URL"
-                class="flex-1 text-sm"
+          <div class="grid grid-cols-2 gap-4">
+            <!-- DID -->
+            <div class="col-span-2 md:col-span-1">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                DID (Numero WhatsApp) *
+              </label>
+              <Input
+                v-model="formData.did"
+                placeholder="5492644710400"
+                :class="didError ? 'w-full border-destructive' : 'w-full'"
+                :disabled="isEditing"
               />
-              <Button
-                icon="pi pi-copy"
-                severity="secondary"
-                v-tooltip.top="'Copiar URL'"
-                @click="copyToClipboard(formData.login_url || CHATTIGO_DEFAULTS.LOGIN_URL, 'Login URL')"
+              <small v-if="didError" class="text-destructive text-xs">{{ didError }}</small>
+              <small v-else class="text-muted-foreground text-xs">10-15 digitos, sin espacios ni guiones</small>
+            </div>
+
+            <!-- Name -->
+            <div class="col-span-2 md:col-span-1">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Nombre *
+              </label>
+              <Input v-model="formData.name" placeholder="Turmedica" class="w-full" />
+            </div>
+
+            <!-- Bot Name -->
+            <div class="col-span-2 md:col-span-1">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Nombre del Bot
+              </label>
+              <Input
+                v-model="formData.bot_name"
+                :placeholder="CHATTIGO_DEFAULTS.BOT_NAME"
+                class="w-full"
               />
             </div>
-          </div>
 
-          <!-- Base URL -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1"> URL Base API </label>
-            <div class="flex gap-2">
-              <InputText
-                v-model="formData.base_url"
-                :placeholder="CHATTIGO_DEFAULTS.BASE_URL"
-                class="flex-1 text-sm"
+            <!-- Enabled -->
+            <div class="col-span-2 md:col-span-1 flex items-center gap-3 pt-6">
+              <Switch
+                :checked="formData.enabled"
+                @update:checked="formData.enabled = $event"
               />
-              <Button
-                icon="pi pi-copy"
-                severity="secondary"
-                v-tooltip.top="'Copiar URL'"
-                @click="copyToClipboard(formData.base_url || CHATTIGO_DEFAULTS.BASE_URL, 'Base URL')"
-              />
+              <label class="text-sm text-gray-700 dark:text-gray-300">Habilitado</label>
             </div>
-            <small class="text-gray-500">Mensajes se envían a: {base_url}/v15.0/{did}/messages</small>
+          </div>
+        </div>
+
+        <Separator />
+
+        <!-- Credentials Section -->
+        <div>
+          <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+            <i class="pi pi-lock text-orange-500" />
+            Credenciales
+          </h3>
+
+          <Alert v-if="isEditing" variant="info" class="mb-3">
+            <AlertDescription>
+              Las credenciales estan enmascaradas. Solo se actualizaran si las modificas.
+            </AlertDescription>
+          </Alert>
+
+          <div class="grid grid-cols-2 gap-4">
+            <!-- Username -->
+            <div class="col-span-2 md:col-span-1">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Usuario {{ !isEditing ? '*' : '' }}
+              </label>
+              <div class="relative">
+                <Input
+                  v-model="formData.username"
+                  :type="showUsername ? 'text' : 'password'"
+                  placeholder="Usuario Chattigo ISV"
+                  class="w-full pr-10"
+                  @input="onCredentialChange('username')"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  class="absolute right-0 top-0 h-full w-10 hover:bg-transparent"
+                  @click="showUsername = !showUsername"
+                >
+                  <i :class="showUsername ? 'pi pi-eye-slash' : 'pi pi-eye'" class="text-muted-foreground text-sm" />
+                </Button>
+              </div>
+            </div>
+
+            <!-- Password -->
+            <div class="col-span-2 md:col-span-1">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Contrasena {{ !isEditing ? '*' : '' }}
+              </label>
+              <div class="relative">
+                <Input
+                  v-model="formData.password"
+                  :type="showPassword ? 'text' : 'password'"
+                  placeholder="Contrasena Chattigo ISV"
+                  class="w-full pr-10"
+                  @input="onCredentialChange('password')"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  class="absolute right-0 top-0 h-full w-10 hover:bg-transparent"
+                  @click="showPassword = !showPassword"
+                >
+                  <i :class="showPassword ? 'pi pi-eye-slash' : 'pi pi-eye'" class="text-muted-foreground text-sm" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <Separator />
+
+        <!-- URLs Section -->
+        <div>
+          <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+            <i class="pi pi-link text-blue-500" />
+            URLs de Configuracion
+          </h3>
+
+          <div class="space-y-4">
+            <!-- Login URL -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                URL de Login
+              </label>
+              <div class="flex gap-2">
+                <Input
+                  v-model="formData.login_url"
+                  :placeholder="CHATTIGO_DEFAULTS.LOGIN_URL"
+                  class="flex-1 text-sm"
+                />
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        @click="copyToClipboard(formData.login_url || CHATTIGO_DEFAULTS.LOGIN_URL, 'Login URL')"
+                      >
+                        <i class="pi pi-copy text-sm" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Copiar URL</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            </div>
+
+            <!-- Base URL -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                URL Base API
+              </label>
+              <div class="flex gap-2">
+                <Input
+                  v-model="formData.base_url"
+                  :placeholder="CHATTIGO_DEFAULTS.BASE_URL"
+                  class="flex-1 text-sm"
+                />
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        @click="copyToClipboard(formData.base_url || CHATTIGO_DEFAULTS.BASE_URL, 'Base URL')"
+                      >
+                        <i class="pi pi-copy text-sm" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Copiar URL</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <small class="text-muted-foreground text-xs">
+                Mensajes se envian a: {'{'}base_url{'}'}/v15.0/{'{'}did{'}'}/messages
+              </small>
+            </div>
+          </div>
+        </div>
+
+        <Separator />
+
+        <!-- Advanced Section -->
+        <div>
+          <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+            <i class="pi pi-cog text-gray-500 dark:text-gray-400" />
+            Configuracion Avanzada
+          </h3>
+
+          <div class="grid grid-cols-2 gap-4">
+            <!-- Token Refresh Hours -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Refresh de Token (horas)
+              </label>
+              <Input
+                v-model.number="formData.token_refresh_hours"
+                type="number"
+                :min="1"
+                :max="24"
+                class="w-full"
+              />
+              <small class="text-muted-foreground text-xs">
+                Tokens expiran en 8h, refresh recomendado: 7h
+              </small>
+            </div>
           </div>
         </div>
       </div>
 
-      <Divider />
-
-      <!-- Advanced Section -->
-      <div>
-        <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-          <i class="pi pi-cog text-gray-500" />
-          Configuración Avanzada
-        </h3>
-
-        <div class="grid grid-cols-2 gap-4">
-          <!-- Token Refresh Hours -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Refresh de Token (horas)
-            </label>
-            <InputNumber
-              v-model="formData.token_refresh_hours"
-              :min="1"
-              :max="24"
-              class="w-full"
-              showButtons
-            />
-            <small class="text-gray-500">Tokens expiran en 8h, refresh recomendado: 7h</small>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <template #footer>
-      <Button label="Cancelar" severity="secondary" :disabled="isLoading" @click="handleClose" />
-      <Button
-        :label="isEditing ? 'Actualizar' : 'Crear'"
-        :icon="isEditing ? 'pi pi-check' : 'pi pi-plus'"
-        :loading="isLoading"
-        :disabled="!canSave"
-        @click="handleSubmit"
-      />
-    </template>
+      <DialogFooter>
+        <Button variant="outline" :disabled="isLoading" @click="handleClose">
+          Cancelar
+        </Button>
+        <Button :disabled="!canSave || isLoading" @click="handleSubmit">
+          <i v-if="isLoading" class="pi pi-spinner pi-spin mr-2" />
+          <i v-else :class="isEditing ? 'pi pi-check mr-2' : 'pi pi-plus mr-2'" />
+          {{ isEditing ? 'Actualizar' : 'Crear' }}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
   </Dialog>
 </template>

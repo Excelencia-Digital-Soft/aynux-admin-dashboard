@@ -1,11 +1,12 @@
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { usePharmacyStore } from '@/stores/pharmacy.store'
 import { pharmacyConfigApi } from '@/api/pharmacyConfig.api'
 import { useToast } from '@/composables/useToast'
 import type {
   PharmacyConfigCreateRequest,
   PharmacyConfigUpdateRequest,
-  PharmacyTimelineFilters
+  PharmacyTimelineFilters,
+  SummarizeEvent
 } from '@/types/pharmacyConfig.types'
 
 export function usePharmacyConfig() {
@@ -22,6 +23,9 @@ export function usePharmacyConfig() {
   const customers = computed(() => store.customers)
   const totalCustomers = computed(() => store.totalCustomers)
   const selectedCustomer = computed(() => store.selectedCustomer)
+  const selectedCustomers = computed(() => store.selectedCustomers)
+
+  const summarizeProgress = computed(() => store.summarizeProgress)
 
   const messages = computed(() => store.messages)
   const totalMessages = computed(() => store.totalMessages)
@@ -274,6 +278,90 @@ export function usePharmacyConfig() {
     }
   }
 
+  async function deleteSelectedConversations(pharmacyId?: string) {
+    const targetId = pharmacyId || store.selectedPharmacy?.id
+    if (!targetId || store.selectedCustomers.length === 0) return false
+
+    store.setLoading(true)
+    const conversationIds = store.selectedCustomers.map(c => c.conversation_id)
+
+    try {
+      const result = await pharmacyConfigApi.deleteConversations(targetId, conversationIds)
+      store.removeCustomers(result.deleted_conversation_ids)
+      toast.success(`${result.deleted_count} conversaciones eliminadas`)
+      return true
+    } catch (err) {
+      toast.error('Error al eliminar conversaciones')
+      return false
+    } finally {
+      store.setLoading(false)
+    }
+  }
+
+  const summarizeAbortController = ref<AbortController | null>(null)
+
+  async function summarizeSelectedConversations(pharmacyId?: string) {
+    const targetId = pharmacyId || store.selectedPharmacy?.id
+    if (!targetId || store.selectedCustomers.length === 0) return false
+
+    const conversationIds = store.selectedCustomers
+      .filter(c => !c.rolling_summary)
+      .map(c => c.conversation_id)
+
+    if (conversationIds.length === 0) {
+      toast.info('Todas las conversaciones seleccionadas ya tienen resumen')
+      return true
+    }
+
+    store.setSummarizeProgress({
+      total: conversationIds.length,
+      isRunning: true,
+      current: 0
+    })
+
+    summarizeAbortController.value = new AbortController()
+
+    try {
+      await pharmacyConfigApi.summarizeStream(
+        targetId,
+        conversationIds,
+        (event: SummarizeEvent) => {
+          if (event.type === 'progress') {
+            store.setSummarizeProgress({
+              current: event.current,
+              currentConversationId: event.conversation_id
+            })
+          } else if (event.type === 'summary') {
+            store.updateCustomerSummary(event.conversation_id, event.summary)
+            toast.success(`Resumen generado para ${event.conversation_id.slice(0, 8)}...`)
+          } else if (event.type === 'error') {
+            toast.error(`Error en ${event.conversation_id.slice(0, 8)}...: ${event.error}`)
+          } else if (event.type === 'done') {
+            store.resetSummarizeProgress()
+            toast.success(`${event.total} resúmenes generados`)
+          }
+        },
+        summarizeAbortController.value.signal
+      )
+      return true
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') {
+        toast.info('Generación de resúmenes cancelada')
+      } else {
+        toast.error('Error al generar resúmenes')
+      }
+      store.resetSummarizeProgress()
+      return false
+    }
+  }
+
+  function cancelSummarize() {
+    if (summarizeAbortController.value) {
+      summarizeAbortController.value.abort()
+      summarizeAbortController.value = null
+    }
+  }
+
   return {
     // State
     pharmacies,
@@ -283,11 +371,13 @@ export function usePharmacyConfig() {
     customers,
     totalCustomers,
     selectedCustomer,
+    selectedCustomers,
     messages,
     totalMessages,
     conversation,
     isLoading,
     error,
+    summarizeProgress,
 
     // Dialog states
     showPharmacyDialog,
@@ -333,6 +423,11 @@ export function usePharmacyConfig() {
     selectAndLoadPharmacy,
     openCustomerConversation,
 
+    // Bulk actions
+    deleteSelectedConversations,
+    summarizeSelectedConversations,
+    cancelSummarize,
+
     // Store actions (passthrough)
     selectPharmacy: store.selectPharmacy,
     setPharmacyPage: store.setPharmacyPage,
@@ -350,6 +445,10 @@ export function usePharmacyConfig() {
     openDeleteDialog: store.openDeleteDialog,
     closeDeleteDialog: store.closeDeleteDialog,
     openConversationDialog: store.openConversationDialog,
-    closeConversationDialog: store.closeConversationDialog
+    closeConversationDialog: store.closeConversationDialog,
+    setSelectedCustomers: store.setSelectedCustomers,
+    toggleCustomerSelection: store.toggleCustomerSelection,
+    selectAllCustomers: store.selectAllCustomers,
+    clearCustomerSelection: store.clearCustomerSelection
   }
 }

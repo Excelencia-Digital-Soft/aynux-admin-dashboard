@@ -9,15 +9,10 @@ import InstitutionCustomerList from '@/components/institution/InstitutionCustome
 import InstitutionMessageTimeline from '@/components/institution/InstitutionMessageTimeline.vue'
 import InstitutionConversationThread from '@/components/institution/InstitutionConversationThread.vue'
 
-import Card from 'primevue/card'
-import Button from 'primevue/button'
-import Tabs from 'primevue/tabs'
-import TabList from 'primevue/tablist'
-import Tab from 'primevue/tab'
-import TabPanels from 'primevue/tabpanels'
-import TabPanel from 'primevue/tabpanel'
-import Tag from 'primevue/tag'
-import Skeleton from 'primevue/skeleton'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Badge } from '@/components/ui/badge'
 
 const route = useRoute()
 const router = useRouter()
@@ -30,7 +25,7 @@ const {
 
 const orgId = computed(() => route.params.orgId as string)
 const configId = computed(() => route.params.configId as string)
-const activeTab = ref('0')
+const activeTab = ref('customers')
 
 const institutionConfig = ref<TenantInstitutionConfig | null>(null)
 const loadingConfig = ref(false)
@@ -88,11 +83,11 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="institution-detail-page">
+  <div class="max-w-[1400px] mx-auto p-6">
     <!-- Loading -->
     <div v-if="loadingConfig && !institutionConfig" class="space-y-4">
-      <Skeleton height="100px" />
-      <Skeleton height="400px" />
+      <div class="h-[100px] rounded-lg bg-muted animate-pulse" />
+      <div class="h-[400px] rounded-lg bg-muted animate-pulse" />
     </div>
 
     <!-- Content -->
@@ -100,18 +95,14 @@ onMounted(async () => {
       <!-- Header -->
       <div class="flex items-center justify-between mb-6">
         <div class="flex items-center gap-4">
-          <Button
-            icon="pi pi-arrow-left"
-            severity="secondary"
-            text
-            rounded
-            @click="handleBack"
-          />
+          <Button variant="ghost" size="icon" @click="handleBack">
+            <i class="pi pi-arrow-left" />
+          </Button>
           <div>
-            <h1 class="text-2xl font-bold text-gray-800">
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">
               {{ institutionConfig.institution_name }}
             </h1>
-            <p class="text-gray-500 mt-1">
+            <p class="text-gray-500 dark:text-gray-400 mt-1">
               Historial de conversaciones y mensajes
             </p>
           </div>
@@ -119,139 +110,133 @@ onMounted(async () => {
       </div>
 
       <!-- Institution Info Card -->
-      <Card class="mb-6">
-        <template #content>
+      <Card class="glass-panel mb-6">
+        <CardContent class="pt-6">
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <!-- Basic Info -->
             <div>
-              <h3 class="text-sm font-semibold text-gray-500 mb-2">Informacion</h3>
+              <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">Informacion</h3>
               <div class="space-y-2">
-                <div class="flex items-center gap-2">
-                  <i class="pi pi-building text-gray-400" />
+                <div class="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                  <i class="pi pi-building text-gray-400 dark:text-gray-500" />
                   <span>{{ getTypeLabel(institutionConfig.institution_type) }}</span>
                 </div>
                 <div class="flex items-center gap-2">
-                  <i class="pi pi-key text-gray-400" />
-                  <code class="text-sm bg-gray-100 px-2 py-0.5 rounded">
+                  <i class="pi pi-key text-gray-400 dark:text-gray-500" />
+                  <code class="text-sm bg-muted px-2 py-0.5 rounded">
                     {{ institutionConfig.institution_key }}
                   </code>
                 </div>
-                <div v-if="institutionConfig.settings?.whatsapp?.phone_number_id" class="flex items-center gap-2">
+                <div v-if="institutionConfig.settings?.whatsapp?.phone_number_id" class="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                   <i class="pi pi-whatsapp text-green-500" />
                   <span class="text-sm">{{ institutionConfig.settings.whatsapp.phone_number_id }}</span>
                 </div>
                 <div class="flex items-center gap-2">
-                  <Tag
-                    :severity="institutionConfig.enabled ? 'success' : 'secondary'"
-                    :value="institutionConfig.enabled ? 'Habilitado' : 'Deshabilitado'"
-                  />
+                  <Badge :variant="institutionConfig.enabled ? 'success' : 'secondary'">
+                    {{ institutionConfig.enabled ? 'Habilitado' : 'Deshabilitado' }}
+                  </Badge>
                 </div>
               </div>
             </div>
 
             <!-- Stats -->
             <div v-if="stats">
-              <h3 class="text-sm font-semibold text-gray-500 mb-2">Estadisticas</h3>
+              <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">Estadisticas</h3>
               <div class="grid grid-cols-2 gap-4">
-                <div class="text-center p-3 bg-blue-50 rounded-lg">
-                  <div class="text-2xl font-bold text-blue-600">
+                <div class="text-center p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
+                  <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">
                     {{ stats.total_customers }}
                   </div>
-                  <div class="text-xs text-gray-500">Clientes</div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400">Clientes</div>
                 </div>
-                <div class="text-center p-3 bg-green-50 rounded-lg">
-                  <div class="text-2xl font-bold text-green-600">
+                <div class="text-center p-3 bg-green-50 dark:bg-green-950/30 rounded-lg">
+                  <div class="text-2xl font-bold text-green-600 dark:text-green-400">
                     {{ stats.total_messages }}
                   </div>
-                  <div class="text-xs text-gray-500">Mensajes</div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400">Mensajes</div>
                 </div>
-                <div class="text-center p-3 bg-purple-50 rounded-lg">
-                  <div class="text-2xl font-bold text-purple-600">
+                <div class="text-center p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg">
+                  <div class="text-2xl font-bold text-purple-600 dark:text-purple-400">
                     {{ stats.messages_today }}
                   </div>
-                  <div class="text-xs text-gray-500">Hoy</div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400">Hoy</div>
                 </div>
-                <div class="text-center p-3 bg-orange-50 rounded-lg">
-                  <div class="text-2xl font-bold text-orange-600">
+                <div class="text-center p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg">
+                  <div class="text-2xl font-bold text-orange-600 dark:text-orange-400">
                     {{ stats.active_conversations_24h }}
                   </div>
-                  <div class="text-xs text-gray-500">Activos 24h</div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400">Activos 24h</div>
                 </div>
               </div>
             </div>
 
             <!-- Activity -->
             <div v-if="stats">
-              <h3 class="text-sm font-semibold text-gray-500 mb-2">Actividad</h3>
+              <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">Actividad</h3>
               <div class="space-y-3">
                 <div class="flex justify-between items-center">
-                  <span class="text-sm text-gray-600">Mensajes esta semana</span>
-                  <span class="font-semibold">{{ stats.messages_this_week }}</span>
+                  <span class="text-sm text-gray-600 dark:text-gray-400">Mensajes esta semana</span>
+                  <span class="font-semibold text-gray-800 dark:text-gray-100">{{ stats.messages_this_week }}</span>
                 </div>
                 <div class="flex justify-between items-center">
-                  <span class="text-sm text-gray-600">Promedio por conversacion</span>
-                  <span class="font-semibold">{{ stats.avg_messages_per_conversation }}</span>
+                  <span class="text-sm text-gray-600 dark:text-gray-400">Promedio por conversacion</span>
+                  <span class="font-semibold text-gray-800 dark:text-gray-100">{{ stats.avg_messages_per_conversation }}</span>
                 </div>
                 <div class="flex justify-between items-center">
-                  <span class="text-sm text-gray-600">Total conversaciones</span>
-                  <span class="font-semibold">{{ stats.total_conversations }}</span>
+                  <span class="text-sm text-gray-600 dark:text-gray-400">Total conversaciones</span>
+                  <span class="font-semibold text-gray-800 dark:text-gray-100">{{ stats.total_conversations }}</span>
                 </div>
               </div>
             </div>
           </div>
-        </template>
+        </CardContent>
       </Card>
 
       <!-- Tabs -->
-      <Card>
-        <template #content>
-          <Tabs v-model:value="activeTab">
-            <TabList>
-              <Tab value="0">
-                <div class="flex items-center gap-2">
-                  <i class="pi pi-users" />
-                  <span>Clientes</span>
-                </div>
-              </Tab>
-              <Tab value="1">
-                <div class="flex items-center gap-2">
-                  <i class="pi pi-clock" />
-                  <span>Timeline</span>
-                </div>
-              </Tab>
-            </TabList>
-            <TabPanels>
-              <TabPanel value="0">
+      <Card class="glass-card">
+        <CardContent class="pt-6">
+          <Tabs v-model="activeTab" class="w-full">
+            <TabsList>
+              <TabsTrigger value="customers" class="flex items-center gap-2">
+                <i class="pi pi-users" />
+                <span>Clientes</span>
+              </TabsTrigger>
+              <TabsTrigger value="timeline" class="flex items-center gap-2">
+                <i class="pi pi-clock" />
+                <span>Timeline</span>
+              </TabsTrigger>
+            </TabsList>
+
+            <div class="mt-4">
+              <TabsContent value="customers">
                 <InstitutionCustomerList
                   :org-id="orgId"
                   :config-id="configId"
                   @select-customer="handleSelectCustomer"
                 />
-              </TabPanel>
-              <TabPanel value="1">
+              </TabsContent>
+              <TabsContent value="timeline">
                 <InstitutionMessageTimeline
                   :org-id="orgId"
                   :config-id="configId"
                   @select-message="handleSelectMessage"
                 />
-              </TabPanel>
-            </TabPanels>
+              </TabsContent>
+            </div>
           </Tabs>
-        </template>
+        </CardContent>
       </Card>
     </template>
 
     <!-- Not Found -->
     <div v-else class="text-center py-12">
-      <i class="pi pi-exclamation-circle text-6xl text-gray-300 mb-4" />
-      <h2 class="text-xl font-semibold text-gray-600">Institucion no encontrada</h2>
-      <p class="text-gray-500 mt-2">La institucion solicitada no existe o no tienes acceso</p>
-      <Button
-        label="Volver a Instituciones"
-        icon="pi pi-arrow-left"
-        class="mt-4"
-        @click="handleBack"
-      />
+      <i class="pi pi-exclamation-circle text-6xl text-gray-300 dark:text-gray-600 mb-4" />
+      <h2 class="text-xl font-semibold text-gray-600 dark:text-gray-300">Institucion no encontrada</h2>
+      <p class="text-gray-500 dark:text-gray-400 mt-2">La institucion solicitada no existe o no tienes acceso</p>
+      <Button class="mt-4" @click="handleBack">
+        <i class="pi pi-arrow-left mr-2" />
+        Volver a Instituciones
+      </Button>
     </div>
 
     <!-- Conversation Dialog -->
@@ -263,13 +248,3 @@ onMounted(async () => {
     />
   </div>
 </template>
-
-<style scoped>
-.institution-detail-page :deep(.p-card-content) {
-  padding: 1rem;
-}
-
-.institution-detail-page :deep(.p-tabpanels) {
-  padding: 1rem 0 0 0;
-}
-</style>

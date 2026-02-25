@@ -9,23 +9,27 @@ import BypassTestDialog from '@/components/bypass/BypassTestDialog.vue'
 import AgentFlowGraph from '@/components/agentFlow/AgentFlowGraph.vue'
 import type { BypassRule } from '@/types/bypassRules.types'
 
-import Card from 'primevue/card'
-import Button from 'primevue/button'
-import Dialog from 'primevue/dialog'
-import Message from 'primevue/message'
-import Tabs from 'primevue/tabs'
-import TabList from 'primevue/tablist'
-import Tab from 'primevue/tab'
-import TabPanels from 'primevue/tabpanels'
-import TabPanel from 'primevue/tabpanel'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction
+} from '@/components/ui/alert-dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 const store = useBypassRulesStore()
 const authStore = useAuthStore()
 const { deleteRule, openRuleDialog, openTestDialog, closeDeleteDialog, isLoading } =
   useBypassRules()
 
-// Tab state
-const activeTab = ref('0')
+const activeTab = ref('rules')
 
 function handleEdit(rule: BypassRule) {
   openRuleDialog(rule)
@@ -51,57 +55,53 @@ function cancelDelete() {
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-2xl font-bold text-gray-800">Reglas de Bypass</h1>
-        <p class="text-gray-500 mt-1">
+        <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">Reglas de Bypass</h1>
+        <p class="text-gray-500 dark:text-gray-400 mt-1">
           Administra las reglas de enrutamiento para conversaciones de WhatsApp
         </p>
       </div>
       <div class="flex gap-2">
-        <Button
-          label="Probar Enrutamiento"
-          icon="pi pi-play"
-          severity="secondary"
-          @click="openTestDialog"
-        />
-        <Button label="Nueva Regla" icon="pi pi-plus" severity="primary" @click="openRuleDialog(null)" />
+        <Button variant="outline" @click="openTestDialog">
+          <i class="pi pi-play mr-2" />
+          Probar Enrutamiento
+        </Button>
+        <Button @click="openRuleDialog(null)">
+          <i class="pi pi-plus mr-2" />
+          Nueva Regla
+        </Button>
       </div>
     </div>
 
     <!-- Content with Tabs -->
-    <Card>
-      <template #content>
-        <Tabs v-model:value="activeTab">
-          <TabList>
-            <Tab value="0">
+    <Card class="glass-card">
+      <CardContent class="pt-6">
+        <Tabs v-model="activeTab" default-value="rules">
+          <TabsList>
+            <TabsTrigger value="rules">
               <i class="pi pi-list mr-2" />
               Reglas
-            </Tab>
-            <Tab value="1">
+            </TabsTrigger>
+            <TabsTrigger value="visualization">
               <i class="pi pi-sitemap mr-2" />
               Visualizacion
-            </Tab>
-          </TabList>
-          <TabPanels>
-            <!-- Rules List Tab -->
-            <TabPanel value="0">
-              <BypassRulesList @edit="handleEdit" @delete="handleDelete" />
-            </TabPanel>
+            </TabsTrigger>
+          </TabsList>
 
-            <!-- Visualization Tab -->
-            <TabPanel value="1">
-              <div class="visualization-container">
-                <AgentFlowGraph
-                  :organization-id="authStore.currentOrgId ?? undefined"
-                  height="600px"
-                  :show-minimap="true"
-                  :show-controls="true"
-                  :show-legend="true"
-                />
-              </div>
-            </TabPanel>
-          </TabPanels>
+          <TabsContent value="rules" class="mt-4">
+            <BypassRulesList @edit="handleEdit" @delete="handleDelete" />
+          </TabsContent>
+
+          <TabsContent value="visualization" class="mt-4">
+            <AgentFlowGraph
+              :organization-id="authStore.currentOrgId ?? undefined"
+              height="600px"
+              :show-minimap="true"
+              :show-controls="true"
+              :show-legend="true"
+            />
+          </TabsContent>
         </Tabs>
-      </template>
+      </CardContent>
     </Card>
 
     <!-- Form Dialog -->
@@ -111,59 +111,36 @@ function cancelDelete() {
     <BypassTestDialog />
 
     <!-- Delete Confirmation Dialog -->
-    <Dialog
-      v-model:visible="store.showDeleteDialog"
-      header="Eliminar Regla"
-      :modal="true"
-      :style="{ width: '400px' }"
-    >
-      <div class="flex items-center gap-4">
-        <i class="pi pi-exclamation-triangle text-4xl text-red-500" />
-        <div>
-          <p class="font-medium">Esta seguro de eliminar esta regla?</p>
-          <p class="text-sm text-gray-500 mt-1">
-            {{ store.deletingRule?.rule_name }}
-          </p>
-        </div>
-      </div>
+    <AlertDialog :open="store.showDeleteDialog" @update:open="(v: boolean) => { if (!v) cancelDelete() }">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Eliminar Regla</AlertDialogTitle>
+          <AlertDialogDescription>
+            Esta seguro de eliminar la regla "{{ store.deletingRule?.rule_name }}"?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
 
-      <Message severity="warn" :closable="false" class="mt-4">
-        Esta accion no se puede deshacer. Las conversaciones ya no seran enrutadas por esta regla.
-      </Message>
+        <Alert variant="destructive" class="mt-2">
+          <AlertDescription>
+            Esta accion no se puede deshacer. Las conversaciones ya no seran enrutadas por esta regla.
+          </AlertDescription>
+        </Alert>
 
-      <template #footer>
-        <Button label="Cancelar" severity="secondary" :disabled="isLoading" @click="cancelDelete" />
-        <Button
-          label="Eliminar"
-          severity="danger"
-          icon="pi pi-trash"
-          :loading="isLoading"
-          @click="confirmDelete"
-        />
-      </template>
-    </Dialog>
+        <AlertDialogFooter>
+          <AlertDialogCancel :disabled="isLoading" @click="cancelDelete">
+            Cancelar
+          </AlertDialogCancel>
+          <AlertDialogAction
+            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            :disabled="isLoading"
+            @click="confirmDelete"
+          >
+            <i v-if="isLoading" class="pi pi-spinner pi-spin mr-2" />
+            <i v-else class="pi pi-trash mr-2" />
+            Eliminar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 </template>
-
-<style scoped>
-.bypass-rules-page :deep(.p-card-content) {
-  padding: 1rem;
-}
-
-.visualization-container {
-  margin-top: 1rem;
-}
-
-/* Tab styling */
-.bypass-rules-page :deep(.p-tablist) {
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.bypass-rules-page :deep(.p-tab) {
-  padding: 0.75rem 1.5rem;
-}
-
-.bypass-rules-page :deep(.p-tabpanels) {
-  padding-top: 1rem;
-}
-</style>

@@ -17,7 +17,7 @@ const isStart = computed(() => props.data.nodeId === '__start__')
 
 <template>
   <div
-    class="terminal-node"
+    class="terminal-node glass-node"
     :style="{ borderColor: data.color, color: data.color }"
   >
     <Handle
@@ -49,7 +49,6 @@ const isStart = computed(() => props.data.nodeId === '__start__')
   padding: 0.375rem 1rem;
   border-radius: 999px;
   border: 2px solid;
-  background: var(--surface-card);
   font-size: 0.8rem;
   font-weight: 600;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
@@ -67,13 +66,6 @@ const isStart = computed(() => props.data.nodeId === '__start__')
 .handle {
   width: 8px;
   height: 8px;
-  border: 2px solid var(--surface-card);
-}
-
-/* Dark mode */
-:root.dark .terminal-node,
-.dark-mode .terminal-node,
-[data-theme="dark"] .terminal-node {
-  background: var(--surface-card);
+  border: 2px solid hsl(var(--card));
 }
 </style>

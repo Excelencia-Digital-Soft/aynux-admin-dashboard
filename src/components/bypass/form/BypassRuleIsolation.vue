@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Checkbox from 'primevue/checkbox'
+import { Checkbox } from '@/components/ui/checkbox'
 
 const formData = defineModel<any>('formData', { required: true })
 </script>
@@ -12,7 +12,10 @@ const formData = defineModel<any>('formData', { required: true })
     </h3>
 
     <div class="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
-      <Checkbox v-model="formData.isolated_history" :binary="true" />
+      <Checkbox
+        :checked="formData.isolated_history"
+        @update:checked="(v: boolean) => formData.isolated_history = v"
+      />
       <div>
         <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Historial Aislado</span>
         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">

@@ -72,14 +72,6 @@ const router = createRouter({
           meta: { title: 'Excelencia', icon: 'pi-building' }
         },
 
-        // Agent Config (Page 6)
-        {
-          path: 'agent-config',
-          name: 'AgentConfig',
-          component: () => import('@/pages/config/AgentConfigPage.vue'),
-          meta: { title: 'Configuracion de Agentes', icon: 'pi-sliders-h' }
-        },
-
         // Statistics (Page 7)
         {
           path: 'statistics',
@@ -126,14 +118,6 @@ const router = createRouter({
           name: 'PharmacyTesting',
           component: () => import('@/pages/testing/PharmacyTestingPage.vue'),
           meta: { title: 'Pruebas Farmacia', icon: 'pi-heart' }
-        },
-
-        // Medical Appointments Testing
-        {
-          path: 'medical-testing',
-          name: 'MedicalTesting',
-          component: () => import('@/pages/testing/MedicalTestingPage.vue'),
-          meta: { title: 'Pruebas Turnos', icon: 'pi-calendar-plus' }
         },
 
         // Whisper Transcription Testing

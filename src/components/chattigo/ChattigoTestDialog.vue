@@ -4,10 +4,16 @@ import { useChattigoCredentialsStore } from '@/stores/chattigoCredentials.store'
 import { useChattigoCredentials } from '@/composables/useChattigoCredentials'
 import { formatDID } from '@/types/chattigoCredentials.types'
 
-import Dialog from 'primevue/dialog'
-import Button from 'primevue/button'
-import Message from 'primevue/message'
-import ProgressSpinner from 'primevue/progressspinner'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 const store = useChattigoCredentialsStore()
 const { testConnection, isLoading, closeTestDialog } = useChattigoCredentials()
@@ -35,90 +41,94 @@ async function handleTest() {
 
 <template>
   <Dialog
-    :visible="store.showTestDialog"
-    header="Probar Conexión Chattigo"
-    :modal="true"
-    :style="{ width: '450px' }"
-    @update:visible="closeTestDialog"
+    :open="store.showTestDialog"
+    @update:open="(val: boolean) => { if (!val) closeTestDialog() }"
   >
-    <div class="space-y-4">
-      <!-- Credential Info -->
-      <div v-if="selectedCredential" class="bg-gray-50 rounded-lg p-4">
-        <div class="flex items-center gap-3 mb-3">
-          <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-            <i class="pi pi-whatsapp text-green-600 text-lg" />
-          </div>
-          <div>
-            <div class="font-medium">{{ selectedCredential.name }}</div>
-            <div class="text-sm text-gray-500">{{ formatDID(selectedCredential.did) }}</div>
-          </div>
-        </div>
+    <DialogContent class="glass-dialog sm:max-w-[450px]">
+      <DialogHeader>
+        <DialogTitle>Probar Conexion Chattigo</DialogTitle>
+        <DialogDescription class="sr-only">
+          Probar la conexion de credenciales Chattigo
+        </DialogDescription>
+      </DialogHeader>
 
-        <div class="grid grid-cols-2 gap-2 text-sm">
-          <div>
-            <span class="text-gray-500">Bot:</span>
-            <span class="ml-1 font-medium">{{ selectedCredential.bot_name }}</span>
-          </div>
-          <div>
-            <span class="text-gray-500">Refresh:</span>
-            <span class="ml-1 font-medium">{{ selectedCredential.token_refresh_hours }}h</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Test Button -->
-      <div class="flex justify-center">
-        <Button
-          label="Probar Conexión"
-          icon="pi pi-play"
-          severity="success"
-          :loading="isLoading"
-          @click="handleTest"
-        />
-      </div>
-
-      <!-- Loading -->
-      <div v-if="isLoading" class="flex flex-col items-center py-4">
-        <ProgressSpinner style="width: 40px; height: 40px" strokeWidth="4" />
-        <p class="text-sm text-gray-500 mt-2">Probando autenticación con Chattigo...</p>
-      </div>
-
-      <!-- Test Result -->
-      <div v-if="testResult && !isLoading">
-        <Message
-          :severity="testResult.success ? 'success' : 'error'"
-          :closable="false"
-          class="w-full"
-        >
-          <template #default>
-            <div class="flex flex-col gap-2">
-              <div class="flex items-center gap-2">
-                <i :class="testResult.success ? 'pi pi-check-circle' : 'pi pi-times-circle'" />
-                <span class="font-medium">
-                  {{ testResult.success ? 'Conexión exitosa' : 'Error de conexión' }}
-                </span>
-              </div>
-
-              <p class="text-sm">{{ testResult.message }}</p>
-
-              <div v-if="testResult.success && testResult.token_valid_until" class="text-sm">
-                <span class="text-gray-600">Token válido hasta:</span>
-                <span class="ml-1 font-medium">
-                  {{ formatDateTime(testResult.token_valid_until) }}
-                </span>
-              </div>
-
-              <p v-if="testResult.error_detail" class="text-sm text-red-600">
-                {{ testResult.error_detail }}
-              </p>
+      <div class="space-y-4">
+        <!-- Credential Info -->
+        <div v-if="selectedCredential" class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+              <i class="pi pi-whatsapp text-green-600 dark:text-green-400 text-lg" />
             </div>
-          </template>
-        </Message>
-      </div>
-    </div>
+            <div>
+              <div class="font-medium text-foreground">{{ selectedCredential.name }}</div>
+              <div class="text-sm text-muted-foreground">{{ formatDID(selectedCredential.did) }}</div>
+            </div>
+          </div>
 
-    <template #footer>
-      <Button label="Cerrar" severity="secondary" @click="closeTestDialog" />
-    </template>
+          <div class="grid grid-cols-2 gap-2 text-sm">
+            <div>
+              <span class="text-muted-foreground">Bot:</span>
+              <span class="ml-1 font-medium text-foreground">{{ selectedCredential.bot_name }}</span>
+            </div>
+            <div>
+              <span class="text-muted-foreground">Refresh:</span>
+              <span class="ml-1 font-medium text-foreground">{{ selectedCredential.token_refresh_hours }}h</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Test Button -->
+        <div class="flex justify-center">
+          <Button
+            :disabled="isLoading"
+            class="bg-green-600 hover:bg-green-700 text-white"
+            @click="handleTest"
+          >
+            <i v-if="isLoading" class="pi pi-spinner pi-spin mr-2" />
+            <i v-else class="pi pi-play mr-2" />
+            Probar Conexion
+          </Button>
+        </div>
+
+        <!-- Loading -->
+        <div v-if="isLoading" class="flex flex-col items-center py-4">
+          <i class="pi pi-spinner pi-spin text-4xl text-primary" />
+          <p class="text-sm text-muted-foreground mt-2">Probando autenticacion con Chattigo...</p>
+        </div>
+
+        <!-- Test Result -->
+        <div v-if="testResult && !isLoading">
+          <Alert :variant="testResult.success ? 'success' : 'destructive'" class="w-full">
+            <AlertDescription>
+              <div class="flex flex-col gap-2">
+                <div class="flex items-center gap-2">
+                  <i :class="testResult.success ? 'pi pi-check-circle' : 'pi pi-times-circle'" />
+                  <span class="font-medium">
+                    {{ testResult.success ? 'Conexion exitosa' : 'Error de conexion' }}
+                  </span>
+                </div>
+
+                <p class="text-sm">{{ testResult.message }}</p>
+
+                <div v-if="testResult.success && testResult.token_valid_until" class="text-sm">
+                  <span class="text-muted-foreground">Token valido hasta:</span>
+                  <span class="ml-1 font-medium">
+                    {{ formatDateTime(testResult.token_valid_until) }}
+                  </span>
+                </div>
+
+                <p v-if="testResult.error_detail" class="text-sm text-red-600 dark:text-red-400">
+                  {{ testResult.error_detail }}
+                </p>
+              </div>
+            </AlertDescription>
+          </Alert>
+        </div>
+      </div>
+
+      <DialogFooter>
+        <Button variant="outline" @click="closeTestDialog">Cerrar</Button>
+      </DialogFooter>
+    </DialogContent>
   </Dialog>
 </template>

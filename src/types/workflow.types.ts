@@ -162,7 +162,7 @@ export interface WorkflowDefinition {
   id: string;
   institution_config_id: string;
   workflow_key: string;
-  workflow_type: "medical_appointment" | "pharmacy" | "custom";
+  workflow_type: "pharmacy" | "custom";
   display_name: string;
   description: string | null;
   version: number;
@@ -174,6 +174,7 @@ export interface WorkflowDefinition {
   created_at: string;
   updated_at: string | null;
   node_count?: number;
+  institution_name?: string;
 }
 
 /**
@@ -209,7 +210,7 @@ export interface CanvasState {
 export interface WorkflowCreate {
   institution_config_id: string;
   workflow_key: string;
-  workflow_type: "medical_appointment" | "pharmacy" | "custom";
+  workflow_type: "pharmacy" | "custom";
   display_name: string;
   description?: string;
   settings?: WorkflowSettings;

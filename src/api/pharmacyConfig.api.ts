@@ -8,7 +8,9 @@ import type {
   PharmacyTimelineResponse,
   PharmacyTimelineFilters,
   PharmacyConversation,
-  PharmacyStats
+  PharmacyStats,
+  BulkDeleteResponse,
+  SummarizeEvent
 } from '@/types/pharmacyConfig.types'
 
 const PHARMACY_CONFIG_URL = '/admin/pharmacy-config'
@@ -160,6 +162,68 @@ export const pharmacyConfigApi = {
       `${PHARMACY_CONFIG_URL}/${pharmacyId}/stats`
     )
     return data
+  },
+
+  async deleteConversations(
+    pharmacyId: string,
+    conversationIds: string[]
+  ): Promise<BulkDeleteResponse> {
+    const { data } = await apiClient.delete<BulkDeleteResponse>(
+      `${PHARMACY_CONFIG_URL}/${pharmacyId}/conversations`,
+      { data: { conversation_ids: conversationIds } }
+    )
+    return data
+  },
+
+  async summarizeStream(
+    pharmacyId: string,
+    conversationIds: string[],
+    onEvent: (event: SummarizeEvent) => void,
+    signal?: AbortSignal
+  ): Promise<void> {
+    const url = `${apiClient.defaults.baseURL}${PHARMACY_CONFIG_URL}/${pharmacyId}/summarize-stream?conversation_ids=${conversationIds.join(',')}`
+
+    const authData = localStorage.getItem('auth')
+    const token = authData ? JSON.parse(authData).accessToken : null
+
+    const response = await fetch(url, {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      signal
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    const reader = response.body?.getReader()
+    if (!reader) throw new Error('No response body')
+
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const data = line.slice(6)
+        if (data === '[DONE]') continue
+
+        try {
+          const parsed = JSON.parse(data) as SummarizeEvent
+          onEvent(parsed)
+
+          if (parsed.type === 'done') return
+        } catch {
+          console.error('Failed to parse SSE event:', data)
+        }
+      }
+    }
   }
 }
 

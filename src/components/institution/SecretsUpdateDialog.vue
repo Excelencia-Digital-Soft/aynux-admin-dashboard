@@ -152,7 +152,7 @@ function handleClose() {
 
 <template>
   <Dialog :open="dialogVisible" @update:open="(val) => dialogVisible = val">
-    <DialogContent class="sm:max-w-[450px]">
+    <DialogContent class="sm:max-w-[450px] glass-dialog">
       <DialogHeader>
         <DialogTitle>Credenciales - {{ institutionName }}</DialogTitle>
         <DialogDescription class="sr-only">

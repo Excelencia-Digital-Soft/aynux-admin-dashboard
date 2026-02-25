@@ -39,6 +39,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   (e: 'nodeClick', nodeId: string): void
   (e: 'paneClick'): void
+  (e: 'addConfig', nodeId: string): void
 }>()
 
 // Vue Flow
@@ -85,6 +86,10 @@ function onPaneClick() {
   emit('paneClick')
 }
 
+function onAddConfig(nodeId: string) {
+  emit('addConfig', nodeId)
+}
+
 function handleFitView() {
   fitView({ padding: 0.2 })
 }
@@ -121,11 +126,11 @@ watch(
 
       <!-- Custom Nodes -->
       <template #node-router="{ data }">
-        <RouterNode :data="data" />
+        <RouterNode :data="data" @add-config="onAddConfig" />
       </template>
 
       <template #node-action="{ data }">
-        <ActionNode :data="data" />
+        <ActionNode :data="data" @add-config="onAddConfig" />
       </template>
 
       <template #node-formatter="{ data }">

@@ -3,10 +3,15 @@
  * ConnectionSettingsTab - External service connection configuration.
  */
 
-import InputText from 'primevue/inputtext'
-import InputNumber from 'primevue/inputnumber'
-import Select from 'primevue/select'
-import Checkbox from 'primevue/checkbox'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
 import type { ConnectionSettings } from '@/types/tenantInstitutionConfig.types'
 import { CONNECTION_TYPES } from '@/types/tenantInstitutionConfig.types'
 
@@ -18,107 +23,103 @@ const model = defineModel<ConnectionSettings>({ required: true })
 </script>
 
 <template>
-  <div class="connection-settings-tab space-y-4">
+  <div class="space-y-4">
     <!-- Connection Type -->
-    <div class="field">
-      <label for="connection_type" class="block text-sm font-medium text-gray-700 mb-1">
+    <div>
+      <label for="connection_type" class="block text-sm font-medium text-foreground mb-1">
         Tipo de Conexion
       </label>
-      <Select
-        id="connection_type"
-        v-model="model.type"
-        :options="CONNECTION_TYPES"
-        optionLabel="label"
-        optionValue="value"
-        class="w-full"
-        placeholder="Seleccionar tipo"
-        appendTo="self"
-      />
+      <Select v-model="model.type">
+        <SelectTrigger>
+          <SelectValue placeholder="Seleccionar tipo" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem v-for="t in CONNECTION_TYPES" :key="t.value" :value="t.value">
+            {{ t.label }}
+          </SelectItem>
+        </SelectContent>
+      </Select>
     </div>
 
     <!-- Base URL -->
-    <div class="field">
-      <label for="base_url" class="block text-sm font-medium text-gray-700 mb-1">
+    <div>
+      <label for="base_url" class="block text-sm font-medium text-foreground mb-1">
         URL Base
       </label>
-      <InputText
+      <Input
         id="base_url"
         v-model="model.base_url"
-        class="w-full"
         placeholder="https://api.example.com/v1"
       />
-      <small class="text-gray-500">
+      <p class="text-xs text-muted-foreground mt-1">
         URL del servicio externo (SOAP endpoint, REST API, etc.)
-      </small>
+      </p>
     </div>
 
-    <!-- Namespace SOAP (only for SOAP connections) -->
-    <div v-if="model.type === 'soap'" class="field">
-      <label for="namespace" class="block text-sm font-medium text-gray-700 mb-1">
+    <!-- Namespace SOAP -->
+    <div v-if="model.type === 'soap'">
+      <label for="namespace" class="block text-sm font-medium text-foreground mb-1">
         Namespace SOAP
       </label>
-      <InputText
+      <Input
         id="namespace"
         v-model="model.namespace"
-        class="w-full"
         placeholder="http://tempuri.org/"
       />
-      <small class="text-gray-500">
+      <p class="text-xs text-muted-foreground mt-1">
         Namespace del servicio SOAP (se usa en el envelope XML y header SOAPAction)
-      </small>
+      </p>
     </div>
 
     <!-- Timeout -->
-    <div class="field">
-      <label for="timeout_seconds" class="block text-sm font-medium text-gray-700 mb-1">
+    <div>
+      <label for="timeout_seconds" class="block text-sm font-medium text-foreground mb-1">
         Timeout (segundos)
       </label>
-      <InputNumber
+      <Input
         id="timeout_seconds"
-        v-model="model.timeout_seconds"
-        :min="1"
-        :max="300"
-        class="w-full"
-        showButtons
+        v-model.number="model.timeout_seconds"
+        type="number"
+        min="1"
+        max="300"
       />
-      <small class="text-gray-500">
+      <p class="text-xs text-muted-foreground mt-1">
         Tiempo maximo de espera para las solicitudes (1-300 segundos)
-      </small>
+      </p>
     </div>
 
     <!-- Retry Count -->
-    <div class="field">
-      <label for="retry_count" class="block text-sm font-medium text-gray-700 mb-1">
+    <div>
+      <label for="retry_count" class="block text-sm font-medium text-foreground mb-1">
         Reintentos
       </label>
-      <InputNumber
+      <Input
         id="retry_count"
-        v-model="model.retry_count"
-        :min="0"
-        :max="10"
-        class="w-full"
-        showButtons
+        v-model.number="model.retry_count"
+        type="number"
+        min="0"
+        max="10"
       />
-      <small class="text-gray-500">
+      <p class="text-xs text-muted-foreground mt-1">
         Numero de reintentos en caso de fallo (0-10)
-      </small>
+      </p>
     </div>
 
     <!-- Verify SSL -->
-    <div class="field">
+    <div>
       <div class="flex items-center gap-3">
         <Checkbox
           id="verify_ssl"
-          v-model="model.verify_ssl"
-          :binary="true"
+          :checked="model.verify_ssl"
+          @update:checked="model.verify_ssl = !!$event"
         />
-        <label for="verify_ssl" class="text-sm font-medium text-gray-700 cursor-pointer">
+        <label for="verify_ssl" class="text-sm font-medium text-foreground cursor-pointer">
           Verificar certificado SSL
         </label>
       </div>
-      <small class="text-gray-500 block mt-1">
+      <p class="text-xs text-muted-foreground mt-1">
         Desactivar solo para entornos de desarrollo o servicios internos
-      </small>
+      </p>
     </div>
   </div>
 </template>

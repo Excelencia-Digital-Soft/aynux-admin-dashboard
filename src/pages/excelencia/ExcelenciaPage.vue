@@ -5,7 +5,6 @@ import { useToast } from '@/composables/useToast'
 import type {
   SoftwareModule,
   SoftwareModuleCreateRequest,
-  SoftwareModuleUpdateRequest,
   ModuleCategory,
   ModuleStatus,
   PricingTier
@@ -20,32 +19,44 @@ import {
 
 import ModuleEditDialog from '@/components/excelencia/ModuleEditDialog.vue'
 
-import Card from 'primevue/card'
-import Button from 'primevue/button'
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
-import InputText from 'primevue/inputtext'
-import Textarea from 'primevue/textarea'
-import Select from 'primevue/select'
-import Tag from 'primevue/tag'
-import Tabs from 'primevue/tabs'
-import TabList from 'primevue/tablist'
-import Tab from 'primevue/tab'
-import TabPanels from 'primevue/tabpanels'
-import TabPanel from 'primevue/tabpanel'
-import ProgressSpinner from 'primevue/progressspinner'
-import Chip from 'primevue/chip'
-import Message from 'primevue/message'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell
+} from '@/components/ui/table'
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
+} from '@/components/ui/select'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
 
 const toast = useToast()
 
 const isLoading = ref(false)
 const modules = ref<SoftwareModule[]>([])
-const activeTab = ref('0')
+const activeTab = ref('list')
 
 // Filters
-const filterCategory = ref<ModuleCategory | undefined>(undefined)
-const filterStatus = ref<ModuleStatus | undefined>(undefined)
+const filterCategory = ref<string>('all')
+const filterStatus = ref<string>('all')
 const searchQuery = ref('')
 
 // Dialog state
@@ -64,25 +75,13 @@ const moduleForm = ref({
   pricing_tier: 'standard' as PricingTier
 })
 
-const isEditing = computed(() => editingModule.value !== null)
-
-const allCategoryOptions = computed(() => [
-  { value: undefined, label: 'Todas las categorias' },
-  ...categoryOptions
-])
-
-const allStatusOptions = computed(() => [
-  { value: undefined, label: 'Todos los estados' },
-  ...statusOptions
-])
-
 const filteredModules = computed(() => {
   let result = modules.value
 
-  if (filterCategory.value) {
+  if (filterCategory.value && filterCategory.value !== 'all') {
     result = result.filter((m) => m.category === filterCategory.value)
   }
-  if (filterStatus.value) {
+  if (filterStatus.value && filterStatus.value !== 'all') {
     result = result.filter((m) => m.status === filterStatus.value)
   }
   if (searchQuery.value) {
@@ -98,6 +97,16 @@ const filteredModules = computed(() => {
   return result
 })
 
+function mapSeverityToBadge(severity: string) {
+  const map: Record<string, 'success' | 'info' | 'warning' | 'secondary' | 'default'> = {
+    success: 'success',
+    info: 'info',
+    warn: 'warning',
+    secondary: 'secondary'
+  }
+  return map[severity] || 'default'
+}
+
 async function fetchModules() {
   isLoading.value = true
   try {
@@ -109,27 +118,6 @@ async function fetchModules() {
 
 function openModuleDialog(module: SoftwareModule | null = null) {
   editingModule.value = module
-  if (module) {
-    moduleForm.value = {
-      code: module.code,
-      name: module.name,
-      description: module.description || '',
-      category: module.category,
-      status: module.status,
-      features: module.features?.join('\n') || '',
-      pricing_tier: module.pricing_tier
-    }
-  } else {
-    moduleForm.value = {
-      code: '',
-      name: '',
-      description: '',
-      category: 'general',
-      status: 'active',
-      features: '',
-      pricing_tier: 'standard'
-    }
-  }
   showModuleDialog.value = true
 }
 
@@ -151,33 +139,29 @@ async function handleSaveModule() {
       .map((f) => f.trim())
       .filter(Boolean)
 
-    if (isEditing.value && editingModule.value) {
-      const updateData: SoftwareModuleUpdateRequest = {
-        name: moduleForm.value.name,
-        description: moduleForm.value.description,
-        category: moduleForm.value.category,
-        status: moduleForm.value.status,
-        features,
-        pricing_tier: moduleForm.value.pricing_tier
-      }
-      await catalogApi.updateModule(editingModule.value.id, updateData)
-      toast.success('Modulo actualizado')
-    } else {
-      const createData: SoftwareModuleCreateRequest = {
-        code: moduleForm.value.code,
-        name: moduleForm.value.name,
-        description: moduleForm.value.description,
-        category: moduleForm.value.category,
-        status: moduleForm.value.status,
-        features,
-        pricing_tier: moduleForm.value.pricing_tier
-      }
-      await catalogApi.createModule(createData)
-      toast.success('Modulo creado')
+    const createData: SoftwareModuleCreateRequest = {
+      code: moduleForm.value.code,
+      name: moduleForm.value.name,
+      description: moduleForm.value.description,
+      category: moduleForm.value.category,
+      status: moduleForm.value.status,
+      features,
+      pricing_tier: moduleForm.value.pricing_tier
     }
+    await catalogApi.createModule(createData)
+    toast.success('Modulo creado')
 
-    closeModuleDialog()
+    moduleForm.value = {
+      code: '',
+      name: '',
+      description: '',
+      category: 'general',
+      status: 'active',
+      features: '',
+      pricing_tier: 'standard'
+    }
     await fetchModules()
+    activeTab.value = 'list'
   } catch (error) {
     toast.error('Error al guardar modulo')
   } finally {
@@ -207,319 +191,361 @@ async function handleDeleteModule(moduleId: string, hardDelete: boolean) {
   }
 }
 
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('es-ES')
-}
-
 onMounted(() => {
   fetchModules()
 })
 </script>
 
 <template>
-  <div class="excelencia-page">
-    <!-- Header -->
-    <div class="flex items-center justify-between mb-6">
-      <div>
-        <h1 class="text-2xl font-bold text-gray-800">Excelencia Management</h1>
-        <p class="text-gray-500 mt-1">Catalogo de productos de software</p>
+  <TooltipProvider>
+    <div class="max-w-[1400px] mx-auto p-6">
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">Excelencia Management</h1>
+          <p class="text-gray-500 dark:text-gray-400 mt-1">Catalogo de productos de software</p>
+        </div>
+        <Button @click="openModuleDialog(null)">
+          <i class="pi pi-plus mr-2" />
+          Nuevo Modulo
+        </Button>
       </div>
-      <Button label="Nuevo Modulo" icon="pi pi-plus" severity="primary" @click="openModuleDialog(null)" />
-    </div>
 
-    <!-- Main Content -->
-    <Card>
-      <template #content>
-        <Tabs v-model:value="activeTab">
-          <TabList>
-            <Tab value="0">
-              <div class="flex items-center gap-2">
-                <i class="pi pi-list" />
-                <span>Lista de Modulos</span>
-              </div>
-            </Tab>
-            <Tab value="1">
-              <div class="flex items-center gap-2">
-                <i class="pi pi-plus" />
-                <span>Crear Modulo</span>
-              </div>
-            </Tab>
-          </TabList>
-          <TabPanels>
+      <!-- Main Content -->
+      <Card class="glass-card overflow-hidden">
+        <CardContent class="p-0">
+          <Tabs v-model="activeTab" class="w-full">
+            <TabsList class="w-full justify-start rounded-none border-b border-gray-200/50 dark:border-white/10 bg-transparent h-auto p-0">
+              <TabsTrigger
+                value="list"
+                class="rounded-none border-b-2 border-transparent data-[state=active]:border-primary-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-3"
+              >
+                <i class="pi pi-list mr-2" />
+                Lista de Modulos
+              </TabsTrigger>
+              <TabsTrigger
+                value="create"
+                class="rounded-none border-b-2 border-transparent data-[state=active]:border-primary-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-3"
+              >
+                <i class="pi pi-plus mr-2" />
+                Crear Modulo
+              </TabsTrigger>
+            </TabsList>
+
             <!-- Module List Tab -->
-            <TabPanel value="0">
+            <TabsContent value="list" class="p-6 mt-0">
               <!-- Filters -->
               <div class="flex gap-4 mb-4">
-                <InputText
+                <Input
                   v-model="searchQuery"
                   placeholder="Buscar modulos..."
                   class="flex-1"
                 />
-                <Select
-                  v-model="filterCategory"
-                  :options="allCategoryOptions"
-                  optionLabel="label"
-                  optionValue="value"
-                  placeholder="Categoria"
-                  class="w-48"
-                />
-                <Select
-                  v-model="filterStatus"
-                  :options="allStatusOptions"
-                  optionLabel="label"
-                  optionValue="value"
-                  placeholder="Estado"
-                  class="w-40"
-                />
+                <Select v-model="filterCategory">
+                  <SelectTrigger class="w-48">
+                    <SelectValue placeholder="Categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas las categorias</SelectItem>
+                    <SelectItem
+                      v-for="opt in categoryOptions"
+                      :key="opt.value"
+                      :value="opt.value"
+                    >
+                      {{ opt.label }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select v-model="filterStatus">
+                  <SelectTrigger class="w-40">
+                    <SelectValue placeholder="Estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los estados</SelectItem>
+                    <SelectItem
+                      v-for="opt in statusOptions"
+                      :key="opt.value"
+                      :value="opt.value"
+                    >
+                      {{ opt.label }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
                 <Button
-                  icon="pi pi-refresh"
-                  severity="secondary"
+                  variant="outline"
+                  size="icon"
                   @click="fetchModules"
-                  :loading="isLoading"
-                />
+                  :disabled="isLoading"
+                >
+                  <i :class="['pi pi-refresh', { 'pi-spin': isLoading }]" />
+                </Button>
               </div>
 
               <!-- Loading -->
-              <div v-if="isLoading && modules.length === 0" class="flex justify-center py-12">
-                <ProgressSpinner />
+              <div v-if="isLoading && modules.length === 0" class="text-center py-12 text-gray-500 dark:text-gray-400">
+                <i class="pi pi-spin pi-spinner text-2xl mb-2" />
+                <p>Cargando modulos...</p>
+              </div>
+
+              <!-- Empty -->
+              <div v-else-if="filteredModules.length === 0" class="text-center py-12 text-gray-500 dark:text-gray-400">
+                <i class="pi pi-box text-4xl mb-2" />
+                <p>No hay modulos</p>
               </div>
 
               <!-- Table -->
-              <DataTable
-                v-else
-                :value="filteredModules"
-                :loading="isLoading"
-                stripedRows
-                class="p-datatable-sm"
-              >
-                <template #empty>
-                  <div class="text-center py-8 text-gray-500">
-                    <i class="pi pi-box text-4xl mb-2" />
-                    <p>No hay modulos</p>
-                  </div>
-                </template>
+              <Card v-else class="overflow-hidden border border-gray-200/50 dark:border-white/10 shadow-none">
+                <CardContent class="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead class="w-[120px]">Codigo</TableHead>
+                        <TableHead class="min-w-[200px]">Nombre</TableHead>
+                        <TableHead class="w-[140px]">Categoria</TableHead>
+                        <TableHead class="w-[120px]">Estado</TableHead>
+                        <TableHead class="w-[120px]">Plan</TableHead>
+                        <TableHead class="w-[200px]">Features</TableHead>
+                        <TableHead class="w-[150px]">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow v-for="mod in filteredModules" :key="mod.id">
+                        <TableCell>
+                          <code class="text-sm bg-gray-100 dark:bg-white/10 px-2 py-1 rounded text-gray-800 dark:text-gray-200">
+                            {{ mod.code }}
+                          </code>
+                        </TableCell>
+                        <TableCell>
+                          <div class="font-medium text-gray-800 dark:text-gray-100">{{ mod.name }}</div>
+                          <div class="text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs">
+                            {{ mod.description }}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span class="capitalize text-gray-700 dark:text-gray-300">{{ mod.category }}</span>
+                        </TableCell>
+                        <TableCell>
+                          <Badge :variant="mapSeverityToBadge(getStatusSeverity(mod.status))">
+                            {{ mod.status }}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge :variant="mapSeverityToBadge(getTierSeverity(mod.pricing_tier))">
+                            {{ mod.pricing_tier }}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div class="flex flex-wrap gap-1">
+                            <Badge
+                              v-for="(feat, idx) in (mod.features || []).slice(0, 3)"
+                              :key="idx"
+                              variant="outline"
+                              class="text-xs"
+                            >
+                              {{ feat }}
+                            </Badge>
+                            <span v-if="(mod.features?.length || 0) > 3" class="text-xs text-gray-400 dark:text-gray-500 self-center">
+                              +{{ mod.features!.length - 3 }}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div class="flex gap-1">
+                            <Tooltip>
+                              <TooltipTrigger as-child>
+                                <Button variant="ghost" size="icon" @click="openModuleDialog(mod)">
+                                  <i class="pi pi-pencil text-sm" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Editar</TooltipContent>
+                            </Tooltip>
 
-                <Column field="code" header="Codigo" style="width: 120px">
-                  <template #body="{ data }">
-                    <code class="text-sm bg-gray-100 px-2 py-1 rounded">{{ data.code }}</code>
-                  </template>
-                </Column>
-
-                <Column field="name" header="Nombre" style="min-width: 200px">
-                  <template #body="{ data }">
-                    <div class="font-medium">{{ data.name }}</div>
-                    <div class="text-xs text-gray-500 truncate max-w-xs">
-                      {{ data.description }}
-                    </div>
-                  </template>
-                </Column>
-
-                <Column field="category" header="Categoria" style="width: 140px">
-                  <template #body="{ data }">
-                    <span class="capitalize">{{ data.category }}</span>
-                  </template>
-                </Column>
-
-                <Column field="status" header="Estado" style="width: 120px">
-                  <template #body="{ data }">
-                    <Tag :severity="getStatusSeverity(data.status)" :value="data.status" />
-                  </template>
-                </Column>
-
-                <Column field="pricing_tier" header="Plan" style="width: 120px">
-                  <template #body="{ data }">
-                    <Tag
-                      :severity="getTierSeverity(data.pricing_tier)"
-                      :value="data.pricing_tier"
-                    />
-                  </template>
-                </Column>
-
-                <Column field="features" header="Features" style="width: 200px">
-                  <template #body="{ data }">
-                    <div class="flex flex-wrap gap-1">
-                      <Chip
-                        v-for="(feat, idx) in (data.features || []).slice(0, 3)"
-                        :key="idx"
-                        :label="feat"
-                        class="text-xs"
-                      />
-                      <span v-if="data.features?.length > 3" class="text-xs text-gray-400">
-                        +{{ data.features.length - 3 }}
-                      </span>
-                    </div>
-                  </template>
-                </Column>
-
-                <Column header="Acciones" style="width: 150px">
-                  <template #body="{ data }">
-                    <div class="flex gap-1">
-                      <Button
-                        icon="pi pi-pencil"
-                        severity="secondary"
-                        text
-                        rounded
-                        size="small"
-                        @click="openModuleDialog(data)"
-                      />
-                      <Button
-                        v-if="!confirmDelete[data.id]"
-                        icon="pi pi-ban"
-                        severity="warn"
-                        text
-                        rounded
-                        size="small"
-                        v-tooltip="'Deprecar'"
-                        @click="handleDeleteModule(data.id, false)"
-                      />
-                      <Button
-                        v-if="!confirmDelete[data.id]"
-                        icon="pi pi-trash"
-                        severity="danger"
-                        text
-                        rounded
-                        size="small"
-                        v-tooltip="'Eliminar'"
-                        @click="handleDeleteModule(data.id, true)"
-                      />
-                      <template v-else>
-                        <Button
-                          icon="pi pi-check"
-                          severity="danger"
-                          text
-                          rounded
-                          size="small"
-                          @click="handleDeleteModule(data.id, false)"
-                        />
-                        <Button
-                          icon="pi pi-times"
-                          severity="secondary"
-                          text
-                          rounded
-                          size="small"
-                          @click="delete confirmDelete[data.id]"
-                        />
-                      </template>
-                    </div>
-                  </template>
-                </Column>
-              </DataTable>
-            </TabPanel>
+                            <template v-if="!confirmDelete[mod.id]">
+                              <Tooltip>
+                                <TooltipTrigger as-child>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    class="text-amber-600 hover:text-amber-700 dark:text-amber-400"
+                                    @click="handleDeleteModule(mod.id, false)"
+                                  >
+                                    <i class="pi pi-ban text-sm" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Deprecar</TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger as-child>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    class="text-destructive hover:text-destructive"
+                                    @click="handleDeleteModule(mod.id, true)"
+                                  >
+                                    <i class="pi pi-trash text-sm" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Eliminar</TooltipContent>
+                              </Tooltip>
+                            </template>
+                            <template v-else>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                class="text-destructive hover:text-destructive"
+                                @click="handleDeleteModule(mod.id, false)"
+                              >
+                                <i class="pi pi-check text-sm" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                @click="delete confirmDelete[mod.id]"
+                              >
+                                <i class="pi pi-times text-sm" />
+                              </Button>
+                            </template>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
             <!-- Create Module Tab -->
-            <TabPanel value="1">
+            <TabsContent value="create" class="p-6 mt-0">
               <div class="max-w-2xl">
-                <Message severity="info" :closable="false" class="mb-4">
-                  Crear un nuevo producto de software en company_knowledge con
-                  document_type: software_catalog
-                </Message>
+                <Alert class="mb-4 border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20">
+                  <i class="pi pi-info-circle text-blue-600 dark:text-blue-400" />
+                  <AlertDescription class="text-blue-700 dark:text-blue-300">
+                    Crear un nuevo producto de software en company_knowledge con
+                    document_type: software_catalog
+                  </AlertDescription>
+                </Alert>
 
                 <div class="space-y-4">
                   <div class="grid grid-cols-2 gap-4">
                     <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-1">Codigo *</label>
-                      <InputText
+                      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Codigo <span class="text-red-500">*</span>
+                      </label>
+                      <Input
                         v-model="moduleForm.code"
                         placeholder="Ej: MEDBOT-001"
-                        class="w-full"
                       />
                     </div>
                     <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
-                      <InputText v-model="moduleForm.name" placeholder="Nombre del producto" class="w-full" />
+                      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Nombre <span class="text-red-500">*</span>
+                      </label>
+                      <Input v-model="moduleForm.name" placeholder="Nombre del producto" />
                     </div>
                   </div>
 
                   <div class="grid grid-cols-2 gap-4">
                     <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-1">Categoria *</label>
-                      <Select
-                        v-model="moduleForm.category"
-                        :options="categoryOptions"
-                        optionLabel="label"
-                        optionValue="value"
-                        class="w-full"
-                      />
+                      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Categoria <span class="text-red-500">*</span>
+                      </label>
+                      <Select v-model="moduleForm.category">
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar categoria" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem
+                            v-for="opt in categoryOptions"
+                            :key="opt.value"
+                            :value="opt.value"
+                          >
+                            {{ opt.label }}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-                      <Select
-                        v-model="moduleForm.status"
-                        :options="statusOptions"
-                        optionLabel="label"
-                        optionValue="value"
-                        class="w-full"
-                      />
+                      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Estado</label>
+                      <Select v-model="moduleForm.status">
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar estado" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem
+                            v-for="opt in statusOptions"
+                            :key="opt.value"
+                            :value="opt.value"
+                          >
+                            {{ opt.label }}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Descripcion</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripcion</label>
                     <Textarea
                       v-model="moduleForm.description"
-                      rows="3"
+                      :rows="3"
                       placeholder="Descripcion del producto"
-                      class="w-full"
                     />
                   </div>
 
                   <div class="grid grid-cols-2 gap-4">
                     <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-1">
+                      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         Features (uno por linea)
                       </label>
                       <Textarea
                         v-model="moduleForm.features"
-                        rows="5"
+                        :rows="5"
                         placeholder="chatbot&#10;whatsapp&#10;salud"
-                        class="w-full"
                       />
                     </div>
                     <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-1">Plan de Precios</label>
-                      <Select
-                        v-model="moduleForm.pricing_tier"
-                        :options="pricingOptions"
-                        optionLabel="label"
-                        optionValue="value"
-                        class="w-full"
-                      />
+                      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Plan de Precios</label>
+                      <Select v-model="moduleForm.pricing_tier">
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar plan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem
+                            v-for="opt in pricingOptions"
+                            :key="opt.value"
+                            :value="opt.value"
+                          >
+                            {{ opt.label }}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
                   <div class="pt-4">
                     <Button
-                      label="Crear Modulo"
-                      icon="pi pi-plus"
                       @click="handleSaveModule"
-                      :loading="isLoading"
-                      :disabled="!moduleForm.code || !moduleForm.name"
-                    />
+                      :disabled="!moduleForm.code || !moduleForm.name || isLoading"
+                    >
+                      <i v-if="isLoading" class="pi pi-spin pi-spinner mr-2" />
+                      <i v-else class="pi pi-plus mr-2" />
+                      Crear Modulo
+                    </Button>
                   </div>
                 </div>
               </div>
-            </TabPanel>
-          </TabPanels>
-        </Tabs>
-      </template>
-    </Card>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
 
-    <!-- Edit Module Dialog -->
-    <ModuleEditDialog
-      v-model:visible="showModuleDialog"
-      :module="editingModule"
-      @saved="onModuleDialogSaved"
-      @cancelled="closeModuleDialog"
-    />
-  </div>
+      <!-- Edit Module Dialog -->
+      <ModuleEditDialog
+        v-model:visible="showModuleDialog"
+        :module="editingModule"
+        @saved="onModuleDialogSaved"
+        @cancelled="closeModuleDialog"
+      />
+    </div>
+  </TooltipProvider>
 </template>
-
-<style scoped>
-.excelencia-page :deep(.p-card-content) {
-  padding: 0;
-}
-
-.excelencia-page :deep(.p-tabpanels) {
-  padding: 1.5rem;
-}
-</style>

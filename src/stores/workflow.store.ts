@@ -150,6 +150,7 @@ export const useWorkflowStore = defineStore("workflow", () => {
     // Core Actions
     setInstitutionContext: coreStore.setInstitutionContext,
     loadWorkflows: coreStore.loadWorkflows,
+    loadAllWorkflows: coreStore.loadAllWorkflows,
     createWorkflow: coreStore.createWorkflow,
     updateWorkflow: coreStore.updateWorkflow,
     deleteWorkflow: coreStore.deleteWorkflow,

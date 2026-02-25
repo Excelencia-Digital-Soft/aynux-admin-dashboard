@@ -7,10 +7,12 @@
  * with a detail drawer for editing selected node configurations.
  */
 import { onMounted, ref, watch } from 'vue'
-import Select from 'primevue/select'
-import Button from 'primevue/button'
-import ProgressSpinner from 'primevue/progressspinner'
-import Tag from 'primevue/tag'
+import { RefreshCw } from 'lucide-vue-next'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Spinner } from '@/components/ui/spinner'
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 
 import IntentConfigGraphCanvas from './IntentConfigGraphCanvas.vue'
 import IntentConfigDetailDrawer from './IntentConfigDetailDrawer.vue'
@@ -18,6 +20,7 @@ import { useIntentConfigGraph } from './composables/useIntentConfigGraph'
 import { DOMAIN_CONFIGS } from './types'
 import { graphTopologyApi } from '@/api/graphTopology.api'
 import type { InstitutionConfigSummary } from '@/types/graphTopology.types'
+import type { RoutingConfigCreate } from '@/types/routingConfigs.types'
 
 // Props
 interface Props {
@@ -28,6 +31,11 @@ const props = withDefaults(defineProps<Props>(), {
   height: '650px'
 })
 
+// Emits
+const emit = defineEmits<{
+  (e: 'domainChange', domain: string): void
+}>()
+
 // Composable
 const {
   nodes,
@@ -35,6 +43,8 @@ const {
   selectedNodeId,
   selectedNode,
   drawerVisible,
+  showCreateForm,
+  availableNodes,
   domainKey,
   availableDomains,
   isLoading,
@@ -45,7 +55,10 @@ const {
   clearSelection,
   setDomain,
   updateRoutingConfig,
-  updateAwaitingTypeConfig
+  updateAwaitingTypeConfig,
+  createRoutingConfig,
+  deleteRoutingConfig,
+  openCreateForm
 } = useIntentConfigGraph()
 
 // Domain options for the dropdown
@@ -86,11 +99,13 @@ function handlePaneClick() {
 // Handle drawer close
 function handleDrawerClose() {
   drawerVisible.value = false
+  showCreateForm.value = false
 }
 
 // Handle domain change
-function handleDomainChange(event: { value: string }) {
-  setDomain(event.value)
+function handleDomainChange(value: string) {
+  setDomain(value)
+  emit('domainChange', value)
 }
 
 // Handle config toggle from panels
@@ -107,6 +122,26 @@ function handleUpdateRoutingConfig(configId: string, updates: Record<string, unk
   updateRoutingConfig(configId, updates)
 }
 
+// Handle create routing config
+function handleCreateRoutingConfig(data: RoutingConfigCreate) {
+  createRoutingConfig(data)
+}
+
+// Handle delete routing config
+function handleDeleteRoutingConfig(configId: string) {
+  deleteRoutingConfig(configId)
+}
+
+// Handle add-config from node "+" button
+function handleNodeAddConfig(nodeId: string) {
+  openCreateForm(nodeId)
+}
+
+// Handle showCreateForm toggle
+function handleShowCreateFormUpdate(value: boolean) {
+  showCreateForm.value = value
+}
+
 // Refresh
 function handleRefresh() {
   fetchTopology()
@@ -116,13 +151,14 @@ function handleRefresh() {
 onMounted(() => {
   fetchTopology()
   fetchLinkedConfigs()
+  emit('domainChange', domainKey.value)
 })
 </script>
 
 <template>
   <div class="topology-graph">
     <!-- Header / Toolbar -->
-    <div class="graph-toolbar">
+    <div class="graph-toolbar glass-card">
       <div class="toolbar-left">
         <h2 class="toolbar-title">
           <i class="pi pi-share-alt" />
@@ -132,32 +168,39 @@ onMounted(() => {
 
       <div class="toolbar-center">
         <!-- Domain Selector -->
-        <Select
-          :modelValue="domainKey"
-          :options="domainOptions"
-          optionLabel="label"
-          optionValue="value"
-          placeholder="Dominio"
-          class="domain-select"
-          @change="handleDomainChange"
-        />
+        <Select :model-value="domainKey" @update:model-value="handleDomainChange">
+          <SelectTrigger class="w-[180px]">
+            <SelectValue placeholder="Dominio" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem
+              v-for="opt in domainOptions"
+              :key="opt.value"
+              :value="opt.value"
+            >
+              {{ opt.label }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div class="toolbar-right">
         <!-- Refresh -->
-        <Button
-          icon="pi pi-refresh"
-          severity="secondary"
-          text
-          :loading="isLoading"
-          @click="handleRefresh"
-          v-tooltip="'Actualizar datos'"
-        />
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button variant="ghost" size="icon" :disabled="isLoading" @click="handleRefresh">
+                <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': isLoading }" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Actualizar datos</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </div>
 
     <!-- Stats Bar -->
-    <div class="stats-bar">
+    <div class="stats-bar glass-panel">
       <div class="stat-item">
         <span class="stat-value">{{ stats.nodes }}</span>
         <span class="stat-label">Nodos</span>
@@ -177,24 +220,25 @@ onMounted(() => {
     </div>
 
     <!-- Linked Institution Configs -->
-    <div v-if="linkedConfigs.length > 0" class="linked-configs-bar">
+    <div v-if="linkedConfigs.length > 0" class="linked-configs-bar glass-panel">
       <span class="linked-configs-label">
         <i class="pi pi-building" />
         Instituciones vinculadas:
       </span>
       <div class="linked-configs-list">
-        <Tag
+        <Badge
           v-for="cfg in linkedConfigs"
           :key="cfg.id"
-          :severity="cfg.enabled ? 'success' : 'secondary'"
-          :value="cfg.institution_name"
-        />
+          :variant="cfg.enabled ? 'success' : 'secondary'"
+        >
+          {{ cfg.institution_name }}
+        </Badge>
       </div>
     </div>
 
     <!-- Loading State -->
     <div v-if="isLoading && nodes.length === 0" class="loading-state">
-      <ProgressSpinner />
+      <Spinner size="lg" />
       <p>Cargando topologia del grafo...</p>
     </div>
 
@@ -202,7 +246,7 @@ onMounted(() => {
     <div v-else-if="error" class="error-state">
       <i class="pi pi-exclamation-triangle" />
       <p>{{ error }}</p>
-      <Button label="Reintentar" @click="handleRefresh" />
+      <Button @click="handleRefresh">Reintentar</Button>
     </div>
 
     <!-- Graph Canvas -->
@@ -214,10 +258,11 @@ onMounted(() => {
       :height="height"
       @node-click="handleNodeClick"
       @pane-click="handlePaneClick"
+      @add-config="handleNodeAddConfig"
     />
 
     <!-- Legend -->
-    <div v-if="nodes.length > 0" class="graph-legend">
+    <div v-if="nodes.length > 0" class="graph-legend glass-card">
       <div class="legend-title">Leyenda</div>
       <div class="legend-items">
         <div class="legend-item">
@@ -254,10 +299,15 @@ onMounted(() => {
       v-model:visible="drawerVisible"
       :selected-node="selectedNode"
       :domain-key="domainKey"
+      :show-create-form="showCreateForm"
+      :available-nodes="availableNodes"
       @close="handleDrawerClose"
       @toggle-routing-config="handleToggleRoutingConfig"
       @toggle-awaiting-config="handleToggleAwaitingConfig"
       @update-routing-config="handleUpdateRoutingConfig"
+      @create-routing-config="handleCreateRoutingConfig"
+      @delete-routing-config="handleDeleteRoutingConfig"
+      @update:show-create-form="handleShowCreateFormUpdate"
     />
   </div>
 </template>
@@ -276,9 +326,6 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 0.75rem 1rem;
-  background: var(--surface-card);
-  border: 1px solid var(--surface-border);
-  border-radius: 0.5rem;
 }
 
 .toolbar-left {
@@ -291,24 +338,20 @@ onMounted(() => {
   margin: 0;
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--text-color);
+  color: hsl(var(--foreground));
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
 .toolbar-title i {
-  color: var(--primary-color);
+  color: hsl(var(--primary));
 }
 
 .toolbar-center {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.domain-select {
-  width: 180px;
 }
 
 .toolbar-right {
@@ -322,8 +365,6 @@ onMounted(() => {
   display: flex;
   gap: 1.5rem;
   padding: 0.5rem 1rem;
-  background: var(--surface-ground);
-  border-radius: 0.375rem;
 }
 
 .stat-item {
@@ -335,12 +376,12 @@ onMounted(() => {
 .stat-value {
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--text-color);
+  color: hsl(var(--foreground));
 }
 
 .stat-label {
   font-size: 0.7rem;
-  color: var(--text-color-secondary);
+  color: hsl(var(--muted-foreground));
   text-transform: uppercase;
 }
 
@@ -350,15 +391,13 @@ onMounted(() => {
   align-items: center;
   gap: 0.75rem;
   padding: 0.5rem 1rem;
-  background: var(--surface-ground);
-  border-radius: 0.375rem;
   flex-wrap: wrap;
 }
 
 .linked-configs-label {
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--text-color-secondary);
+  color: hsl(var(--muted-foreground));
   display: flex;
   align-items: center;
   gap: 0.375rem;
@@ -379,7 +418,7 @@ onMounted(() => {
   justify-content: center;
   padding: 4rem;
   gap: 1rem;
-  color: var(--text-color-secondary);
+  color: hsl(var(--muted-foreground));
 }
 
 /* Error State */
@@ -390,7 +429,7 @@ onMounted(() => {
   justify-content: center;
   padding: 4rem;
   gap: 1rem;
-  color: var(--red-500);
+  color: hsl(var(--destructive));
 }
 
 .error-state i {
@@ -403,17 +442,13 @@ onMounted(() => {
   bottom: 1rem;
   left: 1rem;
   padding: 0.75rem;
-  background: var(--surface-card);
-  border: 1px solid var(--surface-border);
-  border-radius: 0.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   z-index: 10;
 }
 
 .legend-title {
   font-weight: 600;
   font-size: 0.75rem;
-  color: var(--text-color);
+  color: hsl(var(--foreground));
   margin-bottom: 0.5rem;
 }
 
@@ -429,7 +464,7 @@ onMounted(() => {
   align-items: center;
   gap: 0.25rem;
   font-size: 0.7rem;
-  color: var(--text-color-secondary);
+  color: hsl(var(--muted-foreground));
 }
 
 .legend-dot {
@@ -442,7 +477,7 @@ onMounted(() => {
   display: flex;
   gap: 0.75rem;
   padding-top: 0.375rem;
-  border-top: 1px solid var(--surface-border);
+  border-top: 1px solid hsl(var(--border));
 }
 
 .legend-line {
@@ -463,13 +498,5 @@ onMounted(() => {
     transparent 4px,
     transparent 8px
   );
-}
-
-/* Dark mode legend */
-:root.dark .graph-legend,
-.dark-mode .graph-legend,
-[data-theme="dark"] .graph-legend {
-  background: #1e293b;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
 }
 </style>

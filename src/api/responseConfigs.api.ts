@@ -15,7 +15,8 @@ import type {
   SeedResponse,
   BulkImportResponse,
   CacheInvalidateResponse,
-  CacheWarmResponse
+  CacheWarmResponse,
+  ResponseParam
 } from '@/types/responseConfigs.types'
 
 const BASE_PATH = '/admin/response-configs'
@@ -194,6 +195,20 @@ export const responseConfigsApi = {
       domain_key: domainKey
     })
     return response.data
+  },
+
+  // =========================================================================
+  // Parameter Registry
+  // =========================================================================
+
+  /**
+   * Get available template parameters for a domain
+   */
+  async getAvailableParams(domainKey: string): Promise<ResponseParam[]> {
+    const response = await api.get<{ domain_key: string; params: ResponseParam[] }>(
+      `${BASE_PATH}/params/${domainKey}`
+    )
+    return response.data.params
   },
 
   // =========================================================================

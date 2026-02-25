@@ -81,10 +81,13 @@ const {
   edges,
   selectedNode,
   selectedEdge,
+  isLoading,
   isSaving,
   isDirty,
   stats,
   selectInstitution,
+  loadInstitutions,
+  loadAllWorkflows,
   loadWorkflow,
   createWorkflow,
   saveWorkflow,
@@ -206,6 +209,19 @@ async function onInstitutionSelect() {
   }
 }
 
+async function handleBackToSelector() {
+  localSelectedWorkflowId.value = null
+  await loadAllWorkflows()
+}
+
+async function openNewWorkflowDialog() {
+  showWorkflowDialog.value = true
+  // Lazy-load institutions when dialog opens
+  if (institutions.value.length === 0) {
+    await loadInstitutions()
+  }
+}
+
 // ============================================================================
 // Navigation
 // ============================================================================
@@ -244,7 +260,7 @@ async function handleImportFile(event: Event) {
 // Workflow copy
 // ============================================================================
 async function onWorkflowCopied(result: { newWorkflowId: string }) {
-  await workflowStore.loadWorkflows()
+  await loadAllWorkflows()
   localSelectedWorkflowId.value = result.newWorkflowId
 }
 
@@ -391,17 +407,12 @@ function handlePaneClick() {
         <span>Volver al menú</span>
       </button>
       <WorkflowSelector
-        :institutions="institutions"
         :workflows="workflows"
-        v-model:selectedInstitutionId="selectedInstitutionId"
         v-model:selectedWorkflowId="localSelectedWorkflowId"
-        :selectedInstitution="selectedInstitution"
         :currentWorkflow="currentWorkflow"
         :stats="stats"
-        :isLoadingInstitutions="isLoadingInstitutions"
-        @selectInstitution="onInstitutionSelect"
-        @showInstitutionInfo="uiState.openInstitutionInfo"
-        @newWorkflow="showWorkflowDialog = true"
+        :isLoading="isLoading"
+        @newWorkflow="openNewWorkflowDialog"
       />
     </div>
 
@@ -410,19 +421,19 @@ function handlePaneClick() {
       <!-- Top Bar -->
       <WorkflowTopBar
         :workflow="currentWorkflow"
-        :institution-name="selectedInstitution?.institution_name"
+        :institution-name="currentWorkflow?.institution_name ?? selectedInstitution?.institution_name"
         :is-dirty="isDirty"
         :is-saving="isSaving"
         :active-tab="uiState.activeTab.value"
         @update:activeTab="uiState.activeTab.value = $event"
         @save="saveWorkflow"
         @publish="publishWorkflow"
-        @refresh="workflowStore.loadWorkflows"
+        @refresh="loadAllWorkflows"
         @settings="uiState.openNodeDefinitions"
         @duplicate="uiState.openCopyWorkflow"
         @export="exportToFile"
         @delete="() => currentWorkflow && deleteDialogs.confirmDeleteWorkflow(currentWorkflow)"
-        @back="localSelectedWorkflowId = null"
+        @back="handleBackToSelector"
       />
 
       <!-- Main Content Area -->
@@ -568,6 +579,8 @@ function handlePaneClick() {
       v-model:visible="showWorkflowDialog"
       :loading="false"
       :workflow="newWorkflow"
+      :institutions="institutions"
+      :isLoadingInstitutions="isLoadingInstitutions"
       @save="createWorkflow"
       @cancel="showWorkflowDialog = false; resetWorkflowForm()"
     />

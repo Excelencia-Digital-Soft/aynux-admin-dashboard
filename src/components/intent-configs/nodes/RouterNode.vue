@@ -3,6 +3,7 @@
  * RouterNode - Graph node for the Router Supervisor
  * Brain icon, prominent styling, shows matcher count
  */
+import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import type { TopologyNodeData } from '../types'
 
@@ -11,11 +12,22 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+
+const emit = defineEmits<{
+  (e: 'addConfig', nodeId: string): void
+}>()
+
+const uniqueIntentCount = computed(() => props.data.routingIntents?.length || 0)
+
+function handleAddConfig(event: Event) {
+  event.stopPropagation()
+  emit('addConfig', props.data.nodeId)
+}
 </script>
 
 <template>
   <div
-    class="router-node"
+    class="router-node glass-node"
     :class="{ 'node-selected': data.isSelected }"
   >
     <Handle type="target" :position="Position.Top" class="handle" />
@@ -32,6 +44,10 @@ const props = defineProps<Props>()
         <span class="stat-value">{{ data.routingConfigCount }}</span>
         <span class="stat-label">routing</span>
       </div>
+      <div class="stat" v-if="uniqueIntentCount > 0">
+        <span class="stat-value">{{ uniqueIntentCount }}</span>
+        <span class="stat-label">intents</span>
+      </div>
       <div class="stat" v-if="data.awaitingTypeConfigCount > 0">
         <span class="stat-value">{{ data.awaitingTypeConfigCount }}</span>
         <span class="stat-label">awaiting</span>
@@ -39,6 +55,10 @@ const props = defineProps<Props>()
     </div>
 
     <div class="node-description">{{ data.description }}</div>
+
+    <button class="add-config-btn" @click="handleAddConfig" title="Agregar routing config">
+      <i class="pi pi-plus" />
+    </button>
 
     <Handle type="source" :position="Position.Bottom" class="handle" />
   </div>
@@ -51,7 +71,6 @@ const props = defineProps<Props>()
   padding: 0.75rem;
   border-radius: 0.75rem;
   border: 2px solid #8b5cf6;
-  background: var(--surface-card);
   box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);
   transition: all 0.2s;
 }
@@ -93,7 +112,7 @@ const props = defineProps<Props>()
 .node-label {
   font-weight: 600;
   font-size: 0.9rem;
-  color: var(--text-color);
+  color: hsl(var(--foreground));
 }
 
 .node-stats {
@@ -111,18 +130,18 @@ const props = defineProps<Props>()
 .stat-value {
   font-size: 1.1rem;
   font-weight: 700;
-  color: var(--text-color);
+  color: hsl(var(--foreground));
 }
 
 .stat-label {
   font-size: 0.6rem;
-  color: var(--text-color-secondary);
+  color: hsl(var(--muted-foreground));
   text-transform: uppercase;
 }
 
 .node-description {
   font-size: 0.65rem;
-  color: var(--text-color-secondary);
+  color: hsl(var(--muted-foreground));
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
@@ -130,24 +149,42 @@ const props = defineProps<Props>()
   -webkit-box-orient: vertical;
 }
 
+.add-config-btn {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: #8b5cf6;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 5;
+}
+
+.add-config-btn i {
+  font-size: 0.6rem;
+}
+
+.router-node:hover .add-config-btn {
+  opacity: 0.8;
+}
+
+.add-config-btn:hover {
+  opacity: 1 !important;
+  transform: scale(1.1);
+}
+
 .handle {
   width: 10px;
   height: 10px;
   background: #8b5cf6;
-  border: 2px solid var(--surface-card);
-}
-
-/* Dark mode */
-:root.dark .router-node,
-.dark-mode .router-node,
-[data-theme="dark"] .router-node {
-  background: var(--surface-card);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-:root.dark .router-node:hover,
-.dark-mode .router-node:hover,
-[data-theme="dark"] .router-node:hover {
-  box-shadow: 0 8px 24px rgba(139, 92, 246, 0.3);
+  border: 2px solid hsl(var(--card));
 }
 </style>

@@ -206,6 +206,41 @@ export interface PharmacyStats {
   active_conversations_24h: number
 }
 
+export interface BulkDeleteResponse {
+  deleted_count: number
+  deleted_conversation_ids: string[]
+}
+
+export interface SummarizeProgressEvent {
+  type: 'progress'
+  current: number
+  total: number
+  conversation_id: string
+}
+
+export interface SummarizeSummaryEvent {
+  type: 'summary'
+  conversation_id: string
+  summary: string
+}
+
+export interface SummarizeErrorEvent {
+  type: 'error'
+  conversation_id: string
+  error: string
+}
+
+export interface SummarizeDoneEvent {
+  type: 'done'
+  total: number
+}
+
+export type SummarizeEvent =
+  | SummarizeProgressEvent
+  | SummarizeSummaryEvent
+  | SummarizeErrorEvent
+  | SummarizeDoneEvent
+
 // ============================================================
 // Helper Functions
 // ============================================================

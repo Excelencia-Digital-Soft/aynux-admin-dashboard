@@ -5,10 +5,9 @@ import { useOrganizationStore } from '@/stores/organization.store'
 import { useOrganization } from '@/composables/useOrganization'
 import UserManagement from '@/components/organizations/UserManagement.vue'
 
-import Card from 'primevue/card'
-import Button from 'primevue/button'
-import Tag from 'primevue/tag'
-import ProgressSpinner from 'primevue/progressspinner'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 
 const route = useRoute()
 const router = useRouter()
@@ -16,6 +15,15 @@ const store = useOrganizationStore()
 const { selectedOrg, orgStats, selectOrganization, isLoading } = useOrganization()
 
 const orgId = computed(() => route.params.orgId as string)
+
+function getStatusVariant(status: string) {
+  const map: Record<string, 'success' | 'secondary' | 'destructive'> = {
+    active: 'success',
+    inactive: 'secondary',
+    suspended: 'destructive'
+  }
+  return map[status] || 'secondary'
+}
 
 function goBack() {
   router.push('/organizations')
@@ -34,53 +42,47 @@ onMounted(async () => {
     <div class="flex items-center justify-between mb-6">
       <div>
         <div class="flex items-center gap-2 mb-1">
-          <Button
-            icon="pi pi-arrow-left"
-            severity="secondary"
-            text
-            rounded
-            @click="goBack"
-          />
-          <h1 class="text-2xl font-bold text-gray-800">Usuarios</h1>
+          <Button variant="ghost" size="icon" @click="goBack">
+            <i class="pi pi-arrow-left" />
+          </Button>
+          <h1 class="text-2xl font-bold text-foreground">Usuarios</h1>
         </div>
-        <p v-if="selectedOrg" class="text-gray-500 ml-10">
+        <p v-if="selectedOrg" class="text-muted-foreground ml-10">
           {{ selectedOrg.name }}
-          <Tag :severity="selectedOrg.status === 'active' ? 'success' : 'secondary'" :value="selectedOrg.status" class="ml-2" />
+          <Badge :variant="getStatusVariant(selectedOrg.status)" class="ml-2">
+            {{ selectedOrg.status }}
+          </Badge>
         </p>
       </div>
-      <div v-if="orgStats" class="text-right text-sm text-gray-500">
-        <div><strong>{{ orgStats.active_users }}</strong> usuarios activos</div>
-        <div><strong>{{ orgStats.total_documents }}</strong> documentos</div>
+      <div v-if="orgStats" class="text-right text-sm text-muted-foreground">
+        <div class="glass-panel px-4 py-2 rounded-lg">
+          <div><strong class="text-foreground">{{ orgStats.active_users }}</strong> usuarios activos</div>
+          <div><strong class="text-foreground">{{ orgStats.total_documents }}</strong> documentos</div>
+        </div>
       </div>
     </div>
 
     <!-- Loading -->
     <div v-if="isLoading && !selectedOrg" class="flex justify-center py-12">
-      <ProgressSpinner />
+      <div class="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
     </div>
 
     <!-- Content -->
-    <Card v-else-if="selectedOrg">
-      <template #content>
+    <Card v-else-if="selectedOrg" class="glass-card">
+      <CardContent class="p-0">
         <UserManagement :organization-id="orgId" />
-      </template>
+      </CardContent>
     </Card>
 
     <!-- Not found -->
-    <Card v-else>
-      <template #content>
-        <div class="text-center py-8 text-gray-500">
+    <Card v-else class="glass-card">
+      <CardContent class="p-0">
+        <div class="text-center py-8 text-muted-foreground">
           <i class="pi pi-exclamation-circle text-4xl mb-2" />
           <p>Organizacion no encontrada</p>
-          <Button label="Volver" severity="secondary" @click="goBack" class="mt-4" />
+          <Button variant="outline" @click="goBack" class="mt-4">Volver</Button>
         </div>
-      </template>
+      </CardContent>
     </Card>
   </div>
 </template>
-
-<style scoped>
-.users-page :deep(.p-card-content) {
-  padding: 0;
-}
-</style>

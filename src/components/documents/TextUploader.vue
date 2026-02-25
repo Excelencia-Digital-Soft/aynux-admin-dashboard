@@ -6,11 +6,17 @@ import { agentKnowledgeApi } from '@/api/agentKnowledge.api'
 import { tenantApi } from '@/api/tenant.api'
 import type { DocumentContext, UploadDestination } from '@/types/document.types'
 
-import InputText from 'primevue/inputtext'
-import Textarea from 'primevue/textarea'
-import Select from 'primevue/select'
-import Button from 'primevue/button'
-import Message from 'primevue/message'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
+} from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 interface Props {
   context?: DocumentContext
@@ -128,74 +134,78 @@ function handleCancel() {
 
 <template>
   <div class="text-uploader">
-    <Message v-if="error" severity="error" :closable="true" @close="error = null">
-      {{ error }}
-    </Message>
+    <Alert v-if="error" variant="destructive" class="mb-4">
+      <AlertDescription class="flex items-center justify-between">
+        {{ error }}
+        <button class="text-sm underline ml-2" @click="error = null">Cerrar</button>
+      </AlertDescription>
+    </Alert>
 
     <div class="space-y-4">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Titulo *
         </label>
-        <InputText
+        <Input
           v-model="title"
           placeholder="Titulo del documento"
-          class="w-full"
           :disabled="isLoading"
         />
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Tipo de documento *
         </label>
-        <Select
-          v-model="documentType"
-          :options="typeOptions"
-          optionLabel="label"
-          optionValue="value"
-          placeholder="Seleccionar tipo"
-          class="w-full"
-          :disabled="isLoading"
-        />
+        <Select v-model="documentType" :disabled="isLoading">
+          <SelectTrigger class="w-full">
+            <SelectValue placeholder="Seleccionar tipo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem
+              v-for="opt in typeOptions"
+              :key="opt.value"
+              :value="opt.value"
+            >
+              {{ opt.label }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Contenido *
         </label>
         <Textarea
           v-model="content"
-          rows="10"
           placeholder="Escribe o pega el contenido del documento aqui..."
-          class="w-full"
           :disabled="isLoading"
+          class="min-h-[250px]"
         />
-        <p class="text-xs text-gray-400 mt-1">
+        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
           {{ content.length }} caracteres
         </p>
       </div>
 
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Categoria (opcional)
           </label>
-          <InputText
+          <Input
             v-model="category"
             placeholder="Ej: ventas, soporte"
-            class="w-full"
             :disabled="isLoading"
           />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Tags (opcional)
           </label>
-          <InputText
+          <Input
             v-model="tags"
             placeholder="Separados por coma"
-            class="w-full"
             :disabled="isLoading"
           />
         </div>
@@ -204,18 +214,20 @@ function handleCancel() {
       <!-- Actions -->
       <div class="flex justify-end gap-2 pt-4">
         <Button
-          label="Cancelar"
-          severity="secondary"
+          variant="outline"
           @click="handleCancel"
           :disabled="isLoading"
-        />
+        >
+          Cancelar
+        </Button>
         <Button
-          label="Crear Documento"
-          icon="pi pi-plus"
           @click="handleUpload"
           :disabled="!canUpload"
-          :loading="isLoading"
-        />
+        >
+          <i v-if="isLoading" class="pi pi-spin pi-spinner mr-2" />
+          <i v-else class="pi pi-plus mr-2" />
+          Crear Documento
+        </Button>
       </div>
     </div>
   </div>

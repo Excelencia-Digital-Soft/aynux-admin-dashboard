@@ -5,19 +5,20 @@ import { usePharmacyConfig } from '@/composables/usePharmacyConfig'
 import type { PharmacyMessage } from '@/types/pharmacyConfig.types'
 import {
   formatPhoneNumber,
-  getSenderTypeLabel,
-  getSenderTypeSeverity
+  getSenderTypeLabel
 } from '@/types/pharmacyConfig.types'
 
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
-import Button from 'primevue/button'
-import InputText from 'primevue/inputtext'
-import Select from 'primevue/select'
-import DatePicker from 'primevue/datepicker'
-import Paginator from 'primevue/paginator'
-import Skeleton from 'primevue/skeleton'
-import Tag from 'primevue/tag'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 
 const props = defineProps<{
   pharmacyId: string
@@ -39,13 +40,11 @@ const {
   hasTimelineFilters
 } = usePharmacyConfig()
 
-// Local filter state
-const dateRange = ref<Date[] | null>(null)
 const searchQuery = ref('')
 const selectedSenderType = ref<string | undefined>(undefined)
 
 const senderTypeOptions = [
-  { label: 'Todos', value: undefined },
+  { label: 'Todos', value: 'all' },
   { label: 'Cliente', value: 'user' },
   { label: 'Agente', value: 'assistant' },
   { label: 'Sistema', value: 'system' }
@@ -67,49 +66,35 @@ function truncateContent(content: string, maxLength = 100): string {
   return content.substring(0, maxLength) + '...'
 }
 
-function onPageChange(event: { page: number; rows: number }) {
-  setTimelinePage(event.page + 1)
-  fetchTimeline(props.pharmacyId)
-}
-
 function handleSearch() {
   setTimelineFilters({ search: searchQuery.value || undefined })
   fetchTimeline(props.pharmacyId)
 }
 
-function handleSenderTypeChange(value: string | undefined) {
-  selectedSenderType.value = value
+function handleSenderTypeChange(value: string) {
+  selectedSenderType.value = value === 'all' ? undefined : value
   setTimelineFilters({
     sender_type: value === 'all' ? undefined : (value as 'user' | 'assistant' | undefined)
   })
   fetchTimeline(props.pharmacyId)
 }
 
-function handleDateRangeChange() {
-  if (dateRange.value && dateRange.value.length === 2) {
-    const [start, end] = dateRange.value
-    setTimelineFilters({
-      start_date: start ? start.toISOString() : undefined,
-      end_date: end ? end.toISOString() : undefined
-    })
-  } else {
-    setTimelineFilters({
-      start_date: undefined,
-      end_date: undefined
-    })
-  }
-  fetchTimeline(props.pharmacyId)
-}
-
 function handleClearFilters() {
-  dateRange.value = null
   searchQuery.value = ''
   selectedSenderType.value = undefined
   clearTimelineFilters()
   fetchTimeline(props.pharmacyId)
 }
 
-// Watch for pharmacy changes
+function getSenderBadgeVariant(type: string): 'default' | 'success' | 'secondary' | 'info' {
+  const variants: Record<string, 'default' | 'success' | 'secondary' | 'info'> = {
+    user: 'info',
+    assistant: 'success',
+    system: 'secondary'
+  }
+  return variants[type] || 'secondary'
+}
+
 watch(
   () => props.pharmacyId,
   (newId) => {
@@ -129,126 +114,135 @@ onMounted(() => {
 
 <template>
   <div class="pharmacy-message-timeline">
-    <!-- Filters -->
-    <div class="flex flex-wrap gap-4 mb-4">
-      <div class="flex-1 min-w-[200px]">
-        <InputText
-          v-model="searchQuery"
-          placeholder="Buscar en mensajes..."
-          class="w-full"
-          @keyup.enter="handleSearch"
-        />
+    <div class="bg-white dark:bg-white/10 backdrop-blur-md rounded-2xl border border-gray-200 dark:border-white/15 shadow-lg dark:shadow-2xl p-6">
+      <div class="flex flex-wrap gap-4 mb-6">
+        <div class="flex-1 min-w-[200px]">
+          <Input
+            v-model="searchQuery"
+            placeholder="Buscar en mensajes..."
+            class="bg-white dark:bg-white/10 border-gray-200 dark:border-white/20 text-foreground dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/40 focus-visible:ring-cyan-400/50"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+
+        <Select :model-value="selectedSenderType || 'all'" @update:model-value="handleSenderTypeChange">
+          <SelectTrigger class="w-40 bg-white dark:bg-white/10 border-gray-200 dark:border-white/20 text-foreground dark:text-white focus:ring-cyan-400/50">
+            <SelectValue placeholder="Tipo de mensaje" />
+          </SelectTrigger>
+          <SelectContent class="bg-white dark:bg-slate-800/95 backdrop-blur-lg border-gray-200 dark:border-white/20 text-foreground dark:text-white">
+            <SelectItem
+              v-for="opt in senderTypeOptions"
+              :key="opt.value"
+              :value="opt.value"
+              class="text-gray-700 dark:text-white/90 focus:bg-gray-100 dark:focus:bg-white/10 focus:text-gray-900 dark:focus:text-white"
+            >
+              {{ opt.label }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Button
+          v-if="hasTimelineFilters"
+          variant="ghost"
+          size="sm"
+          class="text-gray-600 dark:text-white/70 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10"
+          @click="handleClearFilters"
+        >
+          <i class="pi pi-filter-slash mr-2" />
+          Limpiar
+        </Button>
       </div>
 
-      <Select
-        v-model="selectedSenderType"
-        :options="senderTypeOptions"
-        optionLabel="label"
-        optionValue="value"
-        placeholder="Tipo de mensaje"
-        class="w-40"
-        @update:model-value="handleSenderTypeChange"
-      />
+      <div v-if="isLoading && messages.length === 0" class="space-y-3">
+        <div v-for="i in 5" :key="i" class="h-20 bg-gray-50 dark:bg-white/5 rounded-lg animate-pulse" />
+      </div>
 
-      <DatePicker
-        v-model="dateRange"
-        selectionMode="range"
-        :manualInput="false"
-        placeholder="Rango de fechas"
-        dateFormat="dd/mm/yy"
-        class="w-64"
-        @update:model-value="handleDateRangeChange"
-      />
+      <Table v-else class="w-full">
+        <TableHeader>
+          <TableRow class="border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5">
+            <TableHead class="text-gray-600 dark:text-white/70 font-medium">Fecha</TableHead>
+            <TableHead class="text-gray-600 dark:text-white/70 font-medium">Cliente</TableHead>
+            <TableHead class="text-gray-600 dark:text-white/70 font-medium">Tipo</TableHead>
+            <TableHead class="text-gray-600 dark:text-white/70 font-medium">Mensaje</TableHead>
+            <TableHead class="w-12" />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow
+            v-for="message in messages"
+            :key="message.id"
+            class="border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer transition-colors"
+            @click="emit('selectMessage', message)"
+          >
+            <TableCell>
+              <span class="text-sm text-gray-700 dark:text-white/80">{{ formatDate(message.created_at) }}</span>
+            </TableCell>
+            <TableCell>
+              <div class="flex items-center gap-2">
+                <i class="pi pi-whatsapp text-green-400 text-sm" />
+                <span class="text-sm text-gray-700 dark:text-white/80">{{ formatPhoneNumber(message.user_phone) }}</span>
+              </div>
+            </TableCell>
+            <TableCell>
+              <Badge :variant="getSenderBadgeVariant(message.sender_type)">
+                {{ getSenderTypeLabel(message.sender_type) }}
+              </Badge>
+            </TableCell>
+            <TableCell>
+              <div class="text-sm text-gray-600 dark:text-white/70 max-w-md">
+                <p>{{ truncateContent(message.content) }}</p>
+                <span v-if="message.agent_name" class="text-xs text-gray-400 dark:text-white/40 mt-1 block">
+                  Agente: {{ message.agent_name }}
+                </span>
+              </div>
+            </TableCell>
+            <TableCell>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8 text-gray-400 dark:text-white/50 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10"
+                @click.stop="emit('selectMessage', message)"
+              >
+                <i class="pi pi-external-link" />
+              </Button>
+            </TableCell>
+          </TableRow>
+          <TableRow v-if="messages.length === 0">
+            <TableCell colspan="5" class="text-center py-8">
+              <div class="text-gray-400 dark:text-white/50">
+                <i class="pi pi-inbox text-4xl mb-2" />
+                <p>No se encontraron mensajes</p>
+              </div>
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
 
-      <Button
-        v-if="hasTimelineFilters"
-        icon="pi pi-filter-slash"
-        severity="secondary"
-        text
-        @click="handleClearFilters"
-        v-tooltip="'Limpiar filtros'"
-      />
-    </div>
-
-    <!-- Loading -->
-    <div v-if="isLoading && messages.length === 0" class="space-y-2">
-      <Skeleton v-for="i in 5" :key="i" height="80px" />
-    </div>
-
-    <!-- Table -->
-    <DataTable
-      v-else
-      :value="messages"
-      :loading="isLoading"
-      stripedRows
-      class="p-datatable-sm"
-    >
-      <template #empty>
-        <div class="text-center py-8 text-gray-500">
-          <i class="pi pi-inbox text-4xl mb-2" />
-          <p>No se encontraron mensajes</p>
-        </div>
-      </template>
-
-      <Column field="created_at" header="Fecha" :sortable="true" style="width: 180px">
-        <template #body="{ data }">
-          <span class="text-sm">{{ formatDate(data.created_at) }}</span>
-        </template>
-      </Column>
-
-      <Column field="user_phone" header="Cliente" style="width: 150px">
-        <template #body="{ data }">
-          <div class="flex items-center gap-2">
-            <i class="pi pi-whatsapp text-green-500 text-sm" />
-            <span class="text-sm">{{ formatPhoneNumber(data.user_phone) }}</span>
-          </div>
-        </template>
-      </Column>
-
-      <Column field="sender_type" header="Tipo" style="width: 100px">
-        <template #body="{ data }">
-          <Tag
-            :severity="getSenderTypeSeverity(data.sender_type)"
-            :value="getSenderTypeLabel(data.sender_type)"
-          />
-        </template>
-      </Column>
-
-      <Column field="content" header="Mensaje" style="min-width: 300px">
-        <template #body="{ data }">
-          <div class="text-sm">
-            <p>{{ truncateContent(data.content) }}</p>
-            <span v-if="data.agent_name" class="text-xs text-gray-400 mt-1">
-              Agente: {{ data.agent_name }}
-            </span>
-          </div>
-        </template>
-      </Column>
-
-      <Column header="" style="width: 60px">
-        <template #body="{ data }">
+      <div v-if="totalMessages > 0" class="flex items-center justify-between mt-6 pt-4 border-t border-gray-200 dark:border-white/10">
+        <span class="text-sm text-gray-400 dark:text-white/50">
+          Mostrando {{ messages.length }} de {{ totalMessages }} mensajes
+        </span>
+        <div class="flex gap-2">
           <Button
-            icon="pi pi-external-link"
-            severity="secondary"
-            text
-            rounded
-            size="small"
-            @click="emit('selectMessage', data)"
-            v-tooltip="'Ver conversacion'"
-          />
-        </template>
-      </Column>
-    </DataTable>
-
-    <!-- Pagination -->
-    <Paginator
-      v-if="totalMessages > 0"
-      :first="(store.timelinePage - 1) * store.timelinePageSize"
-      :rows="store.timelinePageSize"
-      :totalRecords="totalMessages"
-      :rowsPerPageOptions="[25, 50, 100]"
-      @page="onPageChange"
-      class="mt-4"
-    />
+            variant="outline"
+            size="sm"
+            class="border-gray-300 dark:border-white/20 text-foreground dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
+            :disabled="store.timelinePage === 1"
+            @click="setTimelinePage(store.timelinePage - 1); fetchTimeline(props.pharmacyId)"
+          >
+            Anterior
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            class="border-gray-300 dark:border-white/20 text-foreground dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
+            :disabled="messages.length < store.timelinePageSize"
+            @click="setTimelinePage(store.timelinePage + 1); fetchTimeline(props.pharmacyId)"
+          >
+            Siguiente
+          </Button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>

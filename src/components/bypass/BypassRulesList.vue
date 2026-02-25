@@ -3,7 +3,9 @@ import { onMounted, ref } from 'vue'
 import { useBypassRules } from '@/composables/useBypassRules'
 import { useDomains } from '@/composables/useDomains'
 import { pharmacyApi, type Pharmacy } from '@/api/pharmacy.api'
-import { medicalApi, type Institution } from '@/api/medical.api'
+import { tenantInstitutionConfigApi } from '@/api/tenantInstitutionConfig.api'
+import type { TenantInstitutionConfig } from '@/types/tenantInstitutionConfig.types'
+import { useAuthStore } from '@/stores/auth.store'
 import type { BypassRule, BypassRuleType } from '@/types/bypassRules.types'
 import {
   getRuleTypeLabel,
@@ -12,16 +14,24 @@ import {
   getDetailedRuleMatch
 } from '@/types/bypassRules.types'
 
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
-import Button from 'primevue/button'
-import Tag from 'primevue/tag'
-import InputText from 'primevue/inputtext'
-import IconField from 'primevue/iconfield'
-import InputIcon from 'primevue/inputicon'
-import Select from 'primevue/select'
-import ToggleSwitch from 'primevue/toggleswitch'
-import Skeleton from 'primevue/skeleton'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
 
 const emit = defineEmits<{
   (e: 'edit', rule: BypassRule): void
@@ -39,11 +49,8 @@ const {
 
 const { fetchDomains, getDomainLabel, getDomainColor } = useDomains()
 
-// Available pharmacies for displaying pharmacy names
 const pharmacies = ref<Pharmacy[]>([])
-
-// Available institutions for displaying institution names
-const institutions = ref<Institution[]>([])
+const institutions = ref<TenantInstitutionConfig[]>([])
 
 function getPharmacyName(pharmacyId: string | null | undefined): string | null {
   if (!pharmacyId) return null
@@ -54,27 +61,25 @@ function getPharmacyName(pharmacyId: string | null | undefined): string | null {
 function getInstitutionName(institutionId: string | null | undefined): string | null {
   if (!institutionId) return null
   const institution = institutions.value.find((i) => i.id === institutionId)
-  return institution?.name || null
+  return institution?.institution_name || null
 }
 
-// Filter options
 const statusOptions = [
-  { label: 'Todos', value: undefined },
-  { label: 'Activas', value: true },
-  { label: 'Inactivas', value: false }
+  { label: 'Todos', value: 'all' },
+  { label: 'Activas', value: 'true' },
+  { label: 'Inactivas', value: 'false' }
 ]
 
 const ruleTypeOptions = [
-  { label: 'Todos los tipos', value: undefined },
+  { label: 'Todos los tipos', value: 'all' },
   { label: 'Patron de Telefono', value: 'phone_number' },
   { label: 'Lista de Telefonos', value: 'phone_number_list' },
   { label: 'WhatsApp Phone ID', value: 'whatsapp_phone_number_id' }
 ]
 
-// Local filter state
 const searchValue = ref('')
-const statusFilter = ref<boolean | undefined>(undefined)
-const typeFilter = ref<BypassRuleType | undefined>(undefined)
+const statusFilter = ref('all')
+const typeFilter = ref('all')
 
 let searchTimeout: ReturnType<typeof setTimeout> | null = null
 
@@ -88,13 +93,15 @@ function handleSearch(event: Event) {
   }, 300)
 }
 
-function handleStatusFilter(enabled: boolean | undefined) {
-  statusFilter.value = enabled
+function handleStatusFilter(value: string) {
+  statusFilter.value = value
+  const enabled = value === 'all' ? undefined : value === 'true'
   setFilters({ enabled })
 }
 
-function handleTypeFilter(ruleType: BypassRuleType | undefined) {
-  typeFilter.value = ruleType
+function handleTypeFilter(value: string) {
+  typeFilter.value = value
+  const ruleType = value === 'all' ? undefined : (value as BypassRuleType)
   setFilters({ ruleType })
 }
 
@@ -107,17 +114,35 @@ async function movePriority(rule: BypassRule, direction: 'up' | 'down') {
   const index = rules.findIndex((r) => r.id === rule.id)
 
   if (direction === 'up' && index > 0) {
-    // Swap with previous (higher priority)
     ;[rules[index - 1], rules[index]] = [rules[index], rules[index - 1]]
   } else if (direction === 'down' && index < rules.length - 1) {
-    // Swap with next (lower priority)
     ;[rules[index], rules[index + 1]] = [rules[index + 1], rules[index]]
   } else {
-    return // Can't move
+    return
   }
 
   const ruleIds = rules.map((r) => r.id)
   await reorderRules(ruleIds)
+}
+
+function getSeverityVariant(severity: string): 'default' | 'secondary' | 'destructive' | 'outline' {
+  switch (severity) {
+    case 'info': return 'default'
+    case 'warn': return 'outline'
+    case 'success': return 'secondary'
+    default: return 'secondary'
+  }
+}
+
+function getDomainBadgeVariant(color: string) {
+  switch (color) {
+    case 'info': return 'info' as const
+    case 'success': return 'success' as const
+    case 'warn': return 'warning' as const
+    case 'help': return 'default' as const
+    case 'secondary': return 'secondary' as const
+    default: return 'outline' as const
+  }
 }
 
 onMounted(async () => {
@@ -129,7 +154,12 @@ onMounted(async () => {
     console.error('Error fetching pharmacies:', error)
   }
   try {
-    institutions.value = await medicalApi.getInstitutions()
+    const authStore = useAuthStore()
+    const orgId = authStore.currentOrgId
+    if (orgId) {
+      const response = await tenantInstitutionConfigApi.list(orgId)
+      institutions.value = response.items
+    }
   } catch (error) {
     console.error('Error fetching institutions:', error)
   }
@@ -139,195 +169,211 @@ onMounted(async () => {
 <template>
   <div class="bypass-rules-list">
     <!-- Filters -->
-    <div class="flex gap-4 mb-4 flex-wrap">
-      <div class="flex-1 min-w-64">
-        <IconField class="w-full">
-          <InputIcon class="pi pi-search" />
-          <InputText
-            v-model="searchValue"
-            placeholder="Buscar por nombre, descripcion o agente..."
-            class="w-full"
-            @input="handleSearch"
-          />
-        </IconField>
+    <div class="glass-panel flex gap-4 mb-4 flex-wrap p-3 rounded-lg">
+      <div class="flex-1 min-w-64 relative">
+        <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 z-10" />
+        <Input
+          v-model="searchValue"
+          placeholder="Buscar por nombre, descripcion o agente..."
+          class="pl-9 w-full"
+          @input="handleSearch"
+        />
       </div>
-      <Select
-        v-model="statusFilter"
-        :options="statusOptions"
-        optionLabel="label"
-        optionValue="value"
-        placeholder="Estado"
-        class="w-40"
-        @update:model-value="handleStatusFilter"
-      />
-      <Select
-        v-model="typeFilter"
-        :options="ruleTypeOptions"
-        optionLabel="label"
-        optionValue="value"
-        placeholder="Tipo de Regla"
-        class="w-56"
-        @update:model-value="handleTypeFilter"
-      />
+      <Select :model-value="statusFilter" @update:model-value="handleStatusFilter">
+        <SelectTrigger class="w-40">
+          <SelectValue placeholder="Estado" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem v-for="opt in statusOptions" :key="opt.value" :value="opt.value">
+            {{ opt.label }}
+          </SelectItem>
+        </SelectContent>
+      </Select>
+      <Select :model-value="typeFilter" @update:model-value="handleTypeFilter">
+        <SelectTrigger class="w-56">
+          <SelectValue placeholder="Tipo de Regla" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem v-for="opt in ruleTypeOptions" :key="opt.value" :value="opt.value">
+            {{ opt.label }}
+          </SelectItem>
+        </SelectContent>
+      </Select>
     </div>
 
-    <!-- Loading -->
+    <!-- Loading Skeleton -->
     <div v-if="isLoading && sortedRules.length === 0" class="space-y-2">
-      <Skeleton v-for="i in 5" :key="i" height="60px" />
+      <div v-for="i in 5" :key="i" class="h-14 animate-pulse bg-muted rounded" />
     </div>
 
     <!-- Table -->
-    <DataTable
-      v-else
-      :value="sortedRules"
-      :loading="isLoading"
-      stripedRows
-      class="p-datatable-sm"
-    >
-      <template #empty>
-        <div class="text-center py-8 text-gray-500">
-          <i class="pi pi-directions text-4xl mb-2" />
-          <p>No se encontraron reglas de bypass</p>
-        </div>
-      </template>
+    <div v-else class="glass-card overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead class="w-24">Prioridad</TableHead>
+            <TableHead class="min-w-[180px]">Nombre</TableHead>
+            <TableHead class="w-28">Tipo</TableHead>
+            <TableHead class="w-40">Patron/Numeros</TableHead>
+            <TableHead class="w-36">Agente</TableHead>
+            <TableHead class="w-36">Dominio</TableHead>
+            <TableHead class="w-20">Aislado</TableHead>
+            <TableHead class="w-24">Estado</TableHead>
+            <TableHead class="w-24">Acciones</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <!-- Empty state -->
+          <TableRow v-if="sortedRules.length === 0">
+            <TableCell :colspan="9" class="text-center py-8 text-gray-500 dark:text-gray-400">
+              <i class="pi pi-directions text-4xl mb-2 block" />
+              <p>No se encontraron reglas de bypass</p>
+            </TableCell>
+          </TableRow>
 
-      <!-- Priority -->
-      <Column header="Prioridad" style="width: 100px">
-        <template #body="{ data, index }">
-          <div class="flex items-center gap-1">
-            <span class="font-mono text-sm font-bold">{{ data.priority }}</span>
-            <div class="flex flex-col">
-              <Button
-                icon="pi pi-chevron-up"
-                text
-                rounded
-                size="small"
-                :disabled="index === 0"
-                class="!p-0 !w-6 !h-4"
-                @click="movePriority(data, 'up')"
-              />
-              <Button
-                icon="pi pi-chevron-down"
-                text
-                rounded
-                size="small"
-                :disabled="index === sortedRules.length - 1"
-                class="!p-0 !w-6 !h-4"
-                @click="movePriority(data, 'down')"
-              />
-            </div>
-          </div>
-        </template>
-      </Column>
-
-      <!-- Name -->
-      <Column field="rule_name" header="Nombre" style="min-width: 180px">
-        <template #body="{ data }">
-          <div>
-            <div class="font-medium">{{ data.rule_name }}</div>
-            <div v-if="data.description" class="text-xs text-gray-500 truncate max-w-xs">
-              {{ data.description }}
-            </div>
-          </div>
-        </template>
-      </Column>
-
-      <!-- Type -->
-      <Column field="rule_type" header="Tipo" style="width: 120px">
-        <template #body="{ data }">
-          <Tag :value="getRuleTypeLabel(data.rule_type)" :severity="getRuleTypeSeverity(data.rule_type)" />
-        </template>
-      </Column>
-
-      <!-- Pattern/Numbers -->
-      <Column header="Patron/Numeros" style="width: 160px">
-        <template #body="{ data }">
-          <span
-            v-tooltip.top="getDetailedRuleMatch(data)"
-            class="text-sm font-mono cursor-help"
+          <TableRow
+            v-for="(rule, index) in sortedRules"
+            :key="rule.id"
+            class="hover:bg-muted/50"
           >
-            {{ formatRuleMatch(data) }}
-          </span>
-        </template>
-      </Column>
+            <!-- Priority -->
+            <TableCell>
+              <div class="flex items-center gap-1">
+                <span class="font-mono text-sm font-bold">{{ rule.priority }}</span>
+                <div class="flex flex-col">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="h-5 w-5"
+                    :disabled="index === 0"
+                    @click="movePriority(rule, 'up')"
+                  >
+                    <i class="pi pi-chevron-up text-xs" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="h-5 w-5"
+                    :disabled="index === sortedRules.length - 1"
+                    @click="movePriority(rule, 'down')"
+                  >
+                    <i class="pi pi-chevron-down text-xs" />
+                  </Button>
+                </div>
+              </div>
+            </TableCell>
 
-      <!-- Target Agent -->
-      <Column field="target_agent" header="Agente" style="width: 140px">
-        <template #body="{ data }">
-          <span class="text-sm">{{ data.target_agent }}</span>
-        </template>
-      </Column>
+            <!-- Name -->
+            <TableCell>
+              <div>
+                <div class="font-medium text-gray-800 dark:text-gray-100">{{ rule.rule_name }}</div>
+                <div v-if="rule.description" class="text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs">
+                  {{ rule.description }}
+                </div>
+              </div>
+            </TableCell>
 
-      <!-- Domain -->
-      <Column field="target_domain" header="Dominio" style="width: 140px">
-        <template #body="{ data }">
-          <div class="flex flex-col gap-1">
-            <Tag
-              v-if="data.target_domain"
-              :value="getDomainLabel(data.target_domain)"
-              :severity="getDomainColor(data.target_domain)"
-            />
-            <span v-else class="text-gray-400">-</span>
-            <span
-              v-if="data.pharmacy_id && getPharmacyName(data.pharmacy_id)"
-              class="text-xs text-gray-500"
-            >
-              {{ getPharmacyName(data.pharmacy_id) }}
-            </span>
-            <span
-              v-if="data.institution_id && getInstitutionName(data.institution_id)"
-              class="text-xs text-gray-500"
-            >
-              {{ getInstitutionName(data.institution_id) }}
-            </span>
-          </div>
-        </template>
-      </Column>
+            <!-- Type -->
+            <TableCell>
+              <Badge :variant="getSeverityVariant(getRuleTypeSeverity(rule.rule_type))">
+                {{ getRuleTypeLabel(rule.rule_type) }}
+              </Badge>
+            </TableCell>
 
-      <!-- Isolated History -->
-      <Column header="Aislado" style="width: 80px">
-        <template #body="{ data }">
-          <i
-            v-if="data.isolated_history"
-            v-tooltip.top="'Historial aislado activo'"
-            class="pi pi-history text-blue-500"
-          />
-          <span v-else class="text-gray-300">-</span>
-        </template>
-      </Column>
+            <!-- Pattern/Numbers -->
+            <TableCell>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <span class="text-sm font-mono cursor-help text-gray-700 dark:text-gray-300">
+                      {{ formatRuleMatch(rule) }}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p class="max-w-xs">{{ getDetailedRuleMatch(rule) }}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </TableCell>
 
-      <!-- Status Toggle -->
-      <Column header="Estado" style="width: 100px">
-        <template #body="{ data }">
-          <ToggleSwitch :model-value="data.enabled" @update:model-value="handleToggle(data)" />
-        </template>
-      </Column>
+            <!-- Target Agent -->
+            <TableCell>
+              <span class="text-sm text-gray-700 dark:text-gray-300">{{ rule.target_agent }}</span>
+            </TableCell>
 
-      <!-- Actions -->
-      <Column header="Acciones" style="width: 100px">
-        <template #body="{ data }">
-          <div class="flex gap-1">
-            <Button
-              v-tooltip.top="'Editar'"
-              icon="pi pi-pencil"
-              severity="secondary"
-              text
-              rounded
-              size="small"
-              @click="emit('edit', data)"
-            />
-            <Button
-              v-tooltip.top="'Eliminar'"
-              icon="pi pi-trash"
-              severity="danger"
-              text
-              rounded
-              size="small"
-              @click="emit('delete', data)"
-            />
-          </div>
-        </template>
-      </Column>
-    </DataTable>
+            <!-- Domain -->
+            <TableCell>
+              <div class="flex flex-col gap-1">
+                <Badge
+                  v-if="rule.target_domain"
+                  :variant="getDomainBadgeVariant(getDomainColor(rule.target_domain))"
+                >
+                  {{ getDomainLabel(rule.target_domain) }}
+                </Badge>
+                <span v-else class="text-gray-400 dark:text-gray-500">-</span>
+                <span
+                  v-if="rule.pharmacy_id && getPharmacyName(rule.pharmacy_id)"
+                  class="text-xs text-gray-500 dark:text-gray-400"
+                >
+                  {{ getPharmacyName(rule.pharmacy_id) }}
+                </span>
+                <span
+                  v-if="rule.institution_id && getInstitutionName(rule.institution_id)"
+                  class="text-xs text-gray-500 dark:text-gray-400"
+                >
+                  {{ getInstitutionName(rule.institution_id) }}
+                </span>
+              </div>
+            </TableCell>
+
+            <!-- Isolated History -->
+            <TableCell>
+              <TooltipProvider v-if="rule.isolated_history">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <i class="pi pi-history text-blue-500" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Historial aislado activo</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <span v-else class="text-gray-300 dark:text-gray-600">-</span>
+            </TableCell>
+
+            <!-- Status Toggle -->
+            <TableCell>
+              <Switch :checked="rule.enabled" @update:checked="handleToggle(rule)" />
+            </TableCell>
+
+            <!-- Actions -->
+            <TableCell>
+              <div class="flex gap-1">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <Button variant="ghost" size="icon" class="h-8 w-8" @click="emit('edit', rule)">
+                        <i class="pi pi-pencil text-sm" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Editar</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive hover:text-destructive" @click="emit('delete', rule)">
+                        <i class="pi pi-trash text-sm" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Eliminar</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    </div>
   </div>
 </template>

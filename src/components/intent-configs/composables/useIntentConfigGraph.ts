@@ -11,7 +11,7 @@ import { graphTopologyApi } from '@/api/graphTopology.api'
 import { routingConfigsApi } from '@/api/routingConfigs.api'
 import { awaitingTypeConfigsApi } from '@/api/awaitingTypeConfigs.api'
 import type { GraphTopologyResponse, RoutingConfigSummary, AwaitingTypeConfigSummary } from '@/types/graphTopology.types'
-import type { RoutingConfigUpdate } from '@/types/routingConfigs.types'
+import type { RoutingConfigCreate, RoutingConfigUpdate } from '@/types/routingConfigs.types'
 import type { AwaitingTypeConfigUpdate } from '@/api/awaitingTypeConfigs.api'
 import { layoutTopology } from '../utils/graphLayout'
 import type { TopologyFlowNode, TopologyFlowEdge, SelectedNodeInfo } from '../types'
@@ -35,6 +35,9 @@ export function useIntentConfigGraph() {
   const selectedNodeId = ref<string | null>(null)
   const drawerVisible = ref(false)
 
+  // Create form
+  const showCreateForm = ref(false)
+
   // Loading
   const isLoading = ref(false)
   const error = ref<string | null>(null)
@@ -49,10 +52,12 @@ export function useIntentConfigGraph() {
     const node = nodes.value.find((n) => n.id === selectedNodeId.value)
     if (!node) return null
 
-    // Find routing configs targeting this node
-    const nodeRoutingConfigs = topology.value.routing_configs.filter(
-      (rc) => rc.target_node === node.id
-    )
+    // For supervisor nodes: show ALL routing configs (they dispatch to other nodes)
+    // For other nodes: show only configs targeting this specific node
+    const nodeRoutingConfigs =
+      node.data.nodeType === 'supervisor'
+        ? topology.value.routing_configs
+        : topology.value.routing_configs.filter((rc) => rc.target_node === node.id)
 
     // Find awaiting type configs for this node
     const nodeAwaitingConfigs = topology.value.awaiting_type_configs.filter(
@@ -66,6 +71,13 @@ export function useIntentConfigGraph() {
       routingConfigs: nodeRoutingConfigs,
       awaitingTypeConfigs: nodeAwaitingConfigs
     }
+  })
+
+  const availableNodes = computed(() => {
+    if (!topology.value) return []
+    return topology.value.nodes
+      .filter((n) => n.node_type !== 'terminal')
+      .map((n) => ({ id: n.id, displayName: n.display_name }))
   })
 
   const stats = computed(() => {
@@ -121,7 +133,9 @@ export function useIntentConfigGraph() {
     const result = layoutTopology(
       topology.value.nodes,
       topology.value.edges,
-      selectedNodeId.value
+      selectedNodeId.value,
+      topology.value.routing_configs,
+      topology.value.awaiting_type_configs
     )
 
     nodes.value = result.nodes
@@ -224,6 +238,56 @@ export function useIntentConfigGraph() {
     }
   }
 
+  async function createRoutingConfig(data: RoutingConfigCreate) {
+    try {
+      await routingConfigsApi.create(data)
+      showCreateForm.value = false
+      toast.add({
+        severity: 'success',
+        summary: 'Creado',
+        detail: 'Routing config creado exitosamente',
+        life: 2000
+      })
+      await fetchTopology()
+    } catch (err) {
+      console.error('Failed to create routing config:', err)
+      toast.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'No se pudo crear la configuracion',
+        life: 3000
+      })
+    }
+  }
+
+  async function deleteRoutingConfig(configId: string) {
+    try {
+      await routingConfigsApi.delete(configId)
+      toast.add({
+        severity: 'success',
+        summary: 'Eliminado',
+        detail: 'Routing config eliminado',
+        life: 2000
+      })
+      await fetchTopology()
+    } catch (err) {
+      console.error('Failed to delete routing config:', err)
+      toast.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'No se pudo eliminar la configuracion',
+        life: 3000
+      })
+    }
+  }
+
+  function openCreateForm(targetNodeId?: string) {
+    if (targetNodeId) {
+      selectNode(targetNodeId)
+    }
+    showCreateForm.value = true
+  }
+
   // ==========================================================================
   // Return
   // ==========================================================================
@@ -238,6 +302,8 @@ export function useIntentConfigGraph() {
     selectedNodeId,
     selectedNode,
     drawerVisible,
+    showCreateForm,
+    availableNodes,
     isLoading,
     error,
     stats,
@@ -249,6 +315,9 @@ export function useIntentConfigGraph() {
     setDomain,
     updateRoutingConfig,
     updateRoutingConfigsBatch,
-    updateAwaitingTypeConfig
+    updateAwaitingTypeConfig,
+    createRoutingConfig,
+    deleteRoutingConfig,
+    openCreateForm
   }
 }

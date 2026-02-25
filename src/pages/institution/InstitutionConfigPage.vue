@@ -226,10 +226,10 @@ async function handleSecretsSave(secrets: InstitutionConfigSecretsRequest) {
 </script>
 
 <template>
-  <div class="institution-config-page">
+  <div class="max-w-[1400px] mx-auto p-6">
     <!-- Delete Confirmation Dialog -->
     <AlertDialog :open="deleteDialogOpen" @update:open="(val: boolean) => deleteDialogOpen = val">
-      <AlertDialogContent>
+      <AlertDialogContent class="glass-dialog">
         <AlertDialogHeader>
           <AlertDialogTitle>Confirmar eliminacion</AlertDialogTitle>
           <AlertDialogDescription>
@@ -273,19 +273,19 @@ async function handleSecretsSave(secrets: InstitutionConfigSecretsRequest) {
 
     <!-- Stats Cards -->
     <div v-if="currentOrgId" class="grid grid-cols-3 gap-4 mb-6">
-      <Card class="text-center">
+      <Card class="glass-panel text-center">
         <CardContent class="pt-6">
           <div class="text-3xl font-bold text-foreground">{{ total }}</div>
           <div class="text-sm text-muted-foreground">Total</div>
         </CardContent>
       </Card>
-      <Card class="text-center">
+      <Card class="glass-panel text-center">
         <CardContent class="pt-6">
-          <div class="text-3xl font-bold text-green-600">{{ enabledCount }}</div>
+          <div class="text-3xl font-bold text-green-600 dark:text-green-400">{{ enabledCount }}</div>
           <div class="text-sm text-muted-foreground">Habilitadas</div>
         </CardContent>
       </Card>
-      <Card class="text-center">
+      <Card class="glass-panel text-center">
         <CardContent class="pt-6">
           <div class="text-3xl font-bold text-muted-foreground">{{ disabledCount }}</div>
           <div class="text-sm text-muted-foreground">Deshabilitadas</div>
@@ -294,7 +294,7 @@ async function handleSecretsSave(secrets: InstitutionConfigSecretsRequest) {
     </div>
 
     <!-- Filters -->
-    <Card v-if="currentOrgId" class="mb-6">
+    <Card v-if="currentOrgId" class="glass-panel mb-6">
       <CardContent class="pt-6">
         <div class="flex gap-4 items-end">
           <div class="flex-1">
@@ -333,7 +333,7 @@ async function handleSecretsSave(secrets: InstitutionConfigSecretsRequest) {
     </Card>
 
     <!-- Table -->
-    <Card v-if="currentOrgId">
+    <Card v-if="currentOrgId" class="glass-card">
       <CardContent class="pt-6">
         <InstitutionConfigList
           :configs="configs"
@@ -359,7 +359,7 @@ async function handleSecretsSave(secrets: InstitutionConfigSecretsRequest) {
 
     <!-- Form Dialog -->
     <Dialog :open="showFormDialog" @update:open="(val) => !val && closeFormDialog()">
-      <DialogContent class="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+      <DialogContent class="sm:max-w-[900px] w-[95vw] max-h-[90vh] overflow-y-auto glass-dialog">
         <DialogHeader>
           <DialogTitle>{{ isEditing ? 'Editar Institucion' : 'Nueva Institucion' }}</DialogTitle>
           <DialogDescription class="sr-only">
@@ -389,9 +389,3 @@ async function handleSecretsSave(secrets: InstitutionConfigSecretsRequest) {
     />
   </div>
 </template>
-
-<style scoped>
-.institution-config-page {
-  max-width: 1400px;
-}
-</style>

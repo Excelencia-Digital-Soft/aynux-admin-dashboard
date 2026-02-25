@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import Button from 'primevue/button'
-import InputText from 'primevue/inputtext'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
 
 defineProps<{
   modelValue: string
@@ -18,7 +24,7 @@ const emit = defineEmits<{
   (e: 'sendAudio', file: File): void
 }>()
 
-const inputRef = ref<InstanceType<typeof InputText> | null>(null)
+const inputRef = ref<HTMLInputElement | null>(null)
 const audioInputRef = ref<HTMLInputElement | null>(null)
 
 // Allowed audio formats
@@ -36,7 +42,6 @@ function handleAudioSelect(event: Event) {
   const file = target.files?.[0]
   if (file) {
     emit('sendAudio', file)
-    // Reset input so same file can be selected again
     target.value = ''
   }
 }
@@ -46,8 +51,7 @@ function triggerAudioUpload() {
 }
 
 function focus() {
-  const el = (inputRef.value as { $el?: HTMLElement } | null)?.$el
-  el?.focus()
+  inputRef.value?.focus()
 }
 
 defineExpose({ focus })
@@ -66,59 +70,60 @@ defineExpose({ focus })
 
     <div class="flex gap-3 items-end">
       <div class="flex-1 relative">
-        <InputText
+        <Input
           ref="inputRef"
-          :modelValue="modelValue"
-          @update:modelValue="(v) => emit('update:modelValue', v ?? '')"
+          :model-value="modelValue"
+          @update:model-value="(v: string | number) => emit('update:modelValue', String(v ?? ''))"
           placeholder="Escribe un mensaje..."
-          class="w-full pr-10"
+          class="pr-10"
           @keypress="handleKeyPress"
           :disabled="disabled"
         />
       </div>
       <!-- Audio upload button -->
-      <Button
-        icon="pi pi-microphone"
-        @click="triggerAudioUpload"
-        :loading="isTranscribing"
-        :disabled="disabled"
-        class="h-10 w-10"
-        severity="secondary"
-        rounded
-        v-tooltip.top="'Enviar audio'"
-      />
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Button
+              variant="outline"
+              size="icon"
+              class="h-10 w-10"
+              @click="triggerAudioUpload"
+              :disabled="disabled || isTranscribing"
+            >
+              <i v-if="isTranscribing" class="pi pi-spin pi-spinner" />
+              <i v-else class="pi pi-microphone" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent><p>Enviar audio</p></TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
       <!-- Send text button -->
       <Button
-        icon="pi pi-send"
-        @click="emit('send')"
-        :loading="isLoading && !isTranscribing"
-        :disabled="disabled || !modelValue.trim()"
+        size="icon"
         class="h-10 w-10"
-        rounded
-      />
+        @click="emit('send')"
+        :disabled="disabled || !modelValue.trim() || (isLoading && !isTranscribing)"
+      >
+        <i v-if="isLoading && !isTranscribing" class="pi pi-spin pi-spinner" />
+        <i v-else class="pi pi-send" />
+      </Button>
     </div>
     <div class="flex items-center justify-between mt-2">
-      <div class="flex items-center gap-2 text-xs text-gray-400">
+      <div class="flex items-center gap-2 text-xs text-muted-foreground">
         <span>Enter para enviar</span>
       </div>
       <div class="flex items-center gap-2">
         <Button
-          :icon="useStreaming ? 'pi pi-bolt' : 'pi pi-pause'"
-          :label="useStreaming ? 'Streaming' : 'Normal'"
-          size="small"
-          :severity="useStreaming ? 'success' : 'secondary'"
-          text
+          variant="ghost"
+          size="sm"
+          :class="useStreaming ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'"
           @click="emit('update:useStreaming', !useStreaming)"
-          v-tooltip.top="useStreaming ? 'Modo streaming activo' : 'Modo normal'"
-        />
+        >
+          <i :class="useStreaming ? 'pi pi-bolt mr-1' : 'pi pi-pause mr-1'" />
+          {{ useStreaming ? 'Streaming' : 'Normal' }}
+        </Button>
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-:deep(.p-inputtext:focus) {
-  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
-  border-color: #22c55e;
-}
-</style>

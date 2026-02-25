@@ -6,12 +6,17 @@
  * NOTE: Actual credentials (passwords, keys) are managed via SecretsUpdateDialog.
  */
 
-import { computed, watch } from 'vue'
-import InputText from 'primevue/inputtext'
-import Select from 'primevue/select'
-import Checkbox from 'primevue/checkbox'
-import Chips from 'primevue/chips'
-import Message from 'primevue/message'
+import { computed } from 'vue'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import type { AuthSettings, AuthType } from '@/types/tenantInstitutionConfig.types'
 import { AUTH_TYPES } from '@/types/tenantInstitutionConfig.types'
 
@@ -28,7 +33,6 @@ const model = defineModel<AuthSettings>({ required: true })
 const authType = computed({
   get: () => model.value.type,
   set: (newType: AuthType) => {
-    // Reset to base structure when type changes
     switch (newType) {
       case 'none':
         model.value = { type: 'none' }
@@ -85,195 +89,240 @@ const passwordTypes = [
   { label: 'Password Text', value: 'PasswordText' },
   { label: 'Password Digest', value: 'PasswordDigest' }
 ]
+
+// Scopes management
+function handleScopeKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter' && model.value.type === 'oauth2') {
+    event.preventDefault()
+    const input = event.target as HTMLInputElement
+    const value = input.value.trim()
+    if (value && !model.value.scopes?.includes(value)) {
+      model.value = {
+        ...model.value,
+        scopes: [...(model.value.scopes || []), value]
+      }
+    }
+    input.value = ''
+  }
+}
+
+function removeScope(scope: string) {
+  if (model.value.type === 'oauth2') {
+    model.value = {
+      ...model.value,
+      scopes: (model.value.scopes || []).filter((s) => s !== scope)
+    }
+  }
+}
 </script>
 
 <template>
-  <div class="auth-settings-tab space-y-4">
+  <div class="space-y-4">
     <!-- Auth Type Selector -->
-    <div class="field">
-      <label for="auth_type" class="block text-sm font-medium text-gray-700 mb-1">
+    <div>
+      <label for="auth_type" class="block text-sm font-medium text-foreground mb-1">
         Tipo de Autenticacion
       </label>
-      <Select
-        id="auth_type"
-        v-model="authType"
-        :options="AUTH_TYPES"
-        optionLabel="label"
-        optionValue="value"
-        class="w-full"
-        placeholder="Seleccionar tipo"
-      />
+      <Select v-model="authType">
+        <SelectTrigger>
+          <SelectValue placeholder="Seleccionar tipo" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem v-for="t in AUTH_TYPES" :key="t.value" :value="t.value">
+            {{ t.label }}
+          </SelectItem>
+        </SelectContent>
+      </Select>
     </div>
 
     <!-- No Auth -->
-    <Message v-if="model.type === 'none'" severity="info" :closable="false">
-      No se requiere autenticacion para este servicio.
-    </Message>
+    <Alert v-if="model.type === 'none'">
+      <AlertDescription>
+        No se requiere autenticacion para este servicio.
+      </AlertDescription>
+    </Alert>
 
     <!-- API Key Fields -->
     <template v-if="isApiKey && model.type === 'api_key'">
-      <div class="field">
-        <label for="header_name" class="block text-sm font-medium text-gray-700 mb-1">
+      <div>
+        <label for="header_name" class="block text-sm font-medium text-foreground mb-1">
           Nombre del Header
         </label>
-        <InputText
+        <Input
           id="header_name"
           v-model="model.header_name"
-          class="w-full"
           placeholder="ej: X-API-Key, Authorization"
         />
       </div>
 
-      <div class="field">
-        <label for="prefix" class="block text-sm font-medium text-gray-700 mb-1">
+      <div>
+        <label for="prefix" class="block text-sm font-medium text-foreground mb-1">
           Prefijo (opcional)
         </label>
-        <InputText
+        <Input
           id="prefix"
           v-model="model.prefix"
-          class="w-full"
           placeholder="ej: Bearer , Api-Key "
         />
-        <small class="text-gray-500">
+        <p class="text-xs text-muted-foreground mt-1">
           Prefijo a agregar antes del API key (incluir espacio si es necesario)
-        </small>
+        </p>
       </div>
 
-      <Message severity="warn" :closable="false">
-        <i class="pi pi-key mr-2" />
-        El API Key se configura desde el boton "Credenciales" de la tabla.
-      </Message>
+      <Alert variant="warning">
+        <AlertDescription>
+          <i class="pi pi-key mr-2" />
+          El API Key se configura desde el boton "Credenciales" de la tabla.
+        </AlertDescription>
+      </Alert>
     </template>
 
     <!-- Basic Auth Fields -->
     <template v-if="isBasic && model.type === 'basic'">
-      <div class="field">
-        <label for="basic_username" class="block text-sm font-medium text-gray-700 mb-1">
+      <div>
+        <label for="basic_username" class="block text-sm font-medium text-foreground mb-1">
           Usuario
         </label>
-        <InputText
+        <Input
           id="basic_username"
           v-model="model.username"
-          class="w-full"
           placeholder="Username para autenticacion"
         />
       </div>
 
-      <Message severity="warn" :closable="false">
-        <i class="pi pi-key mr-2" />
-        La contrasena se configura desde el boton "Credenciales" de la tabla.
-      </Message>
+      <Alert variant="warning">
+        <AlertDescription>
+          <i class="pi pi-key mr-2" />
+          La contrasena se configura desde el boton "Credenciales" de la tabla.
+        </AlertDescription>
+      </Alert>
     </template>
 
     <!-- OAuth2 Fields -->
     <template v-if="isOAuth2 && model.type === 'oauth2'">
-      <div class="field">
-        <label for="token_url" class="block text-sm font-medium text-gray-700 mb-1">
+      <div>
+        <label for="token_url" class="block text-sm font-medium text-foreground mb-1">
           Token URL
         </label>
-        <InputText
+        <Input
           id="token_url"
           v-model="model.token_url"
-          class="w-full"
           placeholder="https://auth.example.com/oauth/token"
         />
       </div>
 
-      <div class="field">
-        <label for="client_id" class="block text-sm font-medium text-gray-700 mb-1">
+      <div>
+        <label for="client_id" class="block text-sm font-medium text-foreground mb-1">
           Client ID
         </label>
-        <InputText
+        <Input
           id="client_id"
           v-model="model.client_id"
-          class="w-full"
           placeholder="ID del cliente OAuth2"
         />
       </div>
 
-      <div class="field">
-        <label for="grant_type" class="block text-sm font-medium text-gray-700 mb-1">
+      <div>
+        <label for="grant_type" class="block text-sm font-medium text-foreground mb-1">
           Grant Type
         </label>
-        <Select
-          id="grant_type"
-          v-model="model.grant_type"
-          :options="grantTypes"
-          optionLabel="label"
-          optionValue="value"
-          class="w-full"
-        />
+        <Select v-model="model.grant_type">
+          <SelectTrigger>
+            <SelectValue placeholder="Seleccionar" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem v-for="gt in grantTypes" :key="gt.value" :value="gt.value">
+              {{ gt.label }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      <div class="field">
-        <label for="scopes" class="block text-sm font-medium text-gray-700 mb-1">
+      <div>
+        <label for="scopes" class="block text-sm font-medium text-foreground mb-1">
           Scopes
         </label>
-        <Chips
+        <div v-if="model.scopes && model.scopes.length > 0" class="flex flex-wrap gap-1 mb-2">
+          <span
+            v-for="scope in model.scopes"
+            :key="scope"
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs"
+          >
+            {{ scope }}
+            <button type="button" class="hover:text-destructive" @click="removeScope(scope)">
+              <i class="pi pi-times text-[10px]" />
+            </button>
+          </span>
+        </div>
+        <Input
           id="scopes"
-          v-model="model.scopes"
-          class="w-full"
           placeholder="Agregar scope y presionar Enter"
+          @keydown="handleScopeKeydown"
         />
-        <small class="text-gray-500">
+        <p class="text-xs text-muted-foreground mt-1">
           Escribe cada scope y presiona Enter
-        </small>
+        </p>
       </div>
 
-      <Message severity="warn" :closable="false">
-        <i class="pi pi-key mr-2" />
-        El Client Secret se configura desde el boton "Credenciales" de la tabla.
-      </Message>
+      <Alert variant="warning">
+        <AlertDescription>
+          <i class="pi pi-key mr-2" />
+          El Client Secret se configura desde el boton "Credenciales" de la tabla.
+        </AlertDescription>
+      </Alert>
     </template>
 
     <!-- SOAP WS-Security Fields -->
     <template v-if="isSoapWss && model.type === 'soap_wss'">
-      <div class="field">
-        <label for="wss_username" class="block text-sm font-medium text-gray-700 mb-1">
+      <div>
+        <label for="wss_username" class="block text-sm font-medium text-foreground mb-1">
           Usuario WS-Security
         </label>
-        <InputText
+        <Input
           id="wss_username"
           v-model="model.username"
-          class="w-full"
           placeholder="Usuario para WS-Security header"
         />
       </div>
 
-      <div class="field">
-        <label for="password_type" class="block text-sm font-medium text-gray-700 mb-1">
+      <div>
+        <label for="password_type" class="block text-sm font-medium text-foreground mb-1">
           Tipo de Password
         </label>
-        <Select
-          id="password_type"
-          v-model="model.password_type"
-          :options="passwordTypes"
-          optionLabel="label"
-          optionValue="value"
-          class="w-full"
-        />
+        <Select v-model="model.password_type">
+          <SelectTrigger>
+            <SelectValue placeholder="Seleccionar" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem v-for="pt in passwordTypes" :key="pt.value" :value="pt.value">
+              {{ pt.label }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      <div class="field">
+      <div>
         <div class="flex items-center gap-3">
           <Checkbox
             id="must_understand"
-            v-model="model.must_understand"
-            :binary="true"
+            :checked="model.must_understand"
+            @update:checked="model.must_understand = !!$event"
           />
-          <label for="must_understand" class="text-sm font-medium text-gray-700 cursor-pointer">
+          <label for="must_understand" class="text-sm font-medium text-foreground cursor-pointer">
             mustUnderstand="1"
           </label>
         </div>
-        <small class="text-gray-500 block mt-1">
+        <p class="text-xs text-muted-foreground mt-1">
           Atributo mustUnderstand del header WS-Security
-        </small>
+        </p>
       </div>
 
-      <Message severity="warn" :closable="false">
-        <i class="pi pi-key mr-2" />
-        La contrasena WS-Security se configura desde el boton "Credenciales" de la tabla.
-      </Message>
+      <Alert variant="warning">
+        <AlertDescription>
+          <i class="pi pi-key mr-2" />
+          La contrasena WS-Security se configura desde el boton "Credenciales" de la tabla.
+        </AlertDescription>
+      </Alert>
     </template>
   </div>
 </template>

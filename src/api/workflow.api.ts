@@ -67,6 +67,21 @@ export const workflowApi = {
   },
 
   /**
+   * List all workflows across all institutions the user has access to
+   */
+  async listAllWorkflows(
+    filters?: { workflow_type?: string; active_only?: boolean }
+  ): Promise<WorkflowListResponse> {
+    const params = new URLSearchParams()
+    if (filters?.workflow_type) params.append('workflow_type', filters.workflow_type)
+    if (filters?.active_only) params.append('active_only', 'true')
+
+    const url = params.toString() ? `${BASE_URL}/all?${params}` : `${BASE_URL}/all`
+    const { data } = await apiClient.get<WorkflowListResponse>(url)
+    return data
+  },
+
+  /**
    * Get a workflow by ID
    */
   async getWorkflow(workflowId: string): Promise<WorkflowDefinition> {

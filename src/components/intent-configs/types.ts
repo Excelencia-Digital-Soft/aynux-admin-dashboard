@@ -24,6 +24,7 @@ export type {
 // Also re-export routing config types used by panels
 export type {
   RoutingConfigResponse,
+  RoutingConfigCreate,
   RoutingConfigUpdate,
   RoutingConfigBatchUpdate
 } from '@/types/routingConfigs.types'
@@ -49,6 +50,10 @@ export interface TopologyNodeData {
   hasConditionalOutput: boolean
   routingConfigCount: number
   awaitingTypeConfigCount: number
+  subgraph?: string
+  // Enriched by layout
+  routingIntents?: string[]
+  awaitingTypeNames?: string[]
   // Computed by composable
   isSelected: boolean
 }
@@ -70,6 +75,10 @@ export interface TopologyFlowEdge {
   animated?: boolean
   style?: Record<string, string>
   label?: string
+  labelStyle?: Record<string, string | number>
+  labelBgStyle?: Record<string, string | number>
+  labelBgPadding?: [number, number]
+  labelShowBg?: boolean
   data?: {
     edgeType: 'direct' | 'conditional'
     condition?: string | null

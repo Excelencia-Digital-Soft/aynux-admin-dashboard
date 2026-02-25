@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Button from 'primevue/button'
+import { Button } from '@/components/ui/button'
 import type { WorkflowDefinition } from '@/types/workflow.types'
 
 defineProps<{
@@ -18,49 +18,54 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="flex items-center justify-between mb-6">
+  <div class="flex items-center justify-between mb-6 glass-panel p-4 rounded-xl">
     <div>
-      <h1 class="text-2xl font-bold text-gray-800">Editor de Workflows</h1>
-      <p class="text-gray-500 mt-1">Diseña flujos de conversación visuales para tus instituciones</p>
+      <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">Editor de Workflows</h1>
+      <p class="text-gray-500 dark:text-gray-400 mt-1">
+        Diseña flujos de conversación visuales para tus instituciones
+      </p>
     </div>
     <div class="flex gap-2 items-center">
       <Button
         v-if="currentWorkflow"
-        label="Guardar"
-        icon="pi pi-save"
-        severity="success"
-        :loading="isSaving"
-        :disabled="!isDirty"
+        class="bg-green-600 hover:bg-green-700 text-white"
+        :disabled="!isDirty || isSaving"
         @click="emit('save')"
-      />
+      >
+        <i v-if="isSaving" class="pi pi-spin pi-spinner mr-2" />
+        <i v-else class="pi pi-save mr-2" />
+        Guardar
+      </Button>
       <Button
         v-if="currentWorkflow?.is_draft"
-        label="Publicar"
-        icon="pi pi-check-circle"
-        severity="info"
-        :loading="isSaving"
+        variant="secondary"
+        :disabled="isSaving"
         @click="emit('publish')"
-      />
+      >
+        <i v-if="isSaving" class="pi pi-spin pi-spinner mr-2" />
+        <i v-else class="pi pi-check-circle mr-2" />
+        Publicar
+      </Button>
       <Button
         v-if="currentWorkflow"
-        label="Eliminar"
-        icon="pi pi-trash"
-        severity="danger"
-        outlined
+        variant="outline"
+        class="border-destructive text-destructive hover:bg-destructive/10"
         @click="emit('delete')"
-      />
+      >
+        <i class="pi pi-trash mr-2" />
+        Eliminar
+      </Button>
       <Button
-        label="Copiar de Otra Institucion"
-        icon="pi pi-copy"
-        severity="secondary"
+        variant="secondary"
         @click="emit('copyFromInstitution')"
-      />
-      <Button
-        label="Nuevo Workflow"
-        icon="pi pi-plus"
-        severity="primary"
-        @click="emit('newWorkflow')"
-      />
+      >
+        <i class="pi pi-copy mr-2" />
+        Copiar de Otra Institucion
+      </Button>
+      <Button @click="emit('newWorkflow')">
+        <i class="pi pi-plus mr-2" />
+        Nuevo Workflow
+      </Button>
     </div>
   </div>
 </template>

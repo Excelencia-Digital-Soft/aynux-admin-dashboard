@@ -6,7 +6,6 @@
  * Shows a summary bar + per-intent IntentPatternBlock components.
  */
 import { toRef } from 'vue'
-import ProgressSpinner from 'primevue/progressspinner'
 import IntentPatternBlock from './IntentPatternBlock.vue'
 import { useNodeDetectionPatterns } from '../composables/useNodeDetectionPatterns'
 import type { RoutingConfigSummary } from '../types'
@@ -33,7 +32,7 @@ const {
   removeConfirmation
 } = useNodeDetectionPatterns(toRef(props, 'domainKey'), toRef(props, 'routingConfigs'))
 
-// Handlers that bridge IntentPatternBlock emits → composable
+// Handlers that bridge IntentPatternBlock emits -> composable
 function handleAddPhrase(intentId: string, value: string, matchType: MatchType) {
   addPhrase(intentId, { value, match_type: matchType })
 }
@@ -72,7 +71,7 @@ function handleAddConfirmation(intentId: string, value: string, matchType: Match
 
     <!-- Loading -->
     <div v-if="isLoading" class="loading-state">
-      <ProgressSpinner style="width: 24px; height: 24px" />
+      <div class="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
       <span>Cargando patrones...</span>
     </div>
 

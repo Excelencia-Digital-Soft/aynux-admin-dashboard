@@ -13,22 +13,24 @@ import { getTypeOptions } from '@/utils/constants'
 import { useToast } from '@/composables/useToast'
 import type { UploadDestination, DocumentContext } from '@/types/document.types'
 
-import Card from 'primevue/card'
-import Tabs from 'primevue/tabs'
-import TabList from 'primevue/tablist'
-import Tab from 'primevue/tab'
-import TabPanels from 'primevue/tabpanels'
-import TabPanel from 'primevue/tabpanel'
-import Button from 'primevue/button'
-import InputText from 'primevue/inputtext'
-import Select from 'primevue/select'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
+} from '@/components/ui/select'
 
 const router = useRouter()
 const toast = useToast()
 const authStore = useAuthStore()
 const { createDocument, isLoading } = useKnowledge()
 
-const activeTab = ref('0')
+const activeTab = ref('pdf')
 
 // Destination selection
 const destination = ref<UploadDestination>('global')
@@ -150,197 +152,189 @@ function goBack() {
 </script>
 
 <template>
-  <div class="upload-documents-page">
+  <div class="max-w-[1400px] mx-auto p-6">
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
         <div class="flex items-center gap-2">
-          <Button
-            icon="pi pi-arrow-left"
-            severity="secondary"
-            text
-            rounded
-            @click="goBack"
-          />
-          <h1 class="text-2xl font-bold text-gray-800">Subir Documentos</h1>
+          <Button variant="ghost" size="icon" @click="goBack">
+            <i class="pi pi-arrow-left" />
+          </Button>
+          <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">Subir Documentos</h1>
         </div>
-        <p class="text-gray-500 mt-1 ml-10">
+        <p class="text-gray-500 dark:text-gray-400 mt-1 ml-10">
           Sube PDFs, crea documentos de texto o usa el editor Markdown
         </p>
       </div>
     </div>
 
     <!-- Destination Selector -->
-    <Card class="mb-4">
-      <template #content>
+    <Card class="glass-panel mb-4">
+      <CardContent class="pt-6">
         <DestinationSelector
           v-model="destination"
           v-model:agentKey="agentKey"
         />
-      </template>
+      </CardContent>
     </Card>
 
     <!-- Upload options -->
-    <Card>
-      <template #content>
-        <Tabs v-model:value="activeTab">
-          <TabList>
-            <Tab value="0">
-              <div class="flex items-center gap-2">
-                <i class="pi pi-file-pdf text-red-500" />
-                <span>PDF</span>
-              </div>
-            </Tab>
-            <Tab value="1">
-              <div class="flex items-center gap-2">
-                <i class="pi pi-file-edit text-blue-500" />
-                <span>Texto</span>
-              </div>
-            </Tab>
-            <Tab value="2">
-              <div class="flex items-center gap-2">
-                <i class="pi pi-code text-purple-500" />
-                <span>Markdown</span>
-              </div>
-            </Tab>
-          </TabList>
-          <TabPanels>
-            <!-- PDF Upload -->
-            <TabPanel value="0">
-              <div class="max-w-2xl">
-                <p class="text-gray-500 mb-4">
-                  Sube un archivo PDF. El contenido sera extraido automaticamente y se generara un embedding.
-                </p>
-                <PdfUploader
-                  :context="uploaderContext"
-                  :destination="destination"
-                  :agent-key="agentKey"
-                  :org-id="currentOrgId"
-                  @uploaded="handleUploadComplete"
-                  @cancel="handleCancel"
-                />
-              </div>
-            </TabPanel>
+    <Card class="glass-card overflow-hidden">
+      <CardContent class="p-0">
+        <Tabs v-model="activeTab" class="w-full">
+          <TabsList class="w-full justify-start rounded-none border-b border-gray-200/50 dark:border-white/10 bg-transparent h-auto p-0">
+            <TabsTrigger
+              value="pdf"
+              class="rounded-none border-b-2 border-transparent data-[state=active]:border-primary-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-3"
+            >
+              <i class="pi pi-file-pdf text-red-500 mr-2" />
+              PDF
+            </TabsTrigger>
+            <TabsTrigger
+              value="text"
+              class="rounded-none border-b-2 border-transparent data-[state=active]:border-primary-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-3"
+            >
+              <i class="pi pi-file-edit text-blue-500 mr-2" />
+              Texto
+            </TabsTrigger>
+            <TabsTrigger
+              value="markdown"
+              class="rounded-none border-b-2 border-transparent data-[state=active]:border-primary-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-3"
+            >
+              <i class="pi pi-code text-purple-500 mr-2" />
+              Markdown
+            </TabsTrigger>
+          </TabsList>
 
-            <!-- Text Upload -->
-            <TabPanel value="1">
-              <div class="max-w-2xl">
-                <p class="text-gray-500 mb-4">
-                  Crea un documento de texto simple. Ideal para FAQs, guias rapidas o contenido estructurado.
-                </p>
-                <TextUploader
-                  :context="uploaderContext"
-                  :destination="destination"
-                  :agent-key="agentKey"
-                  :org-id="currentOrgId"
-                  @uploaded="handleUploadComplete"
-                  @cancel="handleCancel"
-                />
-              </div>
-            </TabPanel>
+          <!-- PDF Upload -->
+          <TabsContent value="pdf" class="p-6 mt-0">
+            <div class="max-w-2xl">
+              <p class="text-gray-500 dark:text-gray-400 mb-4">
+                Sube un archivo PDF. El contenido sera extraido automaticamente y se generara un embedding.
+              </p>
+              <PdfUploader
+                :context="uploaderContext"
+                :destination="destination"
+                :agent-key="agentKey"
+                :org-id="currentOrgId"
+                @uploaded="handleUploadComplete"
+                @cancel="handleCancel"
+              />
+            </div>
+          </TabsContent>
 
-            <!-- Markdown Editor -->
-            <TabPanel value="2">
-              <div class="max-w-4xl">
-                <p class="text-gray-500 mb-4">
-                  Usa el editor Markdown para crear documentos con formato enriquecido.
-                </p>
+          <!-- Text Upload -->
+          <TabsContent value="text" class="p-6 mt-0">
+            <div class="max-w-2xl">
+              <p class="text-gray-500 dark:text-gray-400 mb-4">
+                Crea un documento de texto simple. Ideal para FAQs, guias rapidas o contenido estructurado.
+              </p>
+              <TextUploader
+                :context="uploaderContext"
+                :destination="destination"
+                :agent-key="agentKey"
+                :org-id="currentOrgId"
+                @uploaded="handleUploadComplete"
+                @cancel="handleCancel"
+              />
+            </div>
+          </TabsContent>
 
-                <div class="space-y-4">
-                  <div class="grid grid-cols-2 gap-4">
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Titulo *
-                      </label>
-                      <InputText
-                        v-model="markdownTitle"
-                        placeholder="Titulo del documento"
-                        class="w-full"
-                        :disabled="isLoading"
-                      />
-                    </div>
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Tipo *
-                      </label>
-                      <Select
-                        v-model="markdownType"
-                        :options="typeOptions"
-                        optionLabel="label"
-                        optionValue="value"
-                        placeholder="Seleccionar tipo"
-                        class="w-full"
-                        :disabled="isLoading"
-                      />
-                    </div>
-                  </div>
+          <!-- Markdown Editor -->
+          <TabsContent value="markdown" class="p-6 mt-0">
+            <div class="max-w-4xl">
+              <p class="text-gray-500 dark:text-gray-400 mb-4">
+                Usa el editor Markdown para crear documentos con formato enriquecido.
+              </p>
 
-                  <div class="grid grid-cols-2 gap-4">
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Categoria (opcional)
-                      </label>
-                      <InputText
-                        v-model="markdownCategory"
-                        placeholder="Ej: ventas, soporte"
-                        class="w-full"
-                        :disabled="isLoading"
-                      />
-                    </div>
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Tags (opcional)
-                      </label>
-                      <InputText
-                        v-model="markdownTags"
-                        placeholder="Separados por coma"
-                        class="w-full"
-                        :disabled="isLoading"
-                      />
-                    </div>
-                  </div>
-
+              <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                      Contenido *
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Titulo <span class="text-red-500">*</span>
                     </label>
-                    <MarkdownEditor
-                      v-model="markdownContent"
+                    <Input
+                      v-model="markdownTitle"
+                      placeholder="Titulo del documento"
                       :disabled="isLoading"
                     />
                   </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Tipo <span class="text-red-500">*</span>
+                    </label>
+                    <Select v-model="markdownType" :disabled="isLoading">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem
+                          v-for="opt in typeOptions"
+                          :key="opt.value"
+                          :value="opt.value"
+                        >
+                          {{ opt.label }}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
 
-                  <div class="flex justify-end gap-2 pt-4">
-                    <Button
-                      label="Cancelar"
-                      severity="secondary"
-                      @click="handleCancel"
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Categoria (opcional)
+                    </label>
+                    <Input
+                      v-model="markdownCategory"
+                      placeholder="Ej: ventas, soporte"
                       :disabled="isLoading"
                     />
-                    <Button
-                      label="Crear Documento"
-                      icon="pi pi-plus"
-                      @click="handleMarkdownSubmit"
-                      :loading="isLoading"
-                      :disabled="!markdownTitle || !markdownContent || !markdownType"
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Tags (opcional)
+                    </label>
+                    <Input
+                      v-model="markdownTags"
+                      placeholder="Separados por coma"
+                      :disabled="isLoading"
                     />
                   </div>
                 </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Contenido <span class="text-red-500">*</span>
+                  </label>
+                  <MarkdownEditor
+                    v-model="markdownContent"
+                    :disabled="isLoading"
+                  />
+                </div>
+
+                <div class="flex justify-end gap-2 pt-4">
+                  <Button
+                    variant="outline"
+                    @click="handleCancel"
+                    :disabled="isLoading"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    @click="handleMarkdownSubmit"
+                    :disabled="!markdownTitle || !markdownContent || !markdownType || isLoading"
+                  >
+                    <i v-if="isLoading" class="pi pi-spin pi-spinner mr-2" />
+                    <i v-else class="pi pi-plus mr-2" />
+                    Crear Documento
+                  </Button>
+                </div>
               </div>
-            </TabPanel>
-          </TabPanels>
+            </div>
+          </TabsContent>
         </Tabs>
-      </template>
+      </CardContent>
     </Card>
   </div>
 </template>
-
-<style scoped>
-.upload-documents-page :deep(.p-card-content) {
-  padding: 0;
-}
-
-.upload-documents-page :deep(.p-tabpanels) {
-  padding: 1.5rem;
-}
-</style>

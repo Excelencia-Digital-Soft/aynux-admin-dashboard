@@ -5,7 +5,6 @@
 
 import { ref, computed, watch } from 'vue'
 import { useToast } from 'primevue/usetoast'
-import { useConfirm } from 'primevue/useconfirm'
 import { domainIntentsApi } from '@/api/domainIntents.api'
 import { useAuthStore } from '@/stores/auth.store'
 import type {
@@ -21,7 +20,6 @@ import { AVAILABLE_DOMAINS } from '@/types/domainIntents.types'
 
 export function useDomainIntents() {
   const toast = useToast()
-  const confirm = useConfirm()
   const authStore = useAuthStore()
 
   // State
@@ -141,16 +139,6 @@ export function useDomainIntents() {
   watch(showOnlyEnabled, loadIntents)
 
   // Delete intent
-  function confirmDeleteIntent(intent: DomainIntent) {
-    confirm.require({
-      message: `¿Eliminar el intent "${intent.name}"? Esta acción no se puede deshacer.`,
-      header: 'Confirmar eliminación',
-      icon: 'pi pi-exclamation-triangle',
-      acceptClass: 'p-button-danger',
-      accept: () => deleteIntent(intent)
-    })
-  }
-
   async function deleteIntent(intent: DomainIntent) {
     if (!selectedDomain.value) return
 
@@ -465,7 +453,6 @@ export function useDomainIntents() {
     // Actions
     loadIntents,
     onSearch,
-    confirmDeleteIntent,
     deleteIntent,
     invalidateCache,
 

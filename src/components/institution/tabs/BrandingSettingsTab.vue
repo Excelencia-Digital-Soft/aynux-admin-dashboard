@@ -3,7 +3,7 @@
  * BrandingSettingsTab - Institution branding and contact information.
  */
 
-import InputText from 'primevue/inputtext'
+import { Input } from '@/components/ui/input'
 import type { BrandingSettings } from '@/types/tenantInstitutionConfig.types'
 
 // ============================================================
@@ -14,91 +14,85 @@ const model = defineModel<BrandingSettings>({ required: true })
 </script>
 
 <template>
-  <div class="branding-settings-tab space-y-4">
+  <div class="space-y-4">
     <!-- Display Name -->
-    <div class="field">
-      <label for="display_name" class="block text-sm font-medium text-gray-700 mb-1">
+    <div>
+      <label for="display_name" class="block text-sm font-medium text-foreground mb-1">
         Nombre para Mostrar
       </label>
-      <InputText
+      <Input
         id="display_name"
         v-model="model.display_name"
-        class="w-full"
         placeholder="Nombre alternativo para mensajes (opcional)"
       />
-      <small class="text-gray-500">
+      <p class="text-xs text-muted-foreground mt-1">
         Si no se especifica, se usa el nombre de la institucion
-      </small>
+      </p>
     </div>
 
     <!-- Address -->
-    <div class="field">
-      <label for="address" class="block text-sm font-medium text-gray-700 mb-1">
+    <div>
+      <label for="address" class="block text-sm font-medium text-foreground mb-1">
         Direccion
       </label>
-      <InputText
+      <Input
         id="address"
         v-model="model.address"
-        class="w-full"
         placeholder="Av. Ejemplo 123, Ciudad"
       />
     </div>
 
     <!-- Phone & Email -->
     <div class="grid grid-cols-2 gap-4">
-      <div class="field">
-        <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">
+      <div>
+        <label for="phone" class="block text-sm font-medium text-foreground mb-1">
           Telefono
         </label>
-        <InputText
+        <Input
           id="phone"
           v-model="model.phone"
-          class="w-full"
           placeholder="+54 9 264 123-4567"
         />
       </div>
 
-      <div class="field">
-        <label for="email" class="block text-sm font-medium text-gray-700 mb-1">
+      <div>
+        <label for="email" class="block text-sm font-medium text-foreground mb-1">
           Email
         </label>
-        <InputText
+        <Input
           id="email"
           v-model="model.email"
           type="email"
-          class="w-full"
           placeholder="contacto@institucion.com"
         />
       </div>
     </div>
 
     <!-- Website -->
-    <div class="field">
-      <label for="website" class="block text-sm font-medium text-gray-700 mb-1">
+    <div>
+      <label for="website" class="block text-sm font-medium text-foreground mb-1">
         Sitio Web
       </label>
-      <InputText
+      <Input
         id="website"
         v-model="model.website"
-        class="w-full"
         placeholder="https://www.institucion.com"
       />
     </div>
 
     <!-- Logo Path -->
-    <div class="field">
-      <label for="logo_path" class="block text-sm font-medium text-gray-700 mb-1">
+    <div>
+      <label for="logo_path" class="block text-sm font-medium text-foreground mb-1">
         Ruta del Logo
       </label>
-      <InputText
+      <Input
         id="logo_path"
         v-model="model.logo_path"
-        class="w-full"
         placeholder="/static/logos/institucion.png"
       />
-      <small class="text-gray-500">
+      <p class="text-xs text-muted-foreground mt-1">
         Ruta relativa al logo de la institucion
-      </small>
+      </p>
     </div>
   </div>
 </template>

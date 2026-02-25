@@ -1,24 +1,45 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useOrganizationStore } from '@/stores/organization.store'
 import { useOrganization } from '@/composables/useOrganization'
 import { getRoleLabel, getRoleSeverity } from '@/types/organization.types'
 import type { OrganizationUser, UserRole, UserCreateRequest, UserUpdateRequest } from '@/types/organization.types'
 
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
-import Button from 'primevue/button'
-import Tag from 'primevue/tag'
-import InputText from 'primevue/inputtext'
-import Select from 'primevue/select'
-import Dialog from 'primevue/dialog'
-import Paginator from 'primevue/paginator'
-import Tabs from 'primevue/tabs'
-import TabList from 'primevue/tablist'
-import Tab from 'primevue/tab'
-import TabPanels from 'primevue/tabpanels'
-import TabPanel from 'primevue/tabpanel'
-import Message from 'primevue/message'
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell
+} from '@/components/ui/table'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
+} from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog'
+import { Pagination } from '@/components/ui/pagination'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
 
 interface Props {
   organizationId: string
@@ -42,11 +63,12 @@ const {
   setUserFilters
 } = useOrganization()
 
-const activeTab = ref('0')
+const activeTab = ref('users')
 const showUserDialog = ref(false)
 const showInviteDialog = ref(false)
 const editingUser = ref<OrganizationUser | null>(null)
-const confirmDelete = ref<string | null>(null)
+const confirmDeleteId = ref<string | null>(null)
+const roleFilterValue = ref('all')
 
 // User form
 const userForm = ref({
@@ -69,20 +91,24 @@ const roleOptions = [
   { label: 'Visor', value: 'viewer' }
 ]
 
-const statusOptions = [
-  { label: 'Todos', value: undefined },
-  { label: 'Activo', value: 'active' },
-  { label: 'Inactivo', value: 'inactive' },
-  { label: 'Pendiente', value: 'pending' }
-]
-
 const isEditing = computed(() => editingUser.value !== null)
 
-function getStatusSeverity(status: string): 'success' | 'danger' | 'warn' | 'secondary' {
-  const map: Record<string, 'success' | 'danger' | 'warn' | 'secondary'> = {
+function getRoleBadgeVariant(role: UserRole): 'destructive' | 'warning' | 'info' | 'secondary' {
+  const severity = getRoleSeverity(role)
+  const map: Record<string, 'destructive' | 'warning' | 'info' | 'secondary'> = {
+    danger: 'destructive',
+    warn: 'warning',
+    info: 'info',
+    secondary: 'secondary'
+  }
+  return map[severity] || 'secondary'
+}
+
+function getStatusVariant(status: string): 'success' | 'destructive' | 'warning' | 'secondary' {
+  const map: Record<string, 'success' | 'destructive' | 'warning' | 'secondary'> = {
     active: 'success',
-    inactive: 'danger',
-    pending: 'warn'
+    inactive: 'destructive',
+    pending: 'warning'
   }
   return map[status] || 'secondary'
 }
@@ -137,14 +163,14 @@ async function handleSaveUser() {
 }
 
 async function handleDeleteUser(userId: string) {
-  if (confirmDelete.value === userId) {
+  if (confirmDeleteId.value === userId) {
     await deleteUser(userId, props.organizationId)
-    confirmDelete.value = null
+    confirmDeleteId.value = null
   } else {
-    confirmDelete.value = userId
+    confirmDeleteId.value = userId
     setTimeout(() => {
-      if (confirmDelete.value === userId) {
-        confirmDelete.value = null
+      if (confirmDeleteId.value === userId) {
+        confirmDeleteId.value = null
       }
     }, 3000)
   }
@@ -162,13 +188,14 @@ function handleSearch(event: Event) {
   fetchUsers(props.organizationId)
 }
 
-function handleRoleFilter(role: string | undefined) {
-  setUserFilters({ role })
+function handleRoleFilter(val: string) {
+  roleFilterValue.value = val
+  setUserFilters({ role: val === 'all' ? undefined : val })
   fetchUsers(props.organizationId)
 }
 
-function onPageChange(event: { page: number }) {
-  store.setUserPage(event.page + 1)
+function onPageChange(page: number) {
+  store.setUserPage(page)
   fetchUsers(props.organizationId)
 }
 
@@ -176,300 +203,324 @@ watch(() => props.organizationId, () => {
   fetchUsers(props.organizationId)
   fetchInvites(props.organizationId)
 }, { immediate: true })
-
-onMounted(() => {
-  fetchUsers(props.organizationId)
-  fetchInvites(props.organizationId)
-})
 </script>
 
 <template>
-  <div class="user-management">
-    <Tabs v-model:value="activeTab">
-      <TabList>
-        <Tab value="0">
+  <div class="user-management p-4">
+    <Tabs v-model="activeTab">
+      <TabsList>
+        <TabsTrigger value="users">
           <div class="flex items-center gap-2">
-            <i class="pi pi-users" />
+            <i class="pi pi-users text-sm" />
             <span>Usuarios ({{ totalUsers }})</span>
           </div>
-        </Tab>
-        <Tab value="1">
+        </TabsTrigger>
+        <TabsTrigger value="invites">
           <div class="flex items-center gap-2">
-            <i class="pi pi-envelope" />
+            <i class="pi pi-envelope text-sm" />
             <span>Invitaciones ({{ invites.length }})</span>
           </div>
-        </Tab>
-      </TabList>
-      <TabPanels>
-        <!-- Users Tab -->
-        <TabPanel value="0">
-          <!-- Toolbar -->
-          <div class="flex justify-between items-center mb-4">
-            <div class="flex gap-2">
-              <InputText
+        </TabsTrigger>
+      </TabsList>
+
+      <!-- Users Tab -->
+      <TabsContent value="users">
+        <!-- Toolbar -->
+        <div class="flex justify-between items-center mb-4 mt-4">
+          <div class="flex gap-2">
+            <div class="relative">
+              <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm" />
+              <Input
                 placeholder="Buscar usuarios..."
-                class="w-64"
+                class="w-64 pl-9"
                 @input="handleSearch"
               />
-              <Select
-                :options="roleOptions"
-                optionLabel="label"
-                optionValue="value"
-                placeholder="Rol"
-                class="w-40"
-                @update:model-value="handleRoleFilter"
-              />
             </div>
-            <Button
-              label="Nuevo Usuario"
-              icon="pi pi-plus"
-              @click="openUserDialog(null)"
-            />
+            <Select :model-value="roleFilterValue" @update:model-value="handleRoleFilter">
+              <SelectTrigger class="w-40">
+                <SelectValue placeholder="Rol" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem v-for="opt in roleOptions" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
+          <Button @click="openUserDialog(null)">
+            <i class="pi pi-plus mr-2" />
+            Nuevo Usuario
+          </Button>
+        </div>
 
-          <!-- Users table -->
-          <DataTable
-            :value="users"
-            :loading="isLoading"
-            stripedRows
-            class="p-datatable-sm"
-          >
-            <template #empty>
-              <div class="text-center py-8 text-gray-500">
-                <i class="pi pi-users text-4xl mb-2" />
-                <p>No hay usuarios</p>
-              </div>
-            </template>
+        <!-- Empty state -->
+        <div
+          v-if="!isLoading && users.length === 0"
+          class="text-center py-8 text-muted-foreground"
+        >
+          <i class="pi pi-users text-4xl mb-2" />
+          <p>No hay usuarios</p>
+        </div>
 
-            <Column field="full_name" header="Usuario" style="min-width: 200px">
-              <template #body="{ data }">
+        <!-- Users table -->
+        <Table v-else>
+          <TableHeader>
+            <TableRow>
+              <TableHead class="min-w-[200px]">Usuario</TableHead>
+              <TableHead class="w-[120px]">Rol</TableHead>
+              <TableHead class="w-[100px]">Estado</TableHead>
+              <TableHead class="w-[120px]">Ultimo acceso</TableHead>
+              <TableHead class="w-[120px]">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow v-for="user in users" :key="user.id">
+              <TableCell>
                 <div>
-                  <div class="font-medium">{{ data.full_name }}</div>
-                  <div class="text-xs text-gray-500">{{ data.email }}</div>
+                  <div class="font-medium text-foreground">{{ user.full_name }}</div>
+                  <div class="text-xs text-muted-foreground">{{ user.email }}</div>
                 </div>
-              </template>
-            </Column>
-
-            <Column field="role" header="Rol" style="width: 120px">
-              <template #body="{ data }">
-                <Tag :severity="getRoleSeverity(data.role)" :value="getRoleLabel(data.role)" />
-              </template>
-            </Column>
-
-            <Column field="status" header="Estado" style="width: 100px">
-              <template #body="{ data }">
-                <Tag :severity="getStatusSeverity(data.status)" :value="data.status" />
-              </template>
-            </Column>
-
-            <Column field="last_login" header="Ultimo acceso" style="width: 120px">
-              <template #body="{ data }">
-                <span class="text-sm">{{ formatDate(data.last_login) }}</span>
-              </template>
-            </Column>
-
-            <Column header="Acciones" style="width: 120px">
-              <template #body="{ data }">
+              </TableCell>
+              <TableCell>
+                <Badge :variant="getRoleBadgeVariant(user.role)">
+                  {{ getRoleLabel(user.role) }}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <Badge :variant="getStatusVariant(user.status)">
+                  {{ user.status }}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <span class="text-sm text-muted-foreground">{{ formatDate(user.last_login) }}</span>
+              </TableCell>
+              <TableCell>
                 <div class="flex gap-1">
-                  <Button
-                    icon="pi pi-pencil"
-                    severity="secondary"
-                    text
-                    rounded
-                    size="small"
-                    @click="openUserDialog(data)"
-                  />
-                  <Button
-                    v-if="confirmDelete !== data.id"
-                    icon="pi pi-trash"
-                    severity="danger"
-                    text
-                    rounded
-                    size="small"
-                    @click="handleDeleteUser(data.id)"
-                  />
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <Button variant="ghost" size="icon" class="h-8 w-8" @click="openUserDialog(user)">
+                          <i class="pi pi-pencil text-sm" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent><p>Editar</p></TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+
+                  <template v-if="confirmDeleteId !== user.id">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive hover:text-destructive" @click="handleDeleteUser(user.id)">
+                            <i class="pi pi-trash text-sm" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Eliminar</p></TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </template>
                   <template v-else>
-                    <Button
-                      icon="pi pi-check"
-                      severity="danger"
-                      text
-                      rounded
-                      size="small"
-                      @click="handleDeleteUser(data.id)"
-                    />
-                    <Button
-                      icon="pi pi-times"
-                      severity="secondary"
-                      text
-                      rounded
-                      size="small"
-                      @click="confirmDelete = null"
-                    />
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive hover:text-destructive" @click="handleDeleteUser(user.id)">
+                            <i class="pi pi-check text-sm" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Confirmar</p></TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <Button variant="ghost" size="icon" class="h-8 w-8" @click="confirmDeleteId = null">
+                            <i class="pi pi-times text-sm" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Cancelar</p></TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </template>
                 </div>
-              </template>
-            </Column>
-          </DataTable>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
 
-          <Paginator
-            v-if="totalUsers > store.userPageSize"
-            :first="(store.userPage - 1) * store.userPageSize"
-            :rows="store.userPageSize"
-            :totalRecords="totalUsers"
-            @page="onPageChange"
-            class="mt-4"
-          />
-        </TabPanel>
+        <Pagination
+          v-if="totalUsers > store.userPageSize"
+          :total-records="totalUsers"
+          :rows="store.userPageSize"
+          :current-page="store.userPage"
+          @page-change="onPageChange"
+          class="mt-4"
+        />
+      </TabsContent>
 
-        <!-- Invitations Tab -->
-        <TabPanel value="1">
-          <div class="flex justify-end mb-4">
-            <Button
-              label="Enviar Invitacion"
-              icon="pi pi-send"
-              @click="showInviteDialog = true"
-            />
-          </div>
+      <!-- Invitations Tab -->
+      <TabsContent value="invites">
+        <div class="flex justify-end mb-4 mt-4">
+          <Button @click="showInviteDialog = true">
+            <i class="pi pi-send mr-2" />
+            Enviar Invitacion
+          </Button>
+        </div>
 
-          <DataTable
-            :value="invites"
-            :loading="isLoading"
-            stripedRows
-            class="p-datatable-sm"
-          >
-            <template #empty>
-              <div class="text-center py-8 text-gray-500">
-                <i class="pi pi-envelope text-4xl mb-2" />
-                <p>No hay invitaciones pendientes</p>
-              </div>
-            </template>
+        <!-- Empty state -->
+        <div
+          v-if="!isLoading && invites.length === 0"
+          class="text-center py-8 text-muted-foreground"
+        >
+          <i class="pi pi-envelope text-4xl mb-2" />
+          <p>No hay invitaciones pendientes</p>
+        </div>
 
-            <Column field="email" header="Email" style="min-width: 200px" />
-
-            <Column field="role" header="Rol" style="width: 120px">
-              <template #body="{ data }">
-                <Tag :severity="getRoleSeverity(data.role)" :value="getRoleLabel(data.role)" />
-              </template>
-            </Column>
-
-            <Column field="status" header="Estado" style="width: 100px">
-              <template #body="{ data }">
-                <Tag
-                  :severity="data.status === 'pending' ? 'warn' : 'secondary'"
-                  :value="data.status"
-                />
-              </template>
-            </Column>
-
-            <Column field="expires_at" header="Expira" style="width: 120px">
-              <template #body="{ data }">
-                <span class="text-sm">{{ formatDate(data.expires_at) }}</span>
-              </template>
-            </Column>
-
-            <Column header="" style="width: 60px">
-              <template #body="{ data }">
-                <Button
-                  icon="pi pi-times"
-                  severity="danger"
-                  text
-                  rounded
-                  size="small"
-                  @click="cancelInvite(data.id, organizationId)"
-                  v-tooltip="'Cancelar'"
-                />
-              </template>
-            </Column>
-          </DataTable>
-        </TabPanel>
-      </TabPanels>
+        <!-- Invites table -->
+        <Table v-else>
+          <TableHeader>
+            <TableRow>
+              <TableHead class="min-w-[200px]">Email</TableHead>
+              <TableHead class="w-[120px]">Rol</TableHead>
+              <TableHead class="w-[100px]">Estado</TableHead>
+              <TableHead class="w-[120px]">Expira</TableHead>
+              <TableHead class="w-[60px]"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow v-for="invite in invites" :key="invite.id">
+              <TableCell>
+                <span class="text-foreground">{{ invite.email }}</span>
+              </TableCell>
+              <TableCell>
+                <Badge :variant="getRoleBadgeVariant(invite.role)">
+                  {{ getRoleLabel(invite.role) }}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <Badge :variant="invite.status === 'pending' ? 'warning' : 'secondary'">
+                  {{ invite.status }}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <span class="text-sm text-muted-foreground">{{ formatDate(invite.expires_at) }}</span>
+              </TableCell>
+              <TableCell>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive hover:text-destructive" @click="cancelInvite(invite.id, organizationId)">
+                        <i class="pi pi-times text-sm" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Cancelar</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </TabsContent>
     </Tabs>
 
     <!-- User Dialog -->
-    <Dialog
-      v-model:visible="showUserDialog"
-      :header="isEditing ? 'Editar Usuario' : 'Nuevo Usuario'"
-      :modal="true"
-      :style="{ width: '400px' }"
-    >
-      <div class="space-y-4">
-        <div v-if="!isEditing">
-          <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-          <InputText v-model="userForm.email" class="w-full" />
+    <Dialog v-model:open="showUserDialog">
+      <DialogContent class="sm:max-w-[400px] glass-dialog">
+        <DialogHeader>
+          <DialogTitle>{{ isEditing ? 'Editar Usuario' : 'Nuevo Usuario' }}</DialogTitle>
+          <DialogDescription class="sr-only">
+            {{ isEditing ? 'Editar datos del usuario' : 'Crear un nuevo usuario' }}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div class="space-y-4 py-4">
+          <div v-if="!isEditing">
+            <label class="block text-sm font-medium text-foreground mb-1">Email *</label>
+            <Input v-model="userForm.email" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-foreground mb-1">Nombre completo *</label>
+            <Input v-model="userForm.full_name" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-foreground mb-1">Rol</label>
+            <Select v-model="userForm.role">
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar rol" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="opt in roleOptions" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div v-if="!isEditing">
+            <label class="block text-sm font-medium text-foreground mb-1">Password</label>
+            <Input v-model="userForm.password" type="password" />
+            <p class="text-xs text-muted-foreground mt-1">Dejar vacio para generar automaticamente</p>
+          </div>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Nombre completo *</label>
-          <InputText v-model="userForm.full_name" class="w-full" />
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Rol</label>
-          <Select
-            v-model="userForm.role"
-            :options="roleOptions"
-            optionLabel="label"
-            optionValue="value"
-            class="w-full"
-          />
-        </div>
-
-        <div v-if="!isEditing">
-          <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-          <InputText v-model="userForm.password" type="password" class="w-full" />
-          <p class="text-xs text-gray-400 mt-1">Dejar vacio para generar automaticamente</p>
-        </div>
-      </div>
-
-      <template #footer>
-        <Button label="Cancelar" severity="secondary" @click="closeUserDialog" />
-        <Button
-          :label="isEditing ? 'Guardar' : 'Crear'"
-          @click="handleSaveUser"
-          :loading="isLoading"
-        />
-      </template>
+        <DialogFooter>
+          <Button variant="outline" @click="closeUserDialog">Cancelar</Button>
+          <Button @click="handleSaveUser" :disabled="isLoading">
+            <i v-if="isLoading" class="pi pi-spin pi-spinner mr-2" />
+            {{ isEditing ? 'Guardar' : 'Crear' }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
     </Dialog>
 
     <!-- Invite Dialog -->
-    <Dialog
-      v-model:visible="showInviteDialog"
-      header="Enviar Invitacion"
-      :modal="true"
-      :style="{ width: '400px' }"
-    >
-      <div class="space-y-4">
-        <Message severity="info" :closable="false" class="text-sm">
-          Se enviara un email con un enlace para unirse a la organizacion.
-        </Message>
+    <Dialog v-model:open="showInviteDialog">
+      <DialogContent class="sm:max-w-[400px] glass-dialog">
+        <DialogHeader>
+          <DialogTitle>Enviar Invitacion</DialogTitle>
+          <DialogDescription class="sr-only">
+            Enviar una invitacion para unirse a la organizacion
+          </DialogDescription>
+        </DialogHeader>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-          <InputText v-model="inviteForm.email" class="w-full" />
+        <div class="space-y-4 py-4">
+          <Alert variant="info">
+            <AlertDescription>
+              Se enviara un email con un enlace para unirse a la organizacion.
+            </AlertDescription>
+          </Alert>
+
+          <div>
+            <label class="block text-sm font-medium text-foreground mb-1">Email *</label>
+            <Input v-model="inviteForm.email" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-foreground mb-1">Rol</label>
+            <Select v-model="inviteForm.role">
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar rol" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="opt in roleOptions" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Rol</label>
-          <Select
-            v-model="inviteForm.role"
-            :options="roleOptions"
-            optionLabel="label"
-            optionValue="value"
-            class="w-full"
-          />
-        </div>
-      </div>
-
-      <template #footer>
-        <Button label="Cancelar" severity="secondary" @click="showInviteDialog = false" />
-        <Button
-          label="Enviar"
-          icon="pi pi-send"
-          @click="handleSendInvite"
-          :loading="isLoading"
-          :disabled="!inviteForm.email"
-        />
-      </template>
+        <DialogFooter>
+          <Button variant="outline" @click="showInviteDialog = false">Cancelar</Button>
+          <Button @click="handleSendInvite" :disabled="!inviteForm.email || isLoading">
+            <i v-if="isLoading" class="pi pi-spin pi-spinner mr-2" />
+            <i v-else class="pi pi-send mr-2" />
+            Enviar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
     </Dialog>
   </div>
 </template>

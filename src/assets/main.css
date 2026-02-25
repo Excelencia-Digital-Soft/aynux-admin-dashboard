@@ -193,6 +193,52 @@ body {
   @apply bg-white/95 backdrop-blur-sm border border-white/20;
 }
 
+.glass-card {
+  @apply bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-xl shadow-sm;
+}
+.dark-mode .glass-card {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+.glass-dialog {
+  @apply bg-white/90 backdrop-blur-xl border border-gray-200/50 rounded-2xl shadow-xl;
+}
+.dark-mode .glass-dialog {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+}
+
+.glass-panel {
+  @apply bg-white/60 backdrop-blur-sm border border-gray-200/30 rounded-lg;
+}
+.dark-mode .glass-panel {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-node {
+  @apply backdrop-blur-md border border-white/20;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+.dark-mode .glass-node {
+  background: rgba(20, 43, 74, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
 /* ============================================
    Dark Mode Support
    ============================================ */

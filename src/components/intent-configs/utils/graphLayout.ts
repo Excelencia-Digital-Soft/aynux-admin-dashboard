@@ -8,7 +8,9 @@
 import dagre from 'dagre'
 import type {
   GraphNode as ApiGraphNode,
-  GraphEdge as ApiGraphEdge
+  GraphEdge as ApiGraphEdge,
+  RoutingConfigSummary,
+  AwaitingTypeConfigSummary
 } from '@/types/graphTopology.types'
 import type { TopologyFlowNode, TopologyFlowEdge, TopologyNodeType } from '../types'
 
@@ -38,22 +40,77 @@ function getNodeDimensions(nodeType: string): { width: number; height: number } 
 export function layoutTopology(
   apiNodes: ApiGraphNode[],
   apiEdges: ApiGraphEdge[],
-  selectedNodeId: string | null = null
+  selectedNodeId: string | null = null,
+  routingConfigs: RoutingConfigSummary[] = [],
+  awaitingTypeConfigs: AwaitingTypeConfigSummary[] = []
 ): { nodes: TopologyFlowNode[]; edges: TopologyFlowEdge[] } {
+  // Pre-compute intents per node from routing configs
+  const nodeIntentsMap: Record<string, string[]> = {}
+  for (const rc of routingConfigs) {
+    if (rc.target_node && rc.is_enabled) {
+      if (!nodeIntentsMap[rc.target_node]) nodeIntentsMap[rc.target_node] = []
+      if (!nodeIntentsMap[rc.target_node].includes(rc.target_intent)) {
+        nodeIntentsMap[rc.target_node].push(rc.target_intent)
+      }
+    }
+  }
+
+  // For supervisor/router nodes: collect ALL unique intents (they dispatch, not receive)
+  const allUniqueIntents = [...new Set(routingConfigs.filter(rc => rc.is_enabled).map(rc => rc.target_intent))]
+  for (const node of apiNodes) {
+    if (node.node_type === 'supervisor') {
+      nodeIntentsMap[node.id] = allUniqueIntents
+    }
+  }
+
+  // Pre-compute awaiting type names per node
+  const nodeAwaitingMap: Record<string, string[]> = {}
+  for (const ac of awaitingTypeConfigs) {
+    if (ac.target_node && ac.is_enabled) {
+      if (!nodeAwaitingMap[ac.target_node]) nodeAwaitingMap[ac.target_node] = []
+      if (!nodeAwaitingMap[ac.target_node].includes(ac.awaiting_type)) {
+        nodeAwaitingMap[ac.target_node].push(ac.awaiting_type)
+      }
+    }
+  }
+  // Detect hub-and-spoke pattern (>10 edges from one node)
+  const outDegree: Record<string, number> = {}
+  for (const edge of apiEdges) {
+    outDegree[edge.source] = (outDegree[edge.source] || 0) + 1
+  }
+  const isHubAndSpoke = Object.values(outDegree).some((count) => count > 10)
+
   const g = new dagre.graphlib.Graph()
   g.setDefaultEdgeLabel(() => ({}))
   g.setGraph({
     rankdir: 'TB',
-    nodesep: 60,
-    ranksep: 100,
+    nodesep: isHubAndSpoke ? 40 : 60,
+    ranksep: isHubAndSpoke ? 120 : 100,
     marginx: 40,
     marginy: 40
   })
 
-  // Add nodes to dagre
+  // Add nodes to dagre with dynamic height for intent badges
+  const effectiveNodeWidth = isHubAndSpoke ? 180 : NODE_WIDTH
+  const nodeHeights: Record<string, number> = {}
   for (const node of apiNodes) {
     const dims = getNodeDimensions(node.node_type)
-    g.setNode(node.id, { width: dims.width, height: dims.height })
+    const width = node.node_type === 'terminal' ? dims.width : effectiveNodeWidth
+    let height = dims.height
+
+    // Add extra height for intent badges on action nodes
+    if (node.node_type === 'action') {
+      const intentCount = nodeIntentsMap[node.id]?.length || 0
+      if (intentCount > 0) {
+        const maxVisible = 4
+        const visibleCount = Math.min(intentCount, maxVisible) + (intentCount > maxVisible ? 1 : 0)
+        const badgeRows = Math.ceil(visibleCount / 3)
+        height += badgeRows * 20 + 8
+      }
+    }
+
+    nodeHeights[node.id] = height
+    g.setNode(node.id, { width, height })
   }
 
   // Add edges to dagre
@@ -67,14 +124,15 @@ export function layoutTopology(
   // Convert to Vue Flow nodes
   const flowNodes: TopologyFlowNode[] = apiNodes.map((node) => {
     const dagreNode = g.node(node.id)
-    const dims = getNodeDimensions(node.node_type)
+    const height = nodeHeights[node.id] || getNodeDimensions(node.node_type).height
+    const width = node.node_type === 'terminal' ? TERMINAL_WIDTH : effectiveNodeWidth
 
     return {
       id: node.id,
       type: mapNodeType(node.node_type),
       position: {
-        x: dagreNode.x - dims.width / 2,
-        y: dagreNode.y - dims.height / 2
+        x: dagreNode.x - width / 2,
+        y: dagreNode.y - height / 2
       },
       data: {
         nodeId: node.id,
@@ -87,25 +145,39 @@ export function layoutTopology(
         hasConditionalOutput: node.has_conditional_output,
         routingConfigCount: node.routing_config_count,
         awaitingTypeConfigCount: node.awaiting_type_config_count,
+        subgraph: node.subgraph,
+        routingIntents: nodeIntentsMap[node.id] || [],
+        awaitingTypeNames: nodeAwaitingMap[node.id] || [],
         isSelected: node.id === selectedNodeId
       }
     }
   })
 
   // Convert to Vue Flow edges
-  const flowEdges: TopologyFlowEdge[] = apiEdges.map((edge) => ({
-    id: edge.id,
-    source: edge.source,
-    target: edge.target,
-    type: 'smoothstep',
-    animated: edge.edge_type === 'conditional',
-    label: edge.label || undefined,
-    style: getEdgeStyle(edge),
-    data: {
-      edgeType: edge.edge_type as 'direct' | 'conditional',
-      condition: edge.condition
+  const flowEdges: TopologyFlowEdge[] = apiEdges.map((edge) => {
+    const isConditional = edge.edge_type === 'conditional'
+    const base: TopologyFlowEdge = {
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      type: 'smoothstep',
+      animated: isConditional,
+      label: edge.label || undefined,
+      style: getEdgeStyle(edge),
+      data: {
+        edgeType: edge.edge_type as 'direct' | 'conditional',
+        condition: edge.condition
+      }
     }
-  }))
+    // Add label pill/badge styling for conditional edges with labels
+    if (isConditional && edge.label) {
+      base.labelStyle = { fill: '#e2e8f0', fontSize: '10px', fontWeight: 500 }
+      base.labelBgStyle = { fill: '#1e293b', rx: 4, ry: 4 }
+      base.labelBgPadding = [4, 6]
+      base.labelShowBg = true
+    }
+    return base
+  })
 
   return { nodes: flowNodes, edges: flowEdges }
 }

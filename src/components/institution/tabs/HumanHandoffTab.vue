@@ -7,12 +7,11 @@
  */
 
 import { ref, computed } from 'vue'
-import Checkbox from 'primevue/checkbox'
-import Button from 'primevue/button'
-import Message from 'primevue/message'
-import Tag from 'primevue/tag'
-import InputText from 'primevue/inputtext'
-import ProgressSpinner from 'primevue/progressspinner'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { tenantInstitutionConfigApi } from '@/api/tenantInstitutionConfig.api'
 import type { WorkflowSettings } from '@/types/tenantInstitutionConfig.types'
 
@@ -106,52 +105,54 @@ function removeSpecialty(name: string) {
 </script>
 
 <template>
-  <div class="human-handoff-tab space-y-4">
+  <div class="space-y-4">
     <!-- Info header -->
-    <Message severity="info" :closable="false">
-      <i class="pi pi-info-circle mr-2" />
-      Las especialidades seleccionadas derivaran automaticamente al agente humano cuando un
-      paciente las elija.
-    </Message>
+    <Alert>
+      <AlertDescription>
+        <i class="pi pi-info-circle mr-2" />
+        Las especialidades seleccionadas derivaran automaticamente al agente humano cuando un
+        paciente las elija.
+      </AlertDescription>
+    </Alert>
 
-    <!-- Currently selected (always visible as tags) -->
+    <!-- Currently selected -->
     <div v-if="selectedCount > 0">
-      <label class="block text-sm font-medium text-gray-700 mb-2">
+      <label class="block text-sm font-medium text-foreground mb-2">
         Especialidades con handoff ({{ selectedCount }})
       </label>
       <div class="flex flex-wrap gap-2">
-        <Tag
+        <Badge
           v-for="name in model.human_handoff_specialties"
           :key="name"
-          :value="name"
-          severity="warn"
+          variant="warning"
           class="cursor-pointer"
           @click="removeSpecialty(name)"
         >
-          <template #default>
-            {{ name }}
-            <i class="pi pi-times ml-1 text-xs" />
-          </template>
-        </Tag>
+          {{ name }}
+          <i class="pi pi-times ml-1 text-xs" />
+        </Badge>
       </div>
     </div>
 
     <!-- Not editing message -->
-    <Message v-if="!canFetch" severity="warn" :closable="false">
-      <i class="pi pi-exclamation-triangle mr-2" />
-      Guarde la institucion primero para poder cargar especialidades desde HCWeb.
-    </Message>
+    <Alert v-if="!canFetch" variant="warning">
+      <AlertDescription>
+        <i class="pi pi-exclamation-triangle mr-2" />
+        Guarde la institucion primero para poder cargar especialidades desde HCWeb.
+      </AlertDescription>
+    </Alert>
 
     <!-- Fetch button + specialty list -->
     <template v-if="canFetch">
       <div class="flex items-center gap-3">
         <Button
-          :label="loaded ? 'Recargar Especialidades' : 'Cargar Especialidades desde HCWeb'"
-          :icon="loaded ? 'pi pi-refresh' : 'pi pi-download'"
-          :loading="loading"
-          severity="secondary"
+          variant="secondary"
+          :disabled="loading"
           @click="fetchSpecialties"
-        />
+        >
+          <i :class="loading ? 'pi pi-spin pi-spinner mr-2' : (loaded ? 'pi pi-refresh mr-2' : 'pi pi-download mr-2')" />
+          {{ loaded ? 'Recargar Especialidades' : 'Cargar Especialidades desde HCWeb' }}
+        </Button>
         <span v-if="loaded" class="text-sm text-muted-foreground">
           {{ availableSpecialties.length }} especialidades encontradas
         </span>
@@ -159,26 +160,24 @@ function removeSpecialty(name: string) {
 
       <!-- Loading -->
       <div v-if="loading" class="flex items-center justify-center py-4">
-        <ProgressSpinner style="width: 40px; height: 40px" />
+        <i class="pi pi-spin pi-spinner text-2xl text-primary" />
       </div>
 
       <!-- Error -->
-      <Message v-if="error" severity="error" :closable="false">
-        {{ error }}
-      </Message>
+      <Alert v-if="error" variant="destructive">
+        <AlertDescription>{{ error }}</AlertDescription>
+      </Alert>
 
       <!-- Specialty checklist -->
       <div v-if="loaded && !loading && availableSpecialties.length > 0" class="space-y-3">
         <!-- Search filter -->
-        <div class="field">
-          <span class="p-input-icon-left w-full">
-            <i class="pi pi-search" />
-            <InputText
-              v-model="searchQuery"
-              placeholder="Buscar especialidad..."
-              class="w-full"
-            />
-          </span>
+        <div class="relative">
+          <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm" />
+          <Input
+            v-model="searchQuery"
+            placeholder="Buscar especialidad..."
+            class="pl-9"
+          />
         </div>
 
         <!-- Checkbox list -->
@@ -186,17 +185,15 @@ function removeSpecialty(name: string) {
           <div
             v-for="specialty in filteredSpecialties"
             :key="specialty.id"
-            class="flex items-center gap-2 py-1 px-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+            class="flex items-center gap-2 py-1 px-2 rounded hover:bg-muted cursor-pointer"
             @click="toggleSpecialty(specialty.name)"
           >
             <Checkbox
-              :modelValue="isSelected(specialty.name)"
-              :binary="true"
-              :inputId="`spec_${specialty.id}`"
+              :checked="isSelected(specialty.name)"
               @click.stop
-              @update:modelValue="toggleSpecialty(specialty.name)"
+              @update:checked="toggleSpecialty(specialty.name)"
             />
-            <label :for="`spec_${specialty.id}`" class="text-sm cursor-pointer select-none">
+            <label class="text-sm cursor-pointer select-none text-foreground">
               {{ specialty.name }}
             </label>
           </div>

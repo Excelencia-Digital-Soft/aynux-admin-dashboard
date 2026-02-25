@@ -22,6 +22,22 @@ export interface RoutingConfigResponse {
   updated_at: string | null
 }
 
+export interface RoutingConfigCreate {
+  domain_key: string
+  config_type: string
+  trigger_value: string
+  target_intent: string
+  target_node?: string | null
+  priority?: number
+  is_enabled?: boolean
+  requires_auth?: boolean
+  clears_context?: boolean
+  metadata?: Record<string, unknown> | null
+  display_name?: string | null
+  description?: string | null
+  organization_id?: string | null
+}
+
 export interface RoutingConfigUpdate {
   target_intent?: string
   target_node?: string

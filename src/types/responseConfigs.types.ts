@@ -24,6 +24,8 @@ export interface ResponseConfig {
   is_critical: boolean // If true, always uses fixed template, never LLM
   task_description: string // Injected into LLM system prompt
   fallback_template_key: string // Key in fallback_templates.yaml
+  response_type: 'fixed' | 'prompt' // 'fixed' = template, 'prompt' = vLLM
+  template_text: string | null // Template/prompt text stored in DB
   display_name: string | null
   description: string | null
   priority: number // 0-1000, higher = first
@@ -42,6 +44,8 @@ export interface ResponseConfigCreate {
   is_critical?: boolean
   task_description: string
   fallback_template_key: string
+  response_type?: 'fixed' | 'prompt'
+  template_text?: string | null
   display_name?: string | null
   description?: string | null
   priority?: number
@@ -55,6 +59,8 @@ export interface ResponseConfigUpdate {
   is_critical?: boolean
   task_description?: string
   fallback_template_key?: string
+  response_type?: 'fixed' | 'prompt'
+  template_text?: string | null
   display_name?: string | null
   description?: string | null
   priority?: number
@@ -117,6 +123,8 @@ export interface ResponseConfigExport {
   is_critical: boolean
   task_description: string
   fallback_template_key: string
+  response_type: 'fixed' | 'prompt'
+  template_text: string | null
   display_name: string | null
   description: string | null
   priority: number
@@ -146,6 +154,8 @@ export interface ResponseConfigFormData {
   description: string
   task_description: string
   fallback_template_key: string
+  response_type: 'fixed' | 'prompt'
+  template_text: string
   priority: number
   is_critical: boolean
   is_enabled: boolean
@@ -160,9 +170,25 @@ export const DEFAULT_RESPONSE_CONFIG_FORM: ResponseConfigFormData = {
   description: '',
   task_description: '',
   fallback_template_key: '',
+  response_type: 'fixed',
+  template_text: '',
   priority: 0,
   is_critical: false,
   is_enabled: true
+}
+
+// ============================================================================
+// Parameter Registry Types
+// ============================================================================
+
+/**
+ * Available template parameter for a domain
+ */
+export interface ResponseParam {
+  key: string
+  label: string
+  description: string
+  source: string
 }
 
 // ============================================================================

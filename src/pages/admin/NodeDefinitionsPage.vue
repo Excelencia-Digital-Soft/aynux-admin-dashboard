@@ -4,35 +4,63 @@
  *
  * Allows creating, editing, and deleting custom node definitions
  * for use in the workflow editor.
+ *
+ * Migrated from PrimeVue to shadcn-vue with glassmorphism styling.
  */
 import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
-import { useConfirm } from 'primevue/useconfirm'
 import { useWorkflowCatalogStore } from '@/stores/workflow/catalog.store'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import type {
   NodeDefinition,
   NodeDefinitionCreate,
   NodeDefinitionUpdate
 } from '@/types/workflow.types'
 import IconPicker from '@/components/workflows/IconPicker.vue'
+import ConfirmDialogComponent from '@/components/shared/ConfirmDialog.vue'
 
-import Card from 'primevue/card'
-import Button from 'primevue/button'
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
-import Tag from 'primevue/tag'
-import ToggleSwitch from 'primevue/toggleswitch'
-import Select from 'primevue/select'
-import Dialog from 'primevue/dialog'
-import InputText from 'primevue/inputtext'
-import Textarea from 'primevue/textarea'
-import ColorPicker from 'primevue/colorpicker'
-import ProgressSpinner from 'primevue/progressspinner'
-import ConfirmDialog from 'primevue/confirmdialog'
-import Message from 'primevue/message'
+// shadcn-vue components
+import { Card, CardContent, CardFooter } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
+} from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Spinner } from '@/components/ui/spinner'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider
+} from '@/components/ui/tooltip'
+import { ChevronUp, ChevronDown, Plus, Pencil, Trash2, Check, X } from 'lucide-vue-next'
 
 const toast = useToast()
-const confirm = useConfirm()
+const confirmDialog = useConfirmDialog()
 const catalogStore = useWorkflowCatalogStore()
 
 // State
@@ -61,9 +89,15 @@ const editConfigSchemaJson = ref('')
 const editDefaultConfigJson = ref('')
 
 // Filters
-const categoryFilter = ref<string | undefined>(undefined)
-const typeFilter = ref<string | undefined>(undefined)
+const categoryFilter = ref<string>('__all__')
+const typeFilter = ref<string>('__all__')
 const activeOnlyFilter = ref(false)
+
+// Sorting & Pagination
+const sortField = ref<string>('category')
+const sortOrder = ref<1 | -1>(1)
+const currentPage = ref(1)
+const rowsPerPage = ref(15)
 
 // Options
 const nodeTypeOptions = [
@@ -75,16 +109,8 @@ const nodeTypeOptions = [
 
 const categoryOptions = computed(() => {
   const categories = new Set(catalogStore.nodeDefinitions.map((n) => n.category))
-  return [
-    { value: undefined, label: 'Todas las categorias' },
-    ...Array.from(categories).map((c) => ({ value: c, label: c }))
-  ]
+  return Array.from(categories).map((c) => ({ value: c, label: c }))
 })
-
-const typeFilterOptions = [
-  { value: undefined, label: 'Todos los tipos' },
-  ...nodeTypeOptions
-]
 
 // Stats
 const stats = computed(() => {
@@ -105,10 +131,10 @@ const stats = computed(() => {
 // Filtered definitions
 const filteredDefinitions = computed(() => {
   let defs = catalogStore.nodeDefinitions
-  if (categoryFilter.value) {
+  if (categoryFilter.value && categoryFilter.value !== '__all__') {
     defs = defs.filter((d) => d.category === categoryFilter.value)
   }
-  if (typeFilter.value) {
+  if (typeFilter.value && typeFilter.value !== '__all__') {
     defs = defs.filter((d) => d.node_type === typeFilter.value)
   }
   if (activeOnlyFilter.value) {
@@ -116,6 +142,73 @@ const filteredDefinitions = computed(() => {
   }
   return defs
 })
+
+// Sorted data
+const sortedData = computed(() => {
+  const data = [...filteredDefinitions.value]
+  if (!sortField.value) return data
+
+  return data.sort((a, b) => {
+    const aVal = (a as Record<string, unknown>)[sortField.value]
+    const bVal = (b as Record<string, unknown>)[sortField.value]
+
+    if (aVal == null && bVal == null) return 0
+    if (aVal == null) return 1
+    if (bVal == null) return -1
+
+    let result = 0
+    if (typeof aVal === 'string' && typeof bVal === 'string') {
+      result = aVal.localeCompare(bVal)
+    } else if (typeof aVal === 'boolean' && typeof bVal === 'boolean') {
+      result = (aVal === bVal) ? 0 : aVal ? -1 : 1
+    } else {
+      result = String(aVal).localeCompare(String(bVal))
+    }
+
+    return result * sortOrder.value
+  })
+})
+
+// Paginated data
+const paginatedData = computed(() => {
+  const start = (currentPage.value - 1) * rowsPerPage.value
+  return sortedData.value.slice(start, start + rowsPerPage.value)
+})
+
+const totalPages = computed(() => Math.max(1, Math.ceil(sortedData.value.length / rowsPerPage.value)))
+
+const paginationStart = computed(() => {
+  if (sortedData.value.length === 0) return 0
+  return (currentPage.value - 1) * rowsPerPage.value + 1
+})
+
+const paginationEnd = computed(() =>
+  Math.min(currentPage.value * rowsPerPage.value, sortedData.value.length)
+)
+
+// Sort handler
+function handleSort(field: string) {
+  if (sortField.value === field) {
+    sortOrder.value = sortOrder.value === 1 ? -1 : 1
+  } else {
+    sortField.value = field
+    sortOrder.value = 1
+  }
+  currentPage.value = 1
+}
+
+// Get badge variant for node type
+function getNodeTypeBadgeVariant(
+  type: string
+): 'info' | 'warning' | 'success' | 'secondary' {
+  const map: Record<string, 'info' | 'warning' | 'success' | 'secondary'> = {
+    conversation: 'info',
+    routing: 'warning',
+    integration: 'success',
+    utility: 'secondary'
+  }
+  return map[type] || 'secondary'
+}
 
 // Fetch definitions
 async function fetchDefinitions() {
@@ -132,19 +225,6 @@ async function fetchDefinitions() {
   } finally {
     loading.value = false
   }
-}
-
-// Get node type severity
-function getNodeTypeSeverity(
-  type: string
-): 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast' | undefined {
-  const map: Record<string, 'success' | 'info' | 'warn' | 'danger' | 'secondary'> = {
-    conversation: 'info',
-    routing: 'warn',
-    integration: 'success',
-    utility: 'secondary'
-  }
-  return map[type] || 'secondary'
 }
 
 // Open create dialog
@@ -287,7 +367,7 @@ async function saveNodeDefinition() {
 }
 
 // Confirm delete
-function confirmDelete(nodeDef: NodeDefinition) {
+async function confirmDelete(nodeDef: NodeDefinition) {
   if (nodeDef.is_builtin) {
     toast.add({
       severity: 'warn',
@@ -298,15 +378,17 @@ function confirmDelete(nodeDef: NodeDefinition) {
     return
   }
 
-  confirm.require({
+  const confirmed = await confirmDialog.confirm({
+    title: 'Confirmar eliminacion',
     message: `Estas seguro de eliminar "${nodeDef.display_name}"? Esta accion no se puede deshacer.`,
-    header: 'Confirmar eliminacion',
-    icon: 'pi pi-exclamation-triangle',
-    rejectLabel: 'Cancelar',
-    acceptLabel: 'Eliminar',
-    acceptClass: 'p-button-danger',
-    accept: () => deleteNodeDefinition(nodeDef)
+    confirmLabel: 'Eliminar',
+    cancelLabel: 'Cancelar',
+    variant: 'destructive'
   })
+
+  if (confirmed) {
+    await deleteNodeDefinition(nodeDef)
+  }
 }
 
 // Delete definition
@@ -341,393 +423,585 @@ onMounted(() => {
 
 <template>
   <div class="node-definitions-page p-6">
-    <ConfirmDialog />
+    <ConfirmDialogComponent />
 
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-2xl font-bold text-gray-800">Definiciones de Nodos</h1>
-        <p class="text-gray-500 mt-1">
+        <h1 class="text-2xl font-bold text-foreground">Definiciones de Nodos</h1>
+        <p class="text-muted-foreground mt-1">
           Administra el catalogo de tipos de nodos para el editor de workflows
         </p>
       </div>
-      <Button
-        label="Nueva Definicion"
-        icon="pi pi-plus"
-        severity="primary"
-        @click="openCreateDialog"
-      />
+      <Button @click="openCreateDialog">
+        <Plus class="w-4 h-4 mr-2" />
+        Nueva Definicion
+      </Button>
     </div>
 
     <!-- Stats -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <Card>
-        <template #content>
+      <Card class="glass-card">
+        <CardContent class="pt-6">
           <div class="text-center">
-            <div class="text-3xl font-bold text-gray-800">{{ stats.total }}</div>
-            <div class="text-gray-500">Total</div>
+            <div class="text-3xl font-bold text-foreground">{{ stats.total }}</div>
+            <div class="text-muted-foreground">Total</div>
           </div>
-        </template>
+        </CardContent>
       </Card>
-      <Card>
-        <template #content>
+      <Card class="glass-card">
+        <CardContent class="pt-6">
           <div class="text-center">
             <div class="text-3xl font-bold text-green-600">{{ stats.active }}</div>
-            <div class="text-gray-500">Activos</div>
+            <div class="text-muted-foreground">Activos</div>
           </div>
-        </template>
+        </CardContent>
       </Card>
-      <Card>
-        <template #content>
+      <Card class="glass-card">
+        <CardContent class="pt-6">
           <div class="text-center">
             <div class="text-3xl font-bold text-blue-600">{{ stats.builtin }}</div>
-            <div class="text-gray-500">Builtin</div>
+            <div class="text-muted-foreground">Builtin</div>
           </div>
-        </template>
+        </CardContent>
       </Card>
-      <Card>
-        <template #content>
+      <Card class="glass-card">
+        <CardContent class="pt-6">
           <div class="text-center">
             <div class="text-3xl font-bold text-purple-600">{{ stats.custom }}</div>
-            <div class="text-gray-500">Custom</div>
+            <div class="text-muted-foreground">Custom</div>
           </div>
-        </template>
+        </CardContent>
       </Card>
     </div>
 
     <!-- Filters -->
-    <Card class="mb-6">
-      <template #content>
+    <Card class="glass-card mb-6">
+      <CardContent class="pt-6">
         <div class="flex flex-wrap gap-4 items-center">
           <div class="flex-1 min-w-48">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+            <label class="block text-sm font-medium text-foreground mb-1">Categoria</label>
             <Select
-              v-model="categoryFilter"
-              :options="categoryOptions"
-              optionLabel="label"
-              optionValue="value"
-              placeholder="Todas"
-              class="w-full"
-            />
+              :model-value="categoryFilter"
+              @update:model-value="(v: string) => { categoryFilter = v; currentPage = 1 }"
+            >
+              <SelectTrigger class="w-full">
+                <SelectValue placeholder="Todas" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Todas las categorias</SelectItem>
+                <SelectItem
+                  v-for="opt in categoryOptions"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div class="flex-1 min-w-48">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+            <label class="block text-sm font-medium text-foreground mb-1">Tipo</label>
             <Select
-              v-model="typeFilter"
-              :options="typeFilterOptions"
-              optionLabel="label"
-              optionValue="value"
-              placeholder="Todos"
-              class="w-full"
-            />
+              :model-value="typeFilter"
+              @update:model-value="(v: string) => { typeFilter = v; currentPage = 1 }"
+            >
+              <SelectTrigger class="w-full">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Todos los tipos</SelectItem>
+                <SelectItem
+                  v-for="opt in nodeTypeOptions"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div class="flex items-center gap-2 pt-6">
-            <ToggleSwitch v-model="activeOnlyFilter" />
-            <span class="text-sm text-gray-600">Solo activos</span>
+            <Switch
+              :checked="activeOnlyFilter"
+              @update:checked="(v: boolean) => { activeOnlyFilter = v; currentPage = 1 }"
+            />
+            <span class="text-sm text-muted-foreground">Solo activos</span>
           </div>
         </div>
-      </template>
+      </CardContent>
     </Card>
 
     <!-- Definitions Table -->
-    <Card>
-      <template #content>
-        <div v-if="loading" class="flex justify-center py-8">
-          <ProgressSpinner />
+    <Card class="glass-card overflow-hidden">
+      <CardContent class="p-0">
+        <!-- Loading -->
+        <div v-if="loading" class="flex justify-center py-16">
+          <Spinner size="lg" />
         </div>
 
-        <DataTable
-          v-else
-          :value="filteredDefinitions"
-          :paginator="true"
-          :rows="15"
-          :rowsPerPageOptions="[10, 15, 25, 50]"
-          sortField="category"
-          :sortOrder="1"
-          class="p-datatable-sm"
+        <!-- Empty State -->
+        <div
+          v-else-if="sortedData.length === 0"
+          class="flex flex-col items-center justify-center py-16 text-center"
         >
-          <template #empty>
-            <div class="text-center py-8 text-gray-500">
-              <i class="pi pi-box text-4xl mb-4" />
-              <p>No hay definiciones de nodos</p>
-            </div>
-          </template>
+          <i class="pi pi-box text-4xl text-muted-foreground mb-4" />
+          <p class="text-muted-foreground">No hay definiciones de nodos</p>
+        </div>
 
-          <Column field="node_key" header="Node Key" sortable>
-            <template #body="{ data }">
-              <div class="flex items-center gap-2">
-                <div
-                  class="w-8 h-8 rounded flex items-center justify-center"
-                  :style="{ backgroundColor: data.color + '20', color: data.color }"
+        <!-- Table -->
+        <template v-else>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead
+                  class="min-w-[180px] cursor-pointer select-none hover:text-foreground transition-colors"
+                  @click="handleSort('node_key')"
                 >
-                  <i :class="`pi ${data.icon}`" />
-                </div>
-                <div>
-                  <div class="font-mono text-sm">{{ data.node_key }}</div>
-                </div>
-              </div>
-            </template>
-          </Column>
+                  <div class="flex items-center gap-1">
+                    Node Key
+                    <span v-if="sortField === 'node_key'" class="text-primary">
+                      <ChevronUp v-if="sortOrder === 1" class="w-3.5 h-3.5" />
+                      <ChevronDown v-else class="w-3.5 h-3.5" />
+                    </span>
+                  </div>
+                </TableHead>
+                <TableHead
+                  class="min-w-[200px] cursor-pointer select-none hover:text-foreground transition-colors"
+                  @click="handleSort('display_name')"
+                >
+                  <div class="flex items-center gap-1">
+                    Nombre
+                    <span v-if="sortField === 'display_name'" class="text-primary">
+                      <ChevronUp v-if="sortOrder === 1" class="w-3.5 h-3.5" />
+                      <ChevronDown v-else class="w-3.5 h-3.5" />
+                    </span>
+                  </div>
+                </TableHead>
+                <TableHead
+                  class="w-[120px] cursor-pointer select-none hover:text-foreground transition-colors"
+                  @click="handleSort('category')"
+                >
+                  <div class="flex items-center gap-1">
+                    Categoria
+                    <span v-if="sortField === 'category'" class="text-primary">
+                      <ChevronUp v-if="sortOrder === 1" class="w-3.5 h-3.5" />
+                      <ChevronDown v-else class="w-3.5 h-3.5" />
+                    </span>
+                  </div>
+                </TableHead>
+                <TableHead
+                  class="w-[120px] cursor-pointer select-none hover:text-foreground transition-colors"
+                  @click="handleSort('node_type')"
+                >
+                  <div class="flex items-center gap-1">
+                    Tipo
+                    <span v-if="sortField === 'node_type'" class="text-primary">
+                      <ChevronUp v-if="sortOrder === 1" class="w-3.5 h-3.5" />
+                      <ChevronDown v-else class="w-3.5 h-3.5" />
+                    </span>
+                  </div>
+                </TableHead>
+                <TableHead class="w-[100px]">Origen</TableHead>
+                <TableHead
+                  class="w-[80px] cursor-pointer select-none hover:text-foreground transition-colors"
+                  @click="handleSort('is_active')"
+                >
+                  <div class="flex items-center gap-1">
+                    Activo
+                    <span v-if="sortField === 'is_active'" class="text-primary">
+                      <ChevronUp v-if="sortOrder === 1" class="w-3.5 h-3.5" />
+                      <ChevronDown v-else class="w-3.5 h-3.5" />
+                    </span>
+                  </div>
+                </TableHead>
+                <TableHead class="w-[100px]">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow
+                v-for="data in paginatedData"
+                :key="data.id"
+                class="group hover:bg-muted/50 transition-colors"
+              >
+                <!-- Node Key -->
+                <TableCell>
+                  <div class="flex items-center gap-2">
+                    <div
+                      class="w-8 h-8 rounded flex items-center justify-center shrink-0"
+                      :style="{ backgroundColor: data.color + '20', color: data.color }"
+                    >
+                      <i :class="`pi ${data.icon}`" />
+                    </div>
+                    <span class="font-mono text-sm">{{ data.node_key }}</span>
+                  </div>
+                </TableCell>
 
-          <Column field="display_name" header="Nombre" sortable>
-            <template #body="{ data }">
-              <div>
-                <div class="font-medium">{{ data.display_name }}</div>
-                <div class="text-xs text-gray-400 truncate max-w-xs" :title="data.description">
-                  {{ data.description || '-' }}
-                </div>
-              </div>
-            </template>
-          </Column>
+                <!-- Nombre -->
+                <TableCell>
+                  <div>
+                    <div class="font-medium text-foreground">{{ data.display_name }}</div>
+                    <div
+                      class="text-xs text-muted-foreground truncate max-w-xs"
+                      :title="data.description ?? undefined"
+                    >
+                      {{ data.description || '-' }}
+                    </div>
+                  </div>
+                </TableCell>
 
-          <Column field="category" header="Categoria" sortable>
-            <template #body="{ data }">
-              <Tag :value="data.category" severity="secondary" />
-            </template>
-          </Column>
+                <!-- Categoria -->
+                <TableCell>
+                  <Badge variant="secondary">{{ data.category }}</Badge>
+                </TableCell>
 
-          <Column field="node_type" header="Tipo" sortable>
-            <template #body="{ data }">
-              <Tag :value="data.node_type" :severity="getNodeTypeSeverity(data.node_type)" />
-            </template>
-          </Column>
+                <!-- Tipo -->
+                <TableCell>
+                  <Badge :variant="getNodeTypeBadgeVariant(data.node_type)">
+                    {{ data.node_type }}
+                  </Badge>
+                </TableCell>
 
-          <Column header="Origen" style="width: 100px">
-            <template #body="{ data }">
-              <Tag
-                :value="data.is_builtin ? 'Builtin' : 'Custom'"
-                :severity="data.is_builtin ? 'info' : 'success'"
-              />
-            </template>
-          </Column>
+                <!-- Origen -->
+                <TableCell>
+                  <Badge :variant="data.is_builtin ? 'info' : 'success'">
+                    {{ data.is_builtin ? 'Builtin' : 'Custom' }}
+                  </Badge>
+                </TableCell>
 
-          <Column field="is_active" header="Activo" style="width: 80px">
-            <template #body="{ data }">
-              <i
-                :class="data.is_active ? 'pi pi-check text-green-500' : 'pi pi-times text-gray-400'"
-              />
-            </template>
-          </Column>
+                <!-- Activo -->
+                <TableCell>
+                  <Check v-if="data.is_active" class="w-4 h-4 text-green-500" />
+                  <X v-else class="w-4 h-4 text-muted-foreground" />
+                </TableCell>
 
-          <Column header="Acciones" style="width: 100px">
-            <template #body="{ data }">
-              <div class="flex gap-1">
-                <Button
-                  icon="pi pi-pencil"
-                  severity="secondary"
-                  text
-                  rounded
-                  @click="openEditDialog(data)"
-                />
-                <Button
-                  icon="pi pi-trash"
-                  severity="danger"
-                  text
-                  rounded
-                  :disabled="data.is_builtin"
-                  v-tooltip.top="data.is_builtin ? 'No se puede eliminar' : 'Eliminar'"
-                  @click="confirmDelete(data)"
-                />
-              </div>
-            </template>
-          </Column>
-        </DataTable>
-      </template>
+                <!-- Acciones -->
+                <TableCell>
+                  <div class="flex gap-1">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            class="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/30"
+                            @click="openEditDialog(data)"
+                          >
+                            <Pencil class="w-4 h-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Editar</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            class="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/30"
+                            :disabled="data.is_builtin"
+                            @click="confirmDelete(data)"
+                          >
+                            <Trash2 class="w-4 h-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {{ data.is_builtin ? 'No se puede eliminar' : 'Eliminar' }}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </template>
+      </CardContent>
+
+      <!-- Pagination -->
+      <CardFooter
+        v-if="!loading && sortedData.length > 0"
+        class="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-border"
+      >
+        <div class="text-sm text-muted-foreground">
+          Mostrando {{ paginationStart }} a {{ paginationEnd }} de {{ sortedData.length }} definiciones
+        </div>
+        <div class="flex items-center gap-2">
+          <Select
+            :model-value="String(rowsPerPage)"
+            @update:model-value="(v: string) => { rowsPerPage = Number(v); currentPage = 1 }"
+          >
+            <SelectTrigger class="w-[80px] h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">10</SelectItem>
+              <SelectItem value="15">15</SelectItem>
+              <SelectItem value="25">25</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+            </SelectContent>
+          </Select>
+          <div class="flex gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              class="h-8 w-8"
+              :disabled="currentPage <= 1"
+              @click="currentPage = currentPage - 1"
+            >
+              <i class="pi pi-angle-left text-xs" />
+            </Button>
+            <span class="flex items-center px-2 text-sm text-muted-foreground">
+              {{ currentPage }} / {{ totalPages }}
+            </span>
+            <Button
+              variant="outline"
+              size="icon"
+              class="h-8 w-8"
+              :disabled="currentPage >= totalPages"
+              @click="currentPage = currentPage + 1"
+            >
+              <i class="pi pi-angle-right text-xs" />
+            </Button>
+          </div>
+        </div>
+      </CardFooter>
     </Card>
 
     <!-- Create Dialog -->
-    <Dialog
-      v-model:visible="createDialogVisible"
-      header="Nueva Definicion de Nodo"
-      :modal="true"
-      :style="{ width: '600px' }"
-    >
-      <div class="flex flex-col gap-4">
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Node Key <span class="text-red-500">*</span>
-            </label>
-            <InputText
-              v-model="newNodeDef.node_key"
-              class="w-full"
-              placeholder="my_custom_node"
-            />
-            <small class="text-gray-400">Identificador unico, snake_case</small>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Nombre <span class="text-red-500">*</span>
-            </label>
-            <InputText
-              v-model="newNodeDef.display_name"
-              class="w-full"
-              placeholder="Mi Nodo Custom"
-            />
-          </div>
-        </div>
+    <Dialog v-model:open="createDialogVisible">
+      <DialogContent class="glass-dialog sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Nueva Definicion de Nodo</DialogTitle>
+          <DialogDescription class="sr-only">
+            Formulario para crear una nueva definicion de nodo de workflow
+          </DialogDescription>
+        </DialogHeader>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Descripcion</label>
-          <Textarea
-            v-model="newNodeDef.description"
-            rows="2"
-            class="w-full"
-            placeholder="Describe que hace este nodo..."
-          />
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-            <Select
-              v-model="newNodeDef.node_type"
-              :options="nodeTypeOptions"
-              optionLabel="label"
-              optionValue="value"
-              class="w-full"
-            />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-            <InputText v-model="newNodeDef.category" class="w-full" placeholder="custom" />
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Icono</label>
-            <IconPicker v-model="newNodeDef.icon" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Color</label>
-            <div class="flex items-center gap-2">
-              <ColorPicker v-model="newNodeDef.color" format="hex" />
-              <InputText v-model="newNodeDef.color" class="flex-1" placeholder="#64748b" />
+        <div class="flex flex-col gap-4 py-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-foreground mb-1">
+                Node Key <span class="text-destructive">*</span>
+              </label>
+              <Input
+                v-model="newNodeDef.node_key"
+                placeholder="my_custom_node"
+              />
+              <span class="text-xs text-muted-foreground">Identificador unico, snake_case</span>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-foreground mb-1">
+                Nombre <span class="text-destructive">*</span>
+              </label>
+              <Input
+                v-model="newNodeDef.display_name"
+                placeholder="Mi Nodo Custom"
+              />
             </div>
           </div>
+
+          <div>
+            <label class="block text-sm font-medium text-foreground mb-1">Descripcion</label>
+            <Textarea
+              v-model="newNodeDef.description"
+              rows="2"
+              placeholder="Describe que hace este nodo..."
+            />
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-foreground mb-1">Tipo</label>
+              <Select
+                :model-value="newNodeDef.node_type"
+                @update:model-value="(v: string) => { newNodeDef.node_type = v as NodeDefinitionCreate['node_type'] }"
+              >
+                <SelectTrigger class="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem
+                    v-for="opt in nodeTypeOptions"
+                    :key="opt.value"
+                    :value="opt.value"
+                  >
+                    {{ opt.label }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-foreground mb-1">Categoria</label>
+              <Input v-model="newNodeDef.category" placeholder="custom" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-foreground mb-1">Icono</label>
+              <IconPicker v-model="newNodeDef.icon" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-foreground mb-1">Color</label>
+              <div class="flex items-center gap-2">
+                <input
+                  type="color"
+                  :value="newNodeDef.color"
+                  class="w-10 h-10 rounded-md border border-border cursor-pointer bg-transparent p-0.5"
+                  @input="(e) => { newNodeDef.color = (e.target as HTMLInputElement).value }"
+                />
+                <Input
+                  v-model="newNodeDef.color"
+                  class="flex-1"
+                  placeholder="#64748b"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-foreground mb-1">Config Schema (JSON)</label>
+            <Textarea
+              v-model="configSchemaJson"
+              rows="4"
+              class="font-mono text-sm"
+              placeholder="{}"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-foreground mb-1">Default Config (JSON)</label>
+            <Textarea
+              v-model="defaultConfigJson"
+              rows="3"
+              class="font-mono text-sm"
+              placeholder="{}"
+            />
+          </div>
+
+          <Alert variant="info">
+            <AlertDescription class="text-sm">
+              Los nodos custom usan un handler generico. Para funcionalidad avanzada,
+              se requiere implementacion en el backend.
+            </AlertDescription>
+          </Alert>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Config Schema (JSON)</label>
-          <Textarea
-            v-model="configSchemaJson"
-            rows="4"
-            class="w-full font-mono text-sm"
-            placeholder="{}"
-          />
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Default Config (JSON)</label>
-          <Textarea
-            v-model="defaultConfigJson"
-            rows="3"
-            class="w-full font-mono text-sm"
-            placeholder="{}"
-          />
-        </div>
-
-        <Message severity="info" :closable="false">
-          <p class="text-sm">
-            Los nodos custom usan un handler generico. Para funcionalidad avanzada,
-            se requiere implementacion en el backend.
-          </p>
-        </Message>
-      </div>
-
-      <template #footer>
-        <Button label="Cancelar" severity="secondary" text @click="createDialogVisible = false" />
-        <Button label="Crear" icon="pi pi-plus" severity="success" @click="createNodeDefinition" />
-      </template>
+        <DialogFooter>
+          <Button variant="outline" @click="createDialogVisible = false">
+            Cancelar
+          </Button>
+          <Button @click="createNodeDefinition">
+            <Plus class="w-4 h-4 mr-2" />
+            Crear
+          </Button>
+        </DialogFooter>
+      </DialogContent>
     </Dialog>
 
     <!-- Edit Dialog -->
-    <Dialog
-      v-model:visible="editDialogVisible"
-      header="Editar Definicion de Nodo"
-      :modal="true"
-      :style="{ width: '600px' }"
-    >
-      <div v-if="editingNodeDef" class="flex flex-col gap-4">
-        <Message v-if="editingNodeDef.is_builtin" severity="warn" :closable="false">
-          <p class="text-sm">
-            Este es un nodo builtin. Solo se pueden editar campos de presentacion
-            (nombre, descripcion, icono, color).
-          </p>
-        </Message>
+    <Dialog v-model:open="editDialogVisible">
+      <DialogContent class="glass-dialog sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Editar Definicion de Nodo</DialogTitle>
+          <DialogDescription class="sr-only">
+            Formulario para editar una definicion de nodo de workflow existente
+          </DialogDescription>
+        </DialogHeader>
 
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Node Key</label>
-            <InputText :modelValue="editingNodeDef.node_key" class="w-full" disabled />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-            <InputText v-model="editingNodeDef.display_name" class="w-full" />
-          </div>
-        </div>
+        <div v-if="editingNodeDef" class="flex flex-col gap-4 py-4">
+          <Alert v-if="editingNodeDef.is_builtin" variant="warning">
+            <AlertDescription class="text-sm">
+              Este es un nodo builtin. Solo se pueden editar campos de presentacion
+              (nombre, descripcion, icono, color).
+            </AlertDescription>
+          </Alert>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Descripcion</label>
-          <Textarea v-model="editingNodeDef.description" rows="2" class="w-full" />
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Icono</label>
-            <IconPicker v-model="editingNodeDef.icon" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Color</label>
-            <div class="flex items-center gap-2">
-              <ColorPicker v-model="editingNodeDef.color" format="hex" />
-              <InputText v-model="editingNodeDef.color" class="flex-1" />
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-foreground mb-1">Node Key</label>
+              <Input :model-value="editingNodeDef.node_key" disabled />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-foreground mb-1">Nombre</label>
+              <Input v-model="editingNodeDef.display_name" />
             </div>
           </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-            <InputText v-model="editingNodeDef.category" class="w-full" />
-          </div>
-          <div class="flex items-center gap-2 pt-6">
-            <ToggleSwitch v-model="editingNodeDef.is_active" />
-            <span class="text-sm">Activo</span>
-          </div>
-        </div>
-
-        <template v-if="!editingNodeDef.is_builtin">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Config Schema (JSON)</label>
-            <Textarea
-              v-model="editConfigSchemaJson"
-              rows="4"
-              class="w-full font-mono text-sm"
-            />
-          </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Default Config (JSON)</label>
-            <Textarea
-              v-model="editDefaultConfigJson"
-              rows="3"
-              class="w-full font-mono text-sm"
-            />
+            <label class="block text-sm font-medium text-foreground mb-1">Descripcion</label>
+            <Textarea :model-value="editingNodeDef.description ?? ''" @update:model-value="(v: string) => { if (editingNodeDef) editingNodeDef.description = v }" rows="2" />
           </div>
-        </template>
 
-        <div v-if="editingNodeDef.is_builtin" class="text-sm text-gray-500">
-          <strong>Python Class:</strong> {{ editingNodeDef.python_class }}<br />
-          <strong>Python Module:</strong> {{ editingNodeDef.python_module }}
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-foreground mb-1">Icono</label>
+              <IconPicker v-model="editingNodeDef.icon" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-foreground mb-1">Color</label>
+              <div class="flex items-center gap-2">
+                <input
+                  type="color"
+                  :value="editingNodeDef.color"
+                  class="w-10 h-10 rounded-md border border-border cursor-pointer bg-transparent p-0.5"
+                  @input="(e) => { editingNodeDef!.color = (e.target as HTMLInputElement).value }"
+                />
+                <Input v-model="editingNodeDef.color" class="flex-1" />
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-foreground mb-1">Categoria</label>
+              <Input v-model="editingNodeDef.category" />
+            </div>
+            <div class="flex items-center gap-2 pt-6">
+              <Switch
+                :checked="editingNodeDef.is_active"
+                @update:checked="(v: boolean) => { editingNodeDef!.is_active = v }"
+              />
+              <span class="text-sm text-foreground">Activo</span>
+            </div>
+          </div>
+
+          <template v-if="!editingNodeDef.is_builtin">
+            <div>
+              <label class="block text-sm font-medium text-foreground mb-1">Config Schema (JSON)</label>
+              <Textarea
+                v-model="editConfigSchemaJson"
+                rows="4"
+                class="font-mono text-sm"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-foreground mb-1">Default Config (JSON)</label>
+              <Textarea
+                v-model="editDefaultConfigJson"
+                rows="3"
+                class="font-mono text-sm"
+              />
+            </div>
+          </template>
+
+          <div v-if="editingNodeDef.is_builtin" class="text-sm text-muted-foreground">
+            <strong>Python Class:</strong> {{ editingNodeDef.python_class }}<br />
+            <strong>Python Module:</strong> {{ editingNodeDef.python_module }}
+          </div>
         </div>
-      </div>
 
-      <template #footer>
-        <Button label="Cancelar" severity="secondary" text @click="editDialogVisible = false" />
-        <Button label="Guardar" icon="pi pi-check" severity="success" @click="saveNodeDefinition" />
-      </template>
+        <DialogFooter>
+          <Button variant="outline" @click="editDialogVisible = false">
+            Cancelar
+          </Button>
+          <Button @click="saveNodeDefinition">
+            <Check class="w-4 h-4 mr-2" />
+            Guardar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
     </Dialog>
   </div>
 </template>

@@ -14,7 +14,7 @@ const props = defineProps<Props>()
 
 <template>
   <div
-    class="formatter-node"
+    class="formatter-node glass-node"
     :class="{ 'node-selected': data.isSelected }"
   >
     <Handle type="target" :position="Position.Top" class="handle" />
@@ -39,7 +39,6 @@ const props = defineProps<Props>()
   padding: 0.75rem;
   border-radius: 0.5rem;
   border: 2px solid #a855f7;
-  background: var(--surface-card);
   box-shadow: 0 2px 6px rgba(168, 85, 247, 0.1);
   transition: all 0.2s;
 }
@@ -81,12 +80,12 @@ const props = defineProps<Props>()
 .node-label {
   font-weight: 600;
   font-size: 0.85rem;
-  color: var(--text-color);
+  color: hsl(var(--foreground));
 }
 
 .node-description {
   font-size: 0.65rem;
-  color: var(--text-color-secondary);
+  color: hsl(var(--muted-foreground));
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
@@ -98,14 +97,6 @@ const props = defineProps<Props>()
   width: 10px;
   height: 10px;
   background: #a855f7;
-  border: 2px solid var(--surface-card);
-}
-
-/* Dark mode */
-:root.dark .formatter-node,
-.dark-mode .formatter-node,
-[data-theme="dark"] .formatter-node {
-  background: var(--surface-card);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border: 2px solid hsl(var(--card));
 }
 </style>

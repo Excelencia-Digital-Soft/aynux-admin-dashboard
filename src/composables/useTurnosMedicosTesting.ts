@@ -1,5 +1,8 @@
 import { ref, computed, watch, onMounted } from 'vue'
-import { medicalApi } from '@/api/medical.api'
+import apiClient from '@/api'
+import { tenantInstitutionConfigApi } from '@/api/tenantInstitutionConfig.api'
+import { useAuthStore } from '@/stores/auth.store'
+import type { TenantInstitutionConfig } from '@/types/tenantInstitutionConfig.types'
 import type {
   Institution,
   MedicalTestMessage,
@@ -7,8 +10,11 @@ import type {
   ConversationContext,
   ConversationMessage,
   InteractiveButton,
-  InteractiveListItem
-} from '@/api/medical.api'
+  InteractiveListItem,
+  ConversationListResponse,
+  MessageListResponse,
+  MedicalTestResponse
+} from '@/types/turnosMedicos.types'
 import { useToast } from '@/composables/useToast'
 
 /**
@@ -72,10 +78,28 @@ export function useTurnosMedicosTesting(options: UseTurnosMedicosTestingOptions 
   /**
    * Fetch available medical institutions.
    */
+  function mapConfigToInstitution(config: TenantInstitutionConfig): Institution {
+    return {
+      id: config.id,
+      name: config.institution_name,
+      code: config.settings?.chattigo?.did || config.settings?.whatsapp?.phone_number_id || '',
+      institution_key: config.institution_key,
+      institution_type: config.institution_type,
+      active: config.enabled
+    }
+  }
+
   async function fetchInstitutions(): Promise<void> {
     isLoading.value = true
     try {
-      institutions.value = await medicalApi.getInstitutions()
+      const authStore = useAuthStore()
+      const orgId = authStore.currentOrgId
+      if (!orgId) {
+        toast.error('No hay organizacion seleccionada')
+        return
+      }
+      const response = await tenantInstitutionConfigApi.list(orgId, { institution_type: 'medical' })
+      institutions.value = response.items.map(mapConfigToInstitution)
       if (institutions.value.length > 0 && !selectedInstitution.value) {
         selectedInstitution.value = institutions.value[0]
         webhookConfig.value.did = institutions.value[0].code
@@ -114,12 +138,12 @@ export function useTurnosMedicosTesting(options: UseTurnosMedicosTestingOptions 
 
     isSending.value = true
     try {
-      const response = await medicalApi.sendTestMessage({
+      const { data: response } = await apiClient.post<MedicalTestResponse>('/admin/medical/test', {
         whatsapp_phone_number_id: did,
         phone_number: webhookConfig.value.phoneNumber,
         message: messageText,
         session_id: sessionId.value || undefined
-      })
+      }, { timeout: 120000 })
 
       if (response) {
         sessionId.value = response.session_id
@@ -181,12 +205,12 @@ export function useTurnosMedicosTesting(options: UseTurnosMedicosTestingOptions 
 
     isSending.value = true
     try {
-      const response = await medicalApi.sendTestMessage({
+      const { data: response } = await apiClient.post<MedicalTestResponse>('/admin/medical/test', {
         whatsapp_phone_number_id: did,
         phone_number: webhookConfig.value.phoneNumber,
         interactive_response: { type, id, title },
         session_id: sessionId.value || undefined
-      })
+      }, { timeout: 120000 })
 
       if (response) {
         sessionId.value = response.session_id
@@ -289,9 +313,10 @@ export function useTurnosMedicosTesting(options: UseTurnosMedicosTestingOptions 
     }
     isLoadingHistory.value = true
     try {
-      conversationHistory.value = await medicalApi.getConversationsByPhone(
-        webhookConfig.value.phoneNumber
-      )
+      const { data: convData } = await apiClient.get<ConversationListResponse>('/conversations/recent', {
+        params: { user_phone: webhookConfig.value.phoneNumber, limit: 10 }
+      })
+      conversationHistory.value = convData.conversations
       if (conversationHistory.value.length === 0) {
         toast.info('No hay historial para este telefono')
       }
@@ -307,7 +332,10 @@ export function useTurnosMedicosTesting(options: UseTurnosMedicosTestingOptions 
     selectedConversation.value = conv
     isLoadingHistory.value = true
     try {
-      historyMessages.value = await medicalApi.getConversationMessages(conv.conversation_id)
+      const { data: msgData } = await apiClient.get<MessageListResponse>(`/conversations/${conv.conversation_id}/messages`, {
+        params: { limit: 50 }
+      })
+      historyMessages.value = msgData.messages
     } catch (err) {
       toast.error('Error al cargar mensajes')
       console.error('Error loading conversation messages:', err)
@@ -318,7 +346,8 @@ export function useTurnosMedicosTesting(options: UseTurnosMedicosTestingOptions 
 
   async function deleteConversation(conv: ConversationContext): Promise<void> {
     try {
-      const success = await medicalApi.deleteConversation(conv.conversation_id)
+      await apiClient.delete(`/conversations/${conv.conversation_id}`)
+      const success = true
       if (success) {
         conversationHistory.value = conversationHistory.value.filter(
           (c) => c.conversation_id !== conv.conversation_id
@@ -341,7 +370,7 @@ export function useTurnosMedicosTesting(options: UseTurnosMedicosTestingOptions 
     isDeletingHistory.value = true
     try {
       for (const conv of conversationHistory.value) {
-        await medicalApi.deleteConversation(conv.conversation_id)
+        await apiClient.delete(`/conversations/${conv.conversation_id}`)
       }
       conversationHistory.value = []
       historyMessages.value = []

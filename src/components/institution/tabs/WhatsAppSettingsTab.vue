@@ -3,8 +3,8 @@
  * WhatsAppSettingsTab - WhatsApp Business API integration settings.
  */
 
-import InputText from 'primevue/inputtext'
-import Message from 'primevue/message'
+import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import type { WhatsAppSettings } from '@/types/tenantInstitutionConfig.types'
 
 // ============================================================
@@ -15,63 +15,64 @@ const model = defineModel<WhatsAppSettings>({ required: true })
 </script>
 
 <template>
-  <div class="whatsapp-settings-tab space-y-4">
-    <Message severity="info" :closable="false">
-      <i class="pi pi-info-circle mr-2" />
-      Estos datos se obtienen de la configuracion de WhatsApp Business API en Meta Business Suite.
-    </Message>
+  <div class="space-y-4">
+    <Alert>
+      <AlertDescription>
+        <i class="pi pi-info-circle mr-2" />
+        Estos datos se obtienen de la configuracion de WhatsApp Business API en Meta Business Suite.
+      </AlertDescription>
+    </Alert>
 
     <!-- Phone Number ID -->
-    <div class="field">
-      <label for="phone_number_id" class="block text-sm font-medium text-gray-700 mb-1">
+    <div>
+      <label for="phone_number_id" class="block text-sm font-medium text-foreground mb-1">
         Phone Number ID
       </label>
-      <InputText
+      <Input
         id="phone_number_id"
         v-model="model.phone_number_id"
-        class="w-full"
         placeholder="ej: 123456789012345"
       />
-      <small class="text-gray-500">
+      <p class="text-xs text-muted-foreground mt-1">
         ID del numero de telefono de WhatsApp Business. Se usa para routing de bypass.
-      </small>
+      </p>
     </div>
 
     <!-- Business Account ID -->
-    <div class="field">
-      <label for="business_account_id" class="block text-sm font-medium text-gray-700 mb-1">
+    <div>
+      <label for="business_account_id" class="block text-sm font-medium text-foreground mb-1">
         Business Account ID
       </label>
-      <InputText
+      <Input
         id="business_account_id"
         v-model="model.business_account_id"
-        class="w-full"
         placeholder="ej: 987654321098765"
       />
-      <small class="text-gray-500">
+      <p class="text-xs text-muted-foreground mt-1">
         ID de la cuenta de WhatsApp Business (WABA)
-      </small>
+      </p>
     </div>
 
     <!-- Verify Token -->
-    <div class="field">
-      <label for="verify_token" class="block text-sm font-medium text-gray-700 mb-1">
+    <div>
+      <label for="verify_token" class="block text-sm font-medium text-foreground mb-1">
         Verify Token
       </label>
-      <InputText
+      <Input
         id="verify_token"
         v-model="model.verify_token"
-        class="w-full"
         placeholder="Token de verificacion del webhook"
       />
-      <small class="text-gray-500">
+      <p class="text-xs text-muted-foreground mt-1">
         Token usado para verificar el webhook de WhatsApp
-      </small>
+      </p>
     </div>
 
-    <Message v-if="model.phone_number_id" severity="success" :closable="false">
-      <i class="pi pi-check-circle mr-2" />
-      WhatsApp configurado. Los mensajes a este numero seran enrutados a esta institucion.
-    </Message>
+    <Alert v-if="model.phone_number_id" variant="success">
+      <AlertDescription>
+        <i class="pi pi-check-circle mr-2" />
+        WhatsApp configurado. Los mensajes a este numero seran enrutados a esta institucion.
+      </AlertDescription>
+    </Alert>
   </div>
 </template>

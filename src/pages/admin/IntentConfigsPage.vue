@@ -30,7 +30,45 @@
     </div>
 
     <!-- Graph Component -->
-    <IntentConfigGraph class="graph-container" />
+    <IntentConfigGraph
+      class="graph-container"
+      height="400px"
+      @domain-change="currentDomain = $event"
+    />
+
+    <!-- Config Tabs -->
+    <Tabs default-value="intents" class="config-tabs">
+      <TabsList>
+        <TabsTrigger value="intents">
+          <i class="pi pi-list mr-1" /> Intents
+        </TabsTrigger>
+        <TabsTrigger value="responses">
+          <i class="pi pi-comment mr-1" /> Respuestas
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="intents" class="mt-4 space-y-4">
+        <div class="rounded-lg border border-blue-200/50 bg-blue-50/50 p-3 dark:border-blue-500/20 dark:bg-blue-950/30">
+          <p class="text-sm text-blue-800 dark:text-blue-300">
+            <i class="pi pi-info-circle mr-1" />
+            <strong>Intents</strong> definen que quiere hacer el usuario. Cada intent tiene patrones de deteccion (lemmas, frases, keywords) que spaCy usa para clasificar mensajes entrantes.
+            Cuando un mensaje coincide con un patron, el router dirige la conversacion al nodo correspondiente del grafo.
+          </p>
+        </div>
+        <DomainIntentsPanel :domain="currentDomain" />
+      </TabsContent>
+
+      <TabsContent value="responses" class="mt-4 space-y-4">
+        <div class="rounded-lg border border-purple-200/50 bg-purple-50/50 p-3 dark:border-purple-500/20 dark:bg-purple-950/30">
+          <p class="text-sm text-purple-800 dark:text-purple-300">
+            <i class="pi pi-info-circle mr-1" />
+            <strong>Respuestas</strong> configuran como el agente responde a cada intent detectado. Cada config inyecta una instruccion al LLM (task_description) y define un template de fallback para cuando el LLM no esta disponible.
+            Las configs marcadas como <em>criticas</em> siempre usan el template fijo, sin pasar por el LLM.
+          </p>
+        </div>
+        <ResponseConfigsPanel :domain="currentDomain" />
+      </TabsContent>
+    </Tabs>
 
     <!-- Test Dialog -->
     <Dialog
@@ -93,20 +131,24 @@ import { ref } from 'vue'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import Toast from 'primevue/toast'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 
 import { IntentConfigGraph, IntentTestPanel } from '@/components/intent-configs'
+import DomainIntentsPanel from '@/pages/admin/DomainIntentsPanel.vue'
+import ResponseConfigsPanel from '@/pages/admin/ResponseConfigsPanel.vue'
 
-// Dialogs
+// State
 const showHelpDialog = ref(false)
 const showTestDialog = ref(false)
+const currentDomain = ref<string | null>('pharmacy')
 </script>
 
 <style scoped>
 .intent-configs-page {
   padding: 1.5rem;
-  height: calc(100vh - 64px);
   display: flex;
   flex-direction: column;
+  gap: 1rem;
 }
 
 .page-header {
@@ -136,8 +178,16 @@ const showTestDialog = ref(false)
 }
 
 .graph-container {
+  flex-shrink: 0;
+}
+
+.config-tabs {
   flex: 1;
   min-height: 0;
+}
+
+.mr-1 {
+  margin-right: 0.25rem;
 }
 
 .mr-2 {

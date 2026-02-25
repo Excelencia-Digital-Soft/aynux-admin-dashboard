@@ -19,6 +19,15 @@ interface PharmacyState {
   customers: PharmacyCustomer[]
   totalCustomers: number
   selectedCustomer: PharmacyCustomer | null
+  selectedCustomers: PharmacyCustomer[]
+
+  // Summarize progress
+  summarizeProgress: {
+    current: number
+    total: number
+    isRunning: boolean
+    currentConversationId: string | null
+  }
 
   // Messages/Timeline (for selected pharmacy)
   messages: PharmacyMessage[]
@@ -75,6 +84,14 @@ export const usePharmacyStore = defineStore('pharmacy', {
     customers: [],
     totalCustomers: 0,
     selectedCustomer: null,
+    selectedCustomers: [],
+
+    summarizeProgress: {
+      current: 0,
+      total: 0,
+      isRunning: false,
+      currentConversationId: null
+    },
 
     messages: [],
     totalMessages: 0,
@@ -209,6 +226,53 @@ export const usePharmacyStore = defineStore('pharmacy', {
       this.selectedCustomer = customer
       if (!customer) {
         this.conversation = null
+      }
+    },
+
+    setSelectedCustomers(customers: PharmacyCustomer[]) {
+      this.selectedCustomers = customers
+    },
+
+    toggleCustomerSelection(customer: PharmacyCustomer) {
+      const index = this.selectedCustomers.findIndex(c => c.conversation_id === customer.conversation_id)
+      if (index >= 0) {
+        this.selectedCustomers.splice(index, 1)
+      } else {
+        this.selectedCustomers.push(customer)
+      }
+    },
+
+    selectAllCustomers() {
+      this.selectedCustomers = [...this.customers]
+    },
+
+    clearCustomerSelection() {
+      this.selectedCustomers = []
+    },
+
+    removeCustomers(conversationIds: string[]) {
+      this.customers = this.customers.filter(c => !conversationIds.includes(c.conversation_id))
+      this.totalCustomers -= conversationIds.length
+      this.selectedCustomers = this.selectedCustomers.filter(c => !conversationIds.includes(c.conversation_id))
+    },
+
+    updateCustomerSummary(conversationId: string, summary: string) {
+      const customer = this.customers.find(c => c.conversation_id === conversationId)
+      if (customer) {
+        customer.rolling_summary = summary
+      }
+    },
+
+    setSummarizeProgress(progress: Partial<PharmacyState['summarizeProgress']>) {
+      this.summarizeProgress = { ...this.summarizeProgress, ...progress }
+    },
+
+    resetSummarizeProgress() {
+      this.summarizeProgress = {
+        current: 0,
+        total: 0,
+        isRunning: false,
+        currentConversationId: null
       }
     },
 

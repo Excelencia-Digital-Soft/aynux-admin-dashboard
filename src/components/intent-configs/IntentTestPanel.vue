@@ -4,65 +4,69 @@
     <div class="panel-header">
       <div class="header-info">
         <h3>Probar Deteccion de Intent</h3>
-        <p class="text-muted">
+        <p class="text-sm text-muted-foreground">
           Escribe un mensaje para ver como seria detectado y ruteado
         </p>
       </div>
     </div>
 
     <!-- Test Input -->
-    <div class="test-input-section">
+    <div class="test-input-section glass-panel p-6">
       <div class="input-row">
         <div class="message-input">
-          <label for="test_message">Mensaje de prueba</label>
+          <label for="test_message" class="text-sm font-medium">Mensaje de prueba</label>
           <Textarea
             id="test_message"
             v-model="testMessage"
-            rows="3"
             placeholder="Ej: Hola, necesito ayuda con mi factura del mes pasado"
-            class="w-full"
+            class="w-full min-h-[80px]"
             @keydown.ctrl.enter="handleTest"
           />
-          <small>Ctrl+Enter para probar</small>
+          <small class="text-xs text-muted-foreground">Ctrl+Enter para probar</small>
         </div>
-        <div class="domain-select">
-          <label for="test_domain">Dominio (opcional)</label>
-          <Select
-            id="test_domain"
-            v-model="testDomain"
-            :options="domainOptions"
-            optionLabel="label"
-            optionValue="value"
-            placeholder="Todos los dominios"
-            showClear
-            class="w-full"
-          />
+        <div class="domain-select-col">
+          <label for="test_domain" class="text-sm font-medium">Dominio (opcional)</label>
+          <Select v-model="testDomain">
+            <SelectTrigger class="w-full">
+              <SelectValue placeholder="Todos los dominios" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos los dominios</SelectItem>
+              <SelectItem
+                v-for="opt in domainOptions"
+                :key="opt.value"
+                :value="opt.value"
+              >
+                {{ opt.label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
       <Button
-        label="Detectar Intent"
-        icon="pi pi-search"
         @click="handleTest"
-        :loading="loading"
-        :disabled="!testMessage.trim() || !organizationId"
-      />
+        :disabled="!testMessage.trim() || !organizationId || loading"
+      >
+        <Spinner v-if="loading" size="sm" class="mr-2" />
+        <i v-else class="pi pi-search mr-2" />
+        Detectar Intent
+      </Button>
     </div>
 
     <!-- Result Section -->
     <transition name="fade">
-      <div v-if="lastTestResult" class="result-section">
+      <div v-if="lastTestResult" class="result-section glass-card p-6">
         <div class="result-header">
-          <h4>Resultado</h4>
-          <Tag
-            :value="getConfidenceLabel(lastTestResult.confidence)"
-            :severity="getConfidenceSeverity(lastTestResult.confidence)"
-          />
+          <h4 class="text-base font-semibold">Resultado</h4>
+          <Badge :variant="getConfidenceVariant(lastTestResult.confidence)">
+            {{ getConfidenceLabel(lastTestResult.confidence) }}
+          </Badge>
         </div>
 
         <div class="result-grid">
           <!-- Main Result -->
           <div class="result-card main-result">
-            <div class="result-icon success">
+            <div class="result-icon bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400">
               <i class="pi pi-check-circle"></i>
             </div>
             <div class="result-content">
@@ -73,36 +77,36 @@
 
           <!-- Target Agent -->
           <div class="result-card">
-            <div class="result-icon agent">
+            <div class="result-icon bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">
               <i class="pi pi-android"></i>
             </div>
             <div class="result-content">
               <span class="result-label">Agente Destino</span>
               <span class="result-value">
                 {{ formatAgentName(lastTestResult.target_agent) }}
-                <Tag
+                <Badge
                   v-if="lastTestResult.is_flow_agent"
-                  value="FLOW"
-                  severity="warning"
-                  class="flow-tag"
-                />
+                  variant="warning"
+                  class="text-[0.625rem]"
+                >
+                  FLOW
+                </Badge>
               </span>
             </div>
           </div>
 
           <!-- Confidence -->
           <div class="result-card">
-            <div class="result-icon confidence">
+            <div class="result-icon bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
               <i class="pi pi-percentage"></i>
             </div>
             <div class="result-content">
               <span class="result-label">Confianza</span>
               <div class="confidence-display">
-                <ProgressBar
-                  :value="lastTestResult.confidence * 100"
-                  :showValue="false"
-                  :class="getConfidenceClass(lastTestResult.confidence)"
-                  style="height: 8px; width: 100px"
+                <Progress
+                  :model-value="lastTestResult.confidence * 100"
+                  class="w-[100px] h-2"
+                  :class="getConfidenceProgressClass(lastTestResult.confidence)"
                 />
                 <span class="confidence-value">{{ (lastTestResult.confidence * 100).toFixed(1) }}%</span>
               </div>
@@ -111,7 +115,7 @@
 
           <!-- Method -->
           <div class="result-card">
-            <div class="result-icon method">
+            <div class="result-icon bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">
               <i class="pi pi-cog"></i>
             </div>
             <div class="result-content">
@@ -131,12 +135,13 @@
         <div v-if="lastTestResult.matched_keywords.length" class="keywords-section">
           <h5><i class="pi pi-tag"></i> Keywords Encontrados</h5>
           <div class="matched-keywords">
-            <Tag
+            <Badge
               v-for="kw in lastTestResult.matched_keywords"
               :key="kw"
-              :value="kw"
-              severity="info"
-            />
+              variant="info"
+            >
+              {{ kw }}
+            </Badge>
           </div>
         </div>
       </div>
@@ -149,17 +154,19 @@
     </div>
 
     <!-- History -->
-    <div v-if="testHistory.length" class="history-section">
+    <div v-if="testHistory.length" class="history-section glass-panel p-4">
       <div class="history-header">
         <h5><i class="pi pi-history"></i> Historial de Pruebas</h5>
-        <Button
-          icon="pi pi-trash"
-          severity="secondary"
-          text
-          size="small"
-          @click="clearHistory"
-          v-tooltip="'Limpiar historial'"
-        />
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button variant="ghost" size="icon" class="h-7 w-7" @click="clearHistory">
+                <i class="pi pi-trash text-xs" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Limpiar historial</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
       <div class="history-list">
         <div
@@ -170,7 +177,7 @@
         >
           <div class="history-message">{{ truncate(item.message, 50) }}</div>
           <div class="history-result">
-            <Tag :value="item.result.detected_intent" size="small" />
+            <Badge variant="secondary">{{ item.result.detected_intent }}</Badge>
             <span class="history-confidence">{{ (item.result.confidence * 100).toFixed(0) }}%</span>
           </div>
         </div>
@@ -181,11 +188,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import Button from 'primevue/button'
-import Textarea from 'primevue/textarea'
-import Select from 'primevue/select'
-import Tag from 'primevue/tag'
-import ProgressBar from 'primevue/progressbar'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
+import { Spinner } from '@/components/ui/spinner'
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 
 import { useIntentConfig } from '@/composables/useIntentConfig'
 import { useAuthStore } from '@/stores/auth.store'
@@ -197,7 +206,7 @@ const { lastTestResult, loading, testIntent } = useIntentConfig()
 
 // State
 const testMessage = ref('')
-const testDomain = ref<string | null>(null)
+const testDomain = ref<string>('__all__')
 const testHistory = ref<{ message: string; domain: string | null; result: IntentTestResult }[]>([])
 
 // Computed
@@ -237,16 +246,16 @@ function getConfidenceLabel(confidence: number): string {
   return 'Muy Baja'
 }
 
-function getConfidenceSeverity(confidence: number): string {
+function getConfidenceVariant(confidence: number): 'success' | 'warning' | 'destructive' {
   if (confidence >= 0.75) return 'success'
   if (confidence >= 0.5) return 'warning'
-  return 'danger'
+  return 'destructive'
 }
 
-function getConfidenceClass(confidence: number): string {
-  if (confidence >= 0.75) return 'confidence-high'
-  if (confidence >= 0.5) return 'confidence-medium'
-  return 'confidence-low'
+function getConfidenceProgressClass(confidence: number): string {
+  if (confidence >= 0.75) return '[&>div]:bg-green-500'
+  if (confidence >= 0.5) return '[&>div]:bg-yellow-500'
+  return '[&>div]:bg-red-500'
 }
 
 function truncate(text: string, length: number): string {
@@ -261,14 +270,14 @@ async function handleTest() {
   try {
     const result = await testIntent({
       message: testMessage.value,
-      domain_key: testDomain.value,
+      domain_key: testDomain.value === '__all__' ? null : testDomain.value,
     })
 
     if (result) {
       // Add to history
       testHistory.value.unshift({
         message: testMessage.value,
-        domain: testDomain.value,
+        domain: testDomain.value === '__all__' ? null : testDomain.value,
         result,
       })
       // Keep only last 10
@@ -283,7 +292,7 @@ async function handleTest() {
 
 function loadFromHistory(item: { message: string; domain: string | null; result: IntentTestResult }) {
   testMessage.value = item.message
-  testDomain.value = item.domain
+  testDomain.value = item.domain ?? '__all__'
 }
 
 function clearHistory() {
@@ -301,9 +310,6 @@ onMounted(() => {
     }
   }
 })
-
-// Save history to localStorage on change (simple implementation)
-// In production, you'd use a watcher with debounce
 </script>
 
 <style scoped>
@@ -320,20 +326,7 @@ onMounted(() => {
   font-size: 1.1rem;
 }
 
-.header-info .text-muted {
-  margin: 0.25rem 0 0 0;
-  color: var(--text-color-secondary);
-  font-size: 0.875rem;
-}
-
 /* Test Input Section */
-.test-input-section {
-  background: var(--surface-ground);
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
-}
-
 .input-row {
   display: grid;
   grid-template-columns: 1fr 200px;
@@ -342,42 +335,18 @@ onMounted(() => {
 }
 
 .message-input,
-.domain-select {
+.domain-select-col {
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
 }
 
-.message-input label,
-.domain-select label {
-  font-weight: 500;
-  font-size: 0.875rem;
-}
-
-.message-input small {
-  color: var(--text-color-secondary);
-  font-size: 0.75rem;
-}
-
 /* Result Section */
-.result-section {
-  background: var(--surface-card);
-  border: 1px solid var(--surface-border);
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
-}
-
 .result-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
-}
-
-.result-header h4 {
-  margin: 0;
-  font-size: 1rem;
 }
 
 .result-grid {
@@ -392,7 +361,7 @@ onMounted(() => {
   align-items: flex-start;
   gap: 0.75rem;
   padding: 1rem;
-  background: var(--surface-ground);
+  background: hsl(var(--muted));
   border-radius: 6px;
 }
 
@@ -416,26 +385,6 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-.result-icon.success {
-  background: var(--green-100);
-  color: var(--green-600);
-}
-
-.result-icon.agent {
-  background: var(--primary-100);
-  color: var(--primary-600);
-}
-
-.result-icon.confidence {
-  background: var(--blue-100);
-  color: var(--blue-600);
-}
-
-.result-icon.method {
-  background: var(--purple-100);
-  color: var(--purple-600);
-}
-
 .result-content {
   display: flex;
   flex-direction: column;
@@ -445,7 +394,7 @@ onMounted(() => {
 
 .result-label {
   font-size: 0.75rem;
-  color: var(--text-color-secondary);
+  color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -459,10 +408,6 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 
-.flow-tag {
-  font-size: 0.625rem;
-}
-
 .confidence-display {
   display: flex;
   align-items: center;
@@ -473,24 +418,12 @@ onMounted(() => {
   font-weight: 600;
 }
 
-:deep(.confidence-high .p-progressbar-value) {
-  background: var(--green-500);
-}
-
-:deep(.confidence-medium .p-progressbar-value) {
-  background: var(--yellow-500);
-}
-
-:deep(.confidence-low .p-progressbar-value) {
-  background: var(--red-500);
-}
-
 /* Reasoning Section */
 .reasoning-section,
 .keywords-section {
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid var(--surface-border);
+  border-top: 1px solid hsl(var(--border));
 }
 
 .reasoning-section h5,
@@ -500,14 +433,14 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--text-color-secondary);
+  color: hsl(var(--muted-foreground));
 }
 
 .reasoning-text {
   margin: 0;
   font-size: 0.875rem;
   line-height: 1.5;
-  color: var(--text-color);
+  color: hsl(var(--foreground));
 }
 
 .matched-keywords {
@@ -520,7 +453,7 @@ onMounted(() => {
 .empty-state {
   text-align: center;
   padding: 3rem 2rem;
-  color: var(--text-color-secondary);
+  color: hsl(var(--muted-foreground));
 }
 
 .empty-icon {
@@ -534,12 +467,6 @@ onMounted(() => {
 }
 
 /* History Section */
-.history-section {
-  background: var(--surface-ground);
-  border-radius: 8px;
-  padding: 1rem;
-}
-
 .history-header {
   display: flex;
   justify-content: space-between;
@@ -553,7 +480,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--text-color-secondary);
+  color: hsl(var(--muted-foreground));
 }
 
 .history-list {
@@ -567,19 +494,19 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 0.5rem 0.75rem;
-  background: var(--surface-card);
+  background: hsl(var(--card));
   border-radius: 4px;
   cursor: pointer;
   transition: background 0.2s;
 }
 
 .history-item:hover {
-  background: var(--surface-hover);
+  background: hsl(var(--accent));
 }
 
 .history-message {
   font-size: 0.875rem;
-  color: var(--text-color);
+  color: hsl(var(--foreground));
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -596,7 +523,7 @@ onMounted(() => {
 
 .history-confidence {
   font-size: 0.75rem;
-  color: var(--text-color-secondary);
+  color: hsl(var(--muted-foreground));
 }
 
 /* Animations */

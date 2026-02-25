@@ -1,10 +1,21 @@
 <script setup lang="ts">
 import { ref, nextTick, watch } from 'vue'
-import Card from 'primevue/card'
-import Button from 'primevue/button'
-import Select from 'primevue/select'
-import Tag from 'primevue/tag'
-import ProgressBar from 'primevue/progressbar'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
+} from '@/components/ui/select'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
 import type { PharmacyTestMessage } from '@/api/pharmacy.api'
 import type { StreamMetadata, StreamButton, StreamListItem } from '@/composables/usePharmacyStream'
 
@@ -36,6 +47,20 @@ const emit = defineEmits<{
 }>()
 
 const chatContainer = ref<HTMLElement | null>(null)
+
+// Pharmacy select model - use pharmacy id as string value
+const selectedPharmacyId = ref<string>('')
+
+watch(() => props.selectedPharmacy, (pharmacy) => {
+  selectedPharmacyId.value = pharmacy?.id || ''
+}, { immediate: true })
+
+function handlePharmacyChange(id: string) {
+  const pharmacy = props.pharmacies.find(p => p.id === id)
+  if (pharmacy) {
+    emit('update:selectedPharmacy', pharmacy)
+  }
+}
 
 // Auto-scroll when streaming content changes
 watch(() => props.streamContent, () => {
@@ -70,15 +95,15 @@ function getPhaseLabel(phase: string | null): string {
   return phase ? labels[phase] || phase : ''
 }
 
-function getPhaseSeverity(phase: string | null): 'info' | 'warn' | 'success' | 'danger' | 'secondary' {
-  const severities: Record<string, 'info' | 'warn' | 'success' | 'danger' | 'secondary'> = {
+function getPhaseBadgeVariant(phase: string | null): 'info' | 'warning' | 'success' | 'destructive' | 'secondary' {
+  const variants: Record<string, 'info' | 'warning' | 'success' | 'destructive' | 'secondary'> = {
     thinking: 'info',
-    processing: 'warn',
+    processing: 'warning',
     generating: 'success',
     complete: 'success',
-    error: 'danger'
+    error: 'destructive'
   }
-  return phase ? severities[phase] || 'secondary' : 'secondary'
+  return phase ? variants[phase] || 'secondary' : 'secondary'
 }
 
 function hasInteractiveButtons(msg: ExtendedMessage): boolean {
@@ -100,55 +125,61 @@ function linkifyText(text: string): string {
 </script>
 
 <template>
-  <Card class="chat-card overflow-hidden">
-    <template #header>
-      <div class="flex items-center justify-between p-4 bg-gradient-to-r from-green-600 to-green-500 text-white">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-            <i class="pi pi-whatsapp text-xl" />
-          </div>
-          <div>
-            <div class="font-semibold">
-              {{ selectedPharmacy?.name || 'Seleccionar Farmacia' }}
-            </div>
-            <div class="text-xs text-green-100 flex items-center gap-2">
-              <span v-if="hasSession" class="flex items-center gap-1">
-                <span class="w-2 h-2 bg-green-300 rounded-full animate-pulse" />
-                Sesión activa
-              </span>
-              <span v-else>Sin sesión</span>
-              <span v-if="useStreaming" class="flex items-center gap-1">
-                <i class="pi pi-bolt text-yellow-300" />
-                Streaming
-              </span>
-            </div>
-          </div>
+  <Card class="chat-card overflow-hidden border-0 shadow-none rounded-none">
+    <!-- Header -->
+    <div class="flex items-center justify-between p-4 bg-gradient-to-r from-green-600 to-green-500 text-white">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+          <i class="pi pi-whatsapp text-xl" />
         </div>
-        <div class="flex items-center gap-2">
-          <Select
-            :modelValue="selectedPharmacy"
-            @update:modelValue="(v) => emit('update:selectedPharmacy', v)"
-            :options="pharmacies"
-            optionLabel="name"
-            placeholder="Farmacia"
-            class="w-48"
-            :disabled="hasSession"
-          />
-          <Button
-            icon="pi pi-copy"
-            severity="secondary"
-            text
-            rounded
-            v-tooltip.bottom="'Copiar chat'"
-            @click="emit('copyChat')"
-            :disabled="messages.length === 0"
-            class="text-white hover:bg-white/20"
-          />
+        <div>
+          <div class="font-semibold">
+            {{ selectedPharmacy?.name || 'Seleccionar Farmacia' }}
+          </div>
+          <div class="text-xs text-green-100 flex items-center gap-2">
+            <span v-if="hasSession" class="flex items-center gap-1">
+              <span class="w-2 h-2 bg-green-300 rounded-full animate-pulse" />
+              Sesión activa
+            </span>
+            <span v-else>Sin sesión</span>
+            <span v-if="useStreaming" class="flex items-center gap-1">
+              <i class="pi pi-bolt text-yellow-300" />
+              Streaming
+            </span>
+          </div>
         </div>
       </div>
-    </template>
+      <div class="flex items-center gap-2">
+        <Select :model-value="selectedPharmacyId" @update:model-value="handlePharmacyChange" :disabled="hasSession">
+          <SelectTrigger class="w-48 bg-white/10 border-white/20 text-white">
+            <SelectValue placeholder="Farmacia" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem v-for="p in pharmacies" :key="p.id" :value="p.id">
+              {{ p.name }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="text-white hover:bg-white/20"
+                @click="emit('copyChat')"
+                :disabled="messages.length === 0"
+              >
+                <i class="pi pi-copy" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent><p>Copiar chat</p></TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+    </div>
 
-    <template #content>
+    <CardContent class="p-0">
       <!-- Chat Messages -->
       <div
         ref="chatContainer"
@@ -159,8 +190,8 @@ function linkifyText(text: string): string {
           v-if="messages.length === 0 && !isStreaming"
           class="h-full flex items-center justify-center"
         >
-          <div class="text-center text-gray-400 dark:text-gray-500">
-            <div class="w-16 h-16 mx-auto mb-4 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
+          <div class="text-center text-muted-foreground">
+            <div class="w-16 h-16 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
               <i class="pi pi-comments text-3xl" />
             </div>
             <p class="text-lg font-medium">Inicia una conversación</p>
@@ -219,7 +250,7 @@ function linkifyText(text: string): string {
                       @click="emit('listSelect', item)"
                     >
                       <div class="font-medium text-sm">{{ item.titulo }}</div>
-                      <div v-if="item.descripcion" class="text-xs text-gray-500 dark:text-gray-400">
+                      <div v-if="item.descripcion" class="text-xs text-muted-foreground">
                         {{ item.descripcion }}
                       </div>
                     </div>
@@ -227,27 +258,27 @@ function linkifyText(text: string): string {
 
                   <!-- Metadata footer -->
                   <div class="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100 dark:border-gray-600">
-                    <span class="text-xs text-gray-400 dark:text-gray-500">
+                    <span class="text-xs text-muted-foreground">
                       {{ formatTime(msg.timestamp) }}
                     </span>
                     <template v-if="msg.metadata">
-                      <Tag
+                      <Badge
                         v-if="msg.metadata?.bypass_matched"
-                        value="Bypass"
-                        severity="info"
-                        class="text-xs"
-                        style="font-size: 0.6rem; padding: 0.1rem 0.3rem;"
-                      />
-                      <Tag
+                        variant="info"
+                        class="text-[0.6rem] px-1.5 py-0"
+                      >
+                        Bypass
+                      </Badge>
+                      <Badge
                         v-if="msg.metadata?.domain"
-                        :value="msg.metadata?.domain"
-                        severity="secondary"
-                        class="text-xs"
-                        style="font-size: 0.6rem; padding: 0.1rem 0.3rem;"
-                      />
+                        variant="secondary"
+                        class="text-[0.6rem] px-1.5 py-0"
+                      >
+                        {{ msg.metadata?.domain }}
+                      </Badge>
                       <span
                         v-if="msg.metadata?.processing_time_ms"
-                        class="text-xs text-gray-400 dark:text-gray-500"
+                        class="text-xs text-muted-foreground"
                       >
                         {{ msg.metadata?.processing_time_ms }}ms
                       </span>
@@ -263,34 +294,30 @@ function linkifyText(text: string): string {
             <div class="max-w-[80%]">
               <!-- Status bar -->
               <div class="flex items-center gap-2 mb-2">
-                <Tag
-                  :value="getPhaseLabel(currentPhase)"
-                  :severity="getPhaseSeverity(currentPhase)"
-                  class="text-xs"
-                />
-                <Tag
+                <Badge :variant="getPhaseBadgeVariant(currentPhase)" class="text-xs">
+                  {{ getPhaseLabel(currentPhase) }}
+                </Badge>
+                <Badge
                   v-if="currentAgent"
-                  :value="currentAgent"
-                  severity="secondary"
-                  class="text-xs"
-                  style="font-size: 0.65rem;"
-                />
-                <Tag
+                  variant="secondary"
+                  class="text-[0.65rem] px-1.5 py-0"
+                >
+                  {{ currentAgent }}
+                </Badge>
+                <Badge
                   v-if="streamMetadata.bypass_matched"
-                  value="Bypass"
-                  severity="info"
-                  class="text-xs"
-                  style="font-size: 0.65rem;"
-                />
+                  variant="info"
+                  class="text-[0.65rem] px-1.5 py-0"
+                >
+                  Bypass
+                </Badge>
               </div>
 
               <!-- Progress bar -->
-              <div class="mb-2">
-                <ProgressBar
-                  :value="streamProgress * 100"
-                  :showValue="false"
-                  style="height: 4px"
-                  class="rounded-full"
+              <div class="mb-2 h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div
+                  class="h-full bg-gradient-to-r from-green-500 to-green-600 rounded-full transition-all duration-300"
+                  :style="{ width: `${streamProgress * 100}%` }"
                 />
               </div>
 
@@ -318,7 +345,7 @@ function linkifyText(text: string): string {
                       style="animation-delay: 300ms"
                     />
                   </div>
-                  <span class="text-sm text-gray-500 dark:text-gray-400">
+                  <span class="text-sm text-muted-foreground">
                     {{ currentPhase === 'thinking' ? 'Analizando consulta...' : 'Generando respuesta...' }}
                   </span>
                 </div>
@@ -338,15 +365,11 @@ function linkifyText(text: string): string {
           </div>
         </div>
       </div>
-    </template>
+    </CardContent>
   </Card>
 </template>
 
 <style scoped>
-.chat-card :deep(.p-card-body) {
-  padding: 0;
-}
-
 @keyframes bounce {
   0%, 60%, 100% {
     transform: translateY(0);
@@ -362,15 +385,6 @@ function linkifyText(text: string): string {
 
 .chat-messages {
   scroll-behavior: smooth;
-}
-
-/* Progress bar customization */
-:deep(.p-progressbar) {
-  background: #e5e7eb;
-}
-
-:deep(.p-progressbar-value) {
-  background: linear-gradient(to right, #22c55e, #16a34a);
 }
 
 /* WhatsApp-style interactive buttons */

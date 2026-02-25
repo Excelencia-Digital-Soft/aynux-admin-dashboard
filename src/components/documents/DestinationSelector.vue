@@ -5,11 +5,14 @@ import { UPLOAD_DESTINATIONS } from '@/utils/constants'
 import { agentKnowledgeApi } from '@/api/agentKnowledge.api'
 import type { UploadDestination } from '@/types/document.types'
 
-import Card from 'primevue/card'
-import RadioButton from 'primevue/radiobutton'
-import Select from 'primevue/select'
-import Message from 'primevue/message'
-import ProgressSpinner from 'primevue/progressspinner'
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
+} from '@/components/ui/select'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 interface Props {
   modelValue: UploadDestination
@@ -94,100 +97,105 @@ watch(
 
 <template>
   <div class="destination-selector">
-    <label class="block text-sm font-semibold text-gray-700 mb-3">
+    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
       Destino del documento
     </label>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-      <Card
+      <div
         v-for="dest in availableDestinations"
         :key="dest.value"
         :class="[
-          'cursor-pointer transition-all border-2 hover:shadow-md',
+          'glass-panel cursor-pointer transition-all p-4 hover:shadow-md',
           modelValue === dest.value
-            ? 'border-primary bg-primary/5'
-            : 'border-gray-200 hover:border-gray-300'
+            ? 'border-violet-500 dark:border-violet-400 bg-violet-50/50 dark:bg-violet-500/10'
+            : 'hover:border-gray-300 dark:hover:border-white/20'
         ]"
         @click="handleDestinationChange(dest.value)"
       >
-        <template #content>
-          <div class="flex items-start gap-3 p-1">
-            <RadioButton
-              :modelValue="modelValue"
-              :value="dest.value"
-              @update:modelValue="handleDestinationChange"
-            />
-            <div class="flex-1">
-              <div class="flex items-center gap-2">
-                <i :class="['pi', dest.icon, 'text-lg']" />
-                <span class="font-medium text-sm">{{ dest.label }}</span>
-              </div>
-              <p class="text-xs text-gray-500 mt-1">{{ dest.description }}</p>
+        <div class="flex items-start gap-3">
+          <div class="mt-0.5">
+            <div
+              :class="[
+                'w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors',
+                modelValue === dest.value
+                  ? 'border-violet-500 dark:border-violet-400'
+                  : 'border-gray-300 dark:border-gray-600'
+              ]"
+            >
+              <div
+                v-if="modelValue === dest.value"
+                class="w-2 h-2 rounded-full bg-violet-500 dark:bg-violet-400"
+              />
             </div>
           </div>
-        </template>
-      </Card>
+          <div class="flex-1">
+            <div class="flex items-center gap-2">
+              <i :class="['pi', dest.icon, 'text-lg']" />
+              <span class="font-medium text-sm text-gray-800 dark:text-gray-200">{{ dest.label }}</span>
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ dest.description }}</p>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Agent selector (shown when agent destination is selected) -->
-    <div v-if="modelValue === 'agent'" class="mt-4 p-4 bg-gray-50 rounded-lg">
-      <label class="block text-sm font-medium text-gray-700 mb-2">
+    <div v-if="modelValue === 'agent'" class="mt-4 p-4 glass-panel">
+      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
         Seleccionar Agente
       </label>
 
-      <div v-if="loadingAgents" class="flex items-center gap-2 text-gray-500">
-        <ProgressSpinner style="width: 20px; height: 20px" strokeWidth="4" />
+      <div v-if="loadingAgents" class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+        <i class="pi pi-spin pi-spinner" />
         <span class="text-sm">Cargando agentes...</span>
       </div>
 
       <Select
         v-else
         v-model="selectedAgent"
-        :options="availableAgents"
-        optionLabel="label"
-        optionValue="value"
-        placeholder="Selecciona un agente"
-        class="w-full"
         :disabled="availableAgents.length === 0"
-      />
+      >
+        <SelectTrigger class="w-full">
+          <SelectValue placeholder="Selecciona un agente" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem
+            v-for="agent in availableAgents"
+            :key="agent.value"
+            :value="agent.value"
+          >
+            {{ agent.label }}
+          </SelectItem>
+        </SelectContent>
+      </Select>
 
-      <Message
+      <Alert
         v-if="!loadingAgents && availableAgents.length === 0"
-        severity="warn"
-        :closable="false"
+        variant="warning"
         class="mt-2"
       >
-        No hay agentes disponibles
-      </Message>
+        <AlertDescription>No hay agentes disponibles</AlertDescription>
+      </Alert>
 
-      <Message
+      <Alert
         v-if="modelValue === 'agent' && !selectedAgent && availableAgents.length > 0"
-        severity="info"
-        :closable="false"
+        variant="info"
         class="mt-2"
       >
-        Selecciona un agente para continuar
-      </Message>
+        <AlertDescription>Selecciona un agente para continuar</AlertDescription>
+      </Alert>
     </div>
 
     <!-- Warning for tenant without org -->
-    <Message
+    <Alert
       v-if="modelValue === 'tenant' && !currentOrgId"
-      severity="warn"
-      :closable="false"
+      variant="warning"
       class="mt-2"
     >
-      Debes seleccionar una organizacion para subir documentos del tenant.
-    </Message>
+      <AlertDescription>
+        Debes seleccionar una organizacion para subir documentos del tenant.
+      </AlertDescription>
+    </Alert>
   </div>
 </template>
-
-<style scoped>
-.destination-selector :deep(.p-card-content) {
-  padding: 0.5rem;
-}
-
-.destination-selector :deep(.p-card-body) {
-  padding: 0.5rem;
-}
-</style>

@@ -1,9 +1,16 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import Dialog from 'primevue/dialog'
-import Button from 'primevue/button'
-import Divider from 'primevue/divider'
-import Message from 'primevue/message'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 import { useBypassRuleForm } from '@/composables/useBypassRuleForm'
 import BypassRuleBasicInfo from './form/BypassRuleBasicInfo.vue'
@@ -39,58 +46,63 @@ onMounted(() => {
 </script>
 
 <template>
-  <Dialog
-    :visible="store.showRuleDialog"
-    :header="dialogTitle"
-    :modal="true"
-    :style="{ width: '600px' }"
-    @update:visible="handleClose"
-  >
-    <div class="space-y-4">
-      <!-- Basic Info Section -->
-      <BypassRuleBasicInfo v-model:formData="formData" />
+  <Dialog :open="store.showRuleDialog" @update:open="(v: boolean) => { if (!v) handleClose() }">
+    <DialogContent class="glass-dialog sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
+      <DialogHeader>
+        <DialogTitle>{{ dialogTitle }}</DialogTitle>
+        <DialogDescription class="sr-only">
+          Formulario para {{ isEditing ? 'editar' : 'crear' }} una regla de bypass
+        </DialogDescription>
+      </DialogHeader>
 
-      <Divider />
+      <div class="space-y-4 py-2">
+        <!-- Basic Info Section -->
+        <BypassRuleBasicInfo v-model:formData="formData" />
 
-      <!-- Rule Type Section -->
-      <BypassRuleCondition v-model:formData="formData" :rule-type-options="ruleTypeOptions" />
+        <Separator />
 
-      <Divider />
+        <!-- Rule Type Section -->
+        <BypassRuleCondition v-model:formData="formData" :rule-type-options="ruleTypeOptions" />
 
-      <!-- Target Section -->
-      <BypassRuleTarget
-        v-model:formData="formData"
-        :available-agents="availableAgents"
-        :loading-agents="loadingAgents"
-        :domain-options="domainOptions"
-        :available-pharmacies="availablePharmacies"
-        :loading-pharmacies="loadingPharmacies"
-        :available-institutions="availableInstitutions"
-        :loading-institutions="loadingInstitutions"
-        :show-pharmacy-selector="showPharmacySelector"
-        :show-institution-selector="showInstitutionSelector"
-      />
+        <Separator />
 
-      <Divider />
+        <!-- Target Section -->
+        <BypassRuleTarget
+          v-model:formData="formData"
+          :available-agents="availableAgents"
+          :loading-agents="loadingAgents"
+          :domain-options="domainOptions"
+          :available-pharmacies="availablePharmacies"
+          :loading-pharmacies="loadingPharmacies"
+          :available-institutions="availableInstitutions"
+          :loading-institutions="loadingInstitutions"
+          :show-pharmacy-selector="showPharmacySelector"
+          :show-institution-selector="showInstitutionSelector"
+        />
 
-      <!-- Isolation Section -->
-      <BypassRuleIsolation v-model:formData="formData" />
+        <Separator />
 
-      <!-- Validation Message -->
-      <Message v-if="!canSave && formData.rule_name" severity="warn" :closable="false">
-        Completa todos los campos requeridos segun el tipo de regla seleccionado.
-      </Message>
-    </div>
+        <!-- Isolation Section -->
+        <BypassRuleIsolation v-model:formData="formData" />
 
-    <template #footer>
-      <Button label="Cancelar" severity="secondary" :disabled="isLoading" @click="handleClose" />
-      <Button
-        :label="isEditing ? 'Guardar' : 'Crear'"
-        icon="pi pi-check"
-        :disabled="!canSave"
-        :loading="isLoading"
-        @click="handleSubmit"
-      />
-    </template>
+        <!-- Validation Message -->
+        <Alert v-if="!canSave && formData.rule_name" variant="destructive">
+          <AlertDescription>
+            Completa todos los campos requeridos segun el tipo de regla seleccionado.
+          </AlertDescription>
+        </Alert>
+      </div>
+
+      <DialogFooter>
+        <Button variant="outline" :disabled="isLoading" @click="handleClose">
+          Cancelar
+        </Button>
+        <Button :disabled="!canSave" @click="handleSubmit">
+          <i v-if="isLoading" class="pi pi-spinner pi-spin mr-2" />
+          <i v-else class="pi pi-check mr-2" />
+          {{ isEditing ? 'Guardar' : 'Crear' }}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
   </Dialog>
 </template>

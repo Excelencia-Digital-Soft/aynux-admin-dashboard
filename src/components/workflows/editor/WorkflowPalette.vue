@@ -1,16 +1,17 @@
 <script setup lang="ts">
-import Card from 'primevue/card'
-import Accordion from 'primevue/accordion'
-import AccordionPanel from 'primevue/accordionpanel'
-import AccordionHeader from 'primevue/accordionheader'
-import AccordionContent from 'primevue/accordioncontent'
-import Message from 'primevue/message'
-import ProgressSpinner from 'primevue/progressspinner'
-import Button from 'primevue/button'
+import { ref, watch } from 'vue'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger
+} from '@/components/ui/collapsible'
 import { nodeTypeColors, nodeTypeIcons } from '@/composables/useWorkflowEditor'
 import type { NodeDefinition } from '@/types/workflow.types'
 
-defineProps<{
+const props = defineProps<{
   isLoading: boolean
   nodeDefinitionsByCategory: Record<string, NodeDefinition[]>
 }>()
@@ -19,6 +20,21 @@ const emit = defineEmits<{
   (e: 'addNode', definition: NodeDefinition): void
   (e: 'manageDefinitions'): void
 }>()
+
+const openCategories = ref<Record<string, boolean>>({})
+
+// Initialize all categories as open whenever definitions change
+watch(
+  () => props.nodeDefinitionsByCategory,
+  (categories) => {
+    for (const category of Object.keys(categories)) {
+      if (!(category in openCategories.value)) {
+        openCategories.value[category] = true
+      }
+    }
+  },
+  { immediate: true }
+)
 
 function getNodeColor(nodeType: string): string {
   return nodeTypeColors[nodeType] || '#64748b'
@@ -37,38 +53,47 @@ function onDragStart(event: DragEvent, definition: NodeDefinition) {
 </script>
 
 <template>
-  <Card class="node-palette">
-    <template #title>
+  <Card class="glass-panel overflow-y-auto max-h-[calc(100vh-200px)]">
+    <CardHeader class="pb-3">
       <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
+        <CardTitle class="flex items-center gap-2 text-base">
           <i class="pi pi-th-large" />
           <span>Nodos</span>
-        </div>
+        </CardTitle>
         <Button
-          icon="pi pi-cog"
-          severity="secondary"
-          text
-          rounded
-          size="small"
+          variant="ghost"
+          size="icon"
+          class="h-8 w-8"
           title="Gestionar definiciones de nodos"
           @click="emit('manageDefinitions')"
-        />
+        >
+          <i class="pi pi-cog" />
+        </Button>
       </div>
-    </template>
-    <template #content>
+    </CardHeader>
+    <CardContent>
       <div v-if="isLoading" class="flex justify-center py-4">
-        <ProgressSpinner style="width: 30px; height: 30px" />
+        <div class="animate-spin h-8 w-8 border-2 border-current border-t-transparent rounded-full" />
       </div>
 
-      <Accordion v-else :multiple="true" :activeIndex="[0, 1, 2, 3]">
-        <AccordionPanel
+      <div v-else class="space-y-1">
+        <Collapsible
           v-for="(definitions, category) in nodeDefinitionsByCategory"
           :key="category"
-          :value="category"
+          :open="openCategories[category]"
+          @update:open="(v: boolean) => openCategories[category] = v"
         >
-          <AccordionHeader>{{ category }}</AccordionHeader>
-          <AccordionContent>
-            <div class="palette-nodes">
+          <CollapsibleTrigger
+            class="flex w-full items-center justify-between py-2 px-3 text-sm font-medium hover:bg-white/5 rounded-md transition-colors"
+          >
+            {{ category }}
+            <i
+              class="pi pi-chevron-down text-xs transition-transform duration-200"
+              :class="{ 'rotate-180': openCategories[category] }"
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div class="flex flex-col gap-2 pt-1 pb-2">
               <div
                 v-for="def in definitions"
                 :key="def.id"
@@ -78,36 +103,38 @@ function onDragStart(event: DragEvent, definition: NodeDefinition) {
                 @dragstart="onDragStart($event, def)"
                 @click="emit('addNode', def)"
               >
-                <i :class="['pi', def.icon || getNodeIcon(def.node_type)]" :style="{ color: getNodeColor(def.node_type) }" />
-                <div class="palette-node-info">
-                  <div class="palette-node-name">{{ def.display_name }}</div>
-                  <div class="palette-node-type">{{ def.node_type }}</div>
+                <i
+                  :class="['pi', def.icon || getNodeIcon(def.node_type)]"
+                  :style="{ color: getNodeColor(def.node_type) }"
+                />
+                <div class="flex-1 min-w-0">
+                  <div class="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
+                    {{ def.display_name }}
+                  </div>
+                  <div class="text-xs text-slate-500 dark:text-slate-400">
+                    {{ def.node_type }}
+                  </div>
                 </div>
               </div>
             </div>
-          </AccordionContent>
-        </AccordionPanel>
-      </Accordion>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
 
-      <Message v-if="Object.keys(nodeDefinitionsByCategory).length === 0" severity="info" :closable="false" class="mt-4">
-        No hay nodos disponibles. Crea definiciones de nodos primero.
-      </Message>
-    </template>
+      <Alert
+        v-if="!isLoading && Object.keys(nodeDefinitionsByCategory).length === 0"
+        class="mt-4"
+      >
+        <i class="pi pi-info-circle" />
+        <AlertDescription>
+          No hay nodos disponibles. Crea definiciones de nodos primero.
+        </AlertDescription>
+      </Alert>
+    </CardContent>
   </Card>
 </template>
 
 <style scoped>
-.node-palette {
-  overflow-y: auto;
-  max-height: calc(100vh - 200px);
-}
-
-.palette-nodes {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
 .palette-node {
   display: flex;
   align-items: center;
@@ -121,31 +148,24 @@ function onDragStart(event: DragEvent, definition: NodeDefinition) {
   transition: all 0.2s;
 }
 
+:root.dark .palette-node,
+.dark .palette-node {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
 .palette-node:hover {
   background: #f8fafc;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+:root.dark .palette-node:hover,
+.dark .palette-node:hover {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
 .palette-node:active {
   cursor: grabbing;
-}
-
-.palette-node-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.palette-node-name {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #1e293b;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.palette-node-type {
-  font-size: 0.75rem;
-  color: #64748b;
 }
 </style>

@@ -1,10 +1,18 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import Dialog from 'primevue/dialog'
-import Button from 'primevue/button'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction
+} from '@/components/ui/alert-dialog'
 import { useTurnosMedicosTesting } from '@/composables/useTurnosMedicosTesting'
 import { useToast } from '@/composables/useToast'
-import type { InteractiveButton, InteractiveListItem } from '@/api/medical.api'
+import type { InteractiveButton, InteractiveListItem } from '@/types/turnosMedicos.types'
 
 // Components
 import TurnosMedicosTestHeader from '@/components/testing/turnos-medicos/TurnosMedicosTestHeader.vue'
@@ -101,7 +109,7 @@ async function copyAllChat() {
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Chat Panel -->
       <div class="lg:col-span-2 flex flex-col gap-4">
-        <div class="card-wrapper rounded-xl overflow-hidden border dark:border-gray-700 shadow-sm">
+        <div class="rounded-2xl overflow-hidden bg-white/70 dark:bg-navy-800/50 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-xl">
           <TurnosMedicosChatWindow
             v-model:selected-institution="selectedInstitution"
             :messages="messages"
@@ -153,40 +161,39 @@ async function copyAllChat() {
     </div>
 
     <!-- Delete Confirmation Dialog -->
-    <Dialog
-      v-model:visible="showDeleteConfirm"
-      modal
-      header="Eliminar Historial"
-      :style="{ width: '400px' }"
-    >
-      <div class="flex items-start gap-3">
-        <i class="pi pi-exclamation-triangle text-yellow-500 text-2xl" />
-        <div>
-          <p class="text-gray-700 dark:text-gray-300">
-            Esta accion eliminara <strong>TODAS</strong> las conversaciones para el telefono
-            <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded">{{ webhookConfig.phoneNumber }}</code>.
-          </p>
-          <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
-            Esta accion no se puede deshacer.
-          </p>
-        </div>
-      </div>
-      <template #footer>
-        <Button
-          label="Cancelar"
-          severity="secondary"
-          @click="showDeleteConfirm = false"
-          :disabled="isDeletingHistory"
-        />
-        <Button
-          label="Eliminar"
-          severity="danger"
-          icon="pi pi-trash"
-          @click="deleteAllHistory"
-          :loading="isDeletingHistory"
-        />
-      </template>
-    </Dialog>
+    <AlertDialog :open="showDeleteConfirm" @update:open="(v) => showDeleteConfirm = v">
+      <AlertDialogContent class="bg-white/95 dark:bg-navy-800/95 backdrop-blur-xl border-white/20 dark:border-white/10">
+        <AlertDialogHeader>
+          <AlertDialogTitle class="flex items-center gap-2">
+            <i class="pi pi-exclamation-triangle text-yellow-500" />
+            Eliminar Historial
+          </AlertDialogTitle>
+          <AlertDialogDescription class="text-left">
+            <p>
+              Esta accion eliminara <strong>TODAS</strong> las conversaciones para el telefono
+              <code class="bg-white/60 dark:bg-navy-900/40 px-1.5 py-0.5 rounded text-xs">{{ webhookConfig.phoneNumber }}</code>.
+            </p>
+            <p class="text-sm text-muted-foreground mt-2">
+              Esta accion no se puede deshacer.
+            </p>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel :disabled="isDeletingHistory">
+            Cancelar
+          </AlertDialogCancel>
+          <AlertDialogAction
+            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            :disabled="isDeletingHistory"
+            @click="deleteAllHistory"
+          >
+            <i v-if="isDeletingHistory" class="pi pi-spin pi-spinner mr-2" />
+            <i v-else class="pi pi-trash mr-2" />
+            Eliminar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 </template>
 

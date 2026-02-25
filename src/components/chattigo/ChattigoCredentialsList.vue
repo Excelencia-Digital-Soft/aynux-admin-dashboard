@@ -4,21 +4,35 @@ import { useChattigoCredentialsStore } from '@/stores/chattigoCredentials.store'
 import { useChattigoCredentials } from '@/composables/useChattigoCredentials'
 import type { ChattigoCredential } from '@/types/chattigoCredentials.types'
 import {
-  getEnabledStatusSeverity,
   getEnabledStatusLabel,
   formatDID
 } from '@/types/chattigoCredentials.types'
 
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
-import Button from 'primevue/button'
-import Tag from 'primevue/tag'
-import InputText from 'primevue/inputtext'
-import IconField from 'primevue/iconfield'
-import InputIcon from 'primevue/inputicon'
-import Select from 'primevue/select'
-import Skeleton from 'primevue/skeleton'
-import ToggleSwitch from 'primevue/toggleswitch'
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell
+} from '@/components/ui/table'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
+} from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
 
 const emit = defineEmits<{
   (e: 'edit', credential: ChattigoCredential): void
@@ -36,12 +50,11 @@ const {
 } = useChattigoCredentials()
 
 const searchValue = ref('')
+const enabledFilterValue = ref('all')
 
-const enabledOptions = [
-  { label: 'Todos', value: undefined },
-  { label: 'Activos', value: true },
-  { label: 'Inactivos', value: false }
-]
+function getStatusBadgeVariant(enabled: boolean): 'success' | 'secondary' {
+  return enabled ? 'success' : 'secondary'
+}
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return '-'
@@ -58,7 +71,12 @@ function handleSearch(event: Event) {
   setFilters({ search: value || undefined })
 }
 
-function handleEnabledFilter(enabled: boolean | undefined) {
+function handleEnabledFilter(val: string) {
+  enabledFilterValue.value = val
+  let enabled: boolean | undefined
+  if (val === 'true') enabled = true
+  else if (val === 'false') enabled = false
+  else enabled = undefined
   setFilters({ enabled })
 }
 
@@ -74,136 +92,159 @@ onMounted(() => {
 <template>
   <div class="chattigo-credentials-list">
     <!-- Filters -->
-    <div class="flex gap-4 mb-4">
-      <div class="flex-1">
-        <IconField class="w-full">
-          <InputIcon class="pi pi-search" />
-          <InputText
-            v-model="searchValue"
-            placeholder="Buscar por nombre, DID o bot..."
-            class="w-full"
-            @input="handleSearch"
-          />
-        </IconField>
+    <div class="flex gap-4 mb-4 glass-panel rounded-lg p-4">
+      <div class="relative flex-1">
+        <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm" />
+        <Input
+          v-model="searchValue"
+          placeholder="Buscar por nombre, DID o bot..."
+          class="pl-9 w-full"
+          @input="handleSearch"
+        />
       </div>
-      <Select
-        :options="enabledOptions"
-        optionLabel="label"
-        optionValue="value"
-        placeholder="Estado"
-        class="w-40"
-        @update:model-value="handleEnabledFilter"
-      />
+      <Select :model-value="enabledFilterValue" @update:model-value="handleEnabledFilter">
+        <SelectTrigger class="w-40">
+          <SelectValue placeholder="Estado" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Todos</SelectItem>
+          <SelectItem value="true">Activos</SelectItem>
+          <SelectItem value="false">Inactivos</SelectItem>
+        </SelectContent>
+      </Select>
     </div>
 
     <!-- Loading -->
     <div v-if="isLoading && filteredCredentials.length === 0" class="space-y-2">
-      <Skeleton v-for="i in 5" :key="i" height="60px" />
+      <div v-for="i in 5" :key="i" class="h-14 animate-pulse rounded bg-muted" />
+    </div>
+
+    <!-- Empty state -->
+    <div
+      v-else-if="filteredCredentials.length === 0"
+      class="text-center py-8 text-muted-foreground"
+    >
+      <i class="pi pi-whatsapp text-4xl mb-2" />
+      <p>No se encontraron credenciales de Chattigo</p>
+      <p class="text-sm mt-1">Crea una nueva credencial para comenzar</p>
     </div>
 
     <!-- Table -->
-    <DataTable
-      v-else
-      :value="filteredCredentials"
-      :loading="isLoading"
-      stripedRows
-      class="p-datatable-sm"
-    >
-      <template #empty>
-        <div class="text-center py-8 text-gray-500">
-          <i class="pi pi-whatsapp text-4xl mb-2" />
-          <p>No se encontraron credenciales de Chattigo</p>
-          <p class="text-sm mt-1">Crea una nueva credencial para comenzar</p>
-        </div>
-      </template>
+    <div v-else class="glass-card rounded-lg overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead class="min-w-[160px]">DID</TableHead>
+            <TableHead class="min-w-[150px]">Nombre</TableHead>
+            <TableHead class="w-[120px]">Bot</TableHead>
+            <TableHead class="w-[120px]">Estado</TableHead>
+            <TableHead class="w-[100px]">Refresh</TableHead>
+            <TableHead class="w-[120px]">Actualizado</TableHead>
+            <TableHead class="w-[150px]">Acciones</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow v-for="credential in filteredCredentials" :key="credential.did">
+            <!-- DID -->
+            <TableCell>
+              <div class="flex items-center gap-2">
+                <i class="pi pi-whatsapp text-green-500" />
+                <div>
+                  <div class="font-mono text-sm text-foreground">{{ formatDID(credential.did) }}</div>
+                  <div class="text-xs text-muted-foreground">{{ credential.did }}</div>
+                </div>
+              </div>
+            </TableCell>
 
-      <Column field="did" header="DID" :sortable="true" style="min-width: 160px">
-        <template #body="{ data }">
-          <div class="flex items-center gap-2">
-            <i class="pi pi-whatsapp text-green-500" />
-            <div>
-              <div class="font-mono text-sm">{{ formatDID(data.did) }}</div>
-              <div class="text-xs text-gray-500">{{ data.did }}</div>
-            </div>
-          </div>
-        </template>
-      </Column>
+            <!-- Nombre -->
+            <TableCell>
+              <span class="font-medium text-foreground">{{ credential.name }}</span>
+            </TableCell>
 
-      <Column field="name" header="Nombre" :sortable="true" style="min-width: 150px">
-        <template #body="{ data }">
-          <span class="font-medium">{{ data.name }}</span>
-        </template>
-      </Column>
+            <!-- Bot -->
+            <TableCell>
+              <div class="flex items-center gap-2">
+                <i class="pi pi-android text-blue-500" />
+                <span class="text-sm text-foreground">{{ credential.bot_name }}</span>
+              </div>
+            </TableCell>
 
-      <Column field="bot_name" header="Bot" style="width: 120px">
-        <template #body="{ data }">
-          <div class="flex items-center gap-2">
-            <i class="pi pi-android text-blue-500" />
-            <span class="text-sm">{{ data.bot_name }}</span>
-          </div>
-        </template>
-      </Column>
+            <!-- Estado -->
+            <TableCell>
+              <div class="flex items-center gap-2">
+                <Switch
+                  :checked="credential.enabled"
+                  @update:checked="handleToggleEnabled(credential)"
+                />
+                <Badge :variant="getStatusBadgeVariant(credential.enabled)">
+                  {{ getEnabledStatusLabel(credential.enabled) }}
+                </Badge>
+              </div>
+            </TableCell>
 
-      <Column field="enabled" header="Estado" style="width: 120px">
-        <template #body="{ data }">
-          <div class="flex items-center gap-2">
-            <ToggleSwitch
-              :modelValue="data.enabled"
-              @update:modelValue="handleToggleEnabled(data)"
-            />
-            <Tag
-              :severity="getEnabledStatusSeverity(data.enabled)"
-              :value="getEnabledStatusLabel(data.enabled)"
-            />
-          </div>
-        </template>
-      </Column>
+            <!-- Refresh -->
+            <TableCell>
+              <span class="text-sm text-muted-foreground">{{ credential.token_refresh_hours }}h</span>
+            </TableCell>
 
-      <Column field="token_refresh_hours" header="Refresh" style="width: 100px">
-        <template #body="{ data }">
-          <span class="text-sm text-gray-600">{{ data.token_refresh_hours }}h</span>
-        </template>
-      </Column>
+            <!-- Actualizado -->
+            <TableCell>
+              <span class="text-sm text-muted-foreground">{{ formatDate(credential.updated_at) }}</span>
+            </TableCell>
 
-      <Column field="updated_at" header="Actualizado" :sortable="true" style="width: 120px">
-        <template #body="{ data }">
-          <span class="text-sm text-gray-600">{{ formatDate(data.updated_at) }}</span>
-        </template>
-      </Column>
-
-      <Column header="Acciones" style="width: 150px">
-        <template #body="{ data }">
-          <div class="flex gap-1">
-            <Button
-              icon="pi pi-play"
-              severity="success"
-              text
-              rounded
-              size="small"
-              v-tooltip="'Probar conexion'"
-              @click.stop="emit('test', data)"
-            />
-            <Button
-              icon="pi pi-pencil"
-              severity="secondary"
-              text
-              rounded
-              size="small"
-              v-tooltip="'Editar'"
-              @click.stop="emit('edit', data)"
-            />
-            <Button
-              icon="pi pi-trash"
-              severity="danger"
-              text
-              rounded
-              size="small"
-              v-tooltip="'Eliminar'"
-              @click.stop="emit('delete', data)"
-            />
-          </div>
-        </template>
-      </Column>
-    </DataTable>
+            <!-- Acciones -->
+            <TableCell>
+              <div class="flex gap-1">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        class="h-8 w-8 text-green-600 hover:text-green-700"
+                        @click.stop="emit('test', credential)"
+                      >
+                        <i class="pi pi-play text-sm" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Probar conexion</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        class="h-8 w-8"
+                        @click.stop="emit('edit', credential)"
+                      >
+                        <i class="pi pi-pencil text-sm" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Editar</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        class="h-8 w-8 text-destructive hover:text-destructive"
+                        @click.stop="emit('delete', credential)"
+                      >
+                        <i class="pi pi-trash text-sm" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Eliminar</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    </div>
   </div>
 </template>

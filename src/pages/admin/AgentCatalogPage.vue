@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useToast } from 'primevue/usetoast'
-import { useConfirm } from 'primevue/useconfirm'
+import { useToast } from '@/composables/useToast'
 import { agentCatalogApi } from '@/api/agentCatalog.api'
 import { useDomains } from '@/composables/useDomains'
 import type {
@@ -16,24 +15,55 @@ import {
   getAgentTypeSeverity
 } from '@/types/agentCatalog.types'
 
-import Card from 'primevue/card'
-import Button from 'primevue/button'
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
-import Tag from 'primevue/tag'
-import ToggleSwitch from 'primevue/toggleswitch'
-import Select from 'primevue/select'
-import Dialog from 'primevue/dialog'
-import InputText from 'primevue/inputtext'
-import InputNumber from 'primevue/inputnumber'
-import Textarea from 'primevue/textarea'
-import Message from 'primevue/message'
-import ProgressSpinner from 'primevue/progressspinner'
-import ConfirmDialog from 'primevue/confirmdialog'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell
+} from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
+} from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction
+} from '@/components/ui/alert-dialog'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
 import SubgraphFlowDialog from '@/components/agentCatalog/SubgraphFlowDialog.vue'
 
 const toast = useToast()
-const confirm = useConfirm()
 const { fetchDomains, getDomainOptions, getDomainLabel, getDomainColor, getDomainIcon } = useDomains()
 
 // Domain options from API
@@ -57,6 +87,10 @@ const newAgent = ref<AgentCatalogCreate>({
   keywords: []
 })
 
+// Delete dialog state
+const deleteDialogOpen = ref(false)
+const deletingAgent = ref<AgentCatalogItem | null>(null)
+
 // Subgraph dialog state
 const subgraphDialogVisible = ref(false)
 const selectedGraphName = ref<string | null>(null)
@@ -68,16 +102,9 @@ const filters = ref<AgentCatalogFilters>({
   enabled_only: false
 })
 
-// Filter options
-const domainFilterOptions = computed(() => [
-  { value: undefined, label: 'Todos los dominios' },
-  ...domainOptions.value.map((d) => ({ value: d.value ?? 'global', label: d.label }))
-])
-
-const typeFilterOptions = [
-  { value: undefined, label: 'Todos los tipos' },
-  ...AGENT_TYPE_OPTIONS
-]
+// Local string-based filter state for shadcn Select
+const domainFilter = ref('all')
+const typeFilter = ref('all')
 
 // Stats
 const stats = computed(() => {
@@ -94,6 +121,31 @@ const stats = computed(() => {
   }
 })
 
+// Map domain color (PrimeVue severity) to Badge variant
+function getDomainBadgeVariant(domainKey: string | null): 'info' | 'success' | 'warning' | 'default' | 'secondary' {
+  const color = getDomainColor(domainKey)
+  const map: Record<string, 'info' | 'success' | 'warning' | 'default' | 'secondary'> = {
+    info: 'info',
+    success: 'success',
+    warn: 'warning',
+    help: 'default',
+    secondary: 'secondary'
+  }
+  return map[color] || 'secondary'
+}
+
+// Map agent type severity to Badge variant
+function getAgentTypeBadgeVariant(agentType: string): 'info' | 'success' | 'warning' | 'secondary' {
+  const severity = getAgentTypeSeverity(agentType)
+  const map: Record<string, 'info' | 'success' | 'warning' | 'secondary'> = {
+    info: 'info',
+    success: 'success',
+    warn: 'warning',
+    secondary: 'secondary'
+  }
+  return map[severity] || 'secondary'
+}
+
 // Fetch agents
 async function fetchAgents() {
   loading.value = true
@@ -105,13 +157,8 @@ async function fetchAgents() {
     }
     const response = await agentCatalogApi.list(apiFilters)
     agents.value = response.agents
-  } catch (error) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'No se pudieron cargar los agentes',
-      life: 3000
-    })
+  } catch {
+    toast.error('No se pudieron cargar los agentes')
   } finally {
     loading.value = false
   }
@@ -122,20 +169,13 @@ async function seedBuiltin() {
   seeding.value = true
   try {
     const result = await agentCatalogApi.seedBuiltin()
-    toast.add({
-      severity: 'success',
-      summary: 'Seed completado',
-      detail: `${result.created} creados, ${result.updated} actualizados, ${result.skipped} omitidos`,
-      life: 5000
-    })
+    toast.success(
+      `${result.created} creados, ${result.updated} actualizados, ${result.skipped} omitidos`,
+      'Seed completado'
+    )
     await fetchAgents()
-  } catch (error) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'No se pudieron crear los agentes builtin',
-      life: 3000
-    })
+  } catch {
+    toast.error('No se pudieron crear los agentes builtin')
   } finally {
     seeding.value = false
   }
@@ -149,19 +189,9 @@ async function toggleAgent(agent: AgentCatalogItem) {
     if (index !== -1) {
       agents.value[index] = updated
     }
-    toast.add({
-      severity: 'info',
-      summary: updated.enabled ? 'Agente habilitado' : 'Agente deshabilitado',
-      detail: agent.name,
-      life: 2000
-    })
-  } catch (error) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'No se pudo actualizar el agente',
-      life: 3000
-    })
+    toast.info(agent.name, updated.enabled ? 'Agente habilitado' : 'Agente deshabilitado')
+  } catch {
+    toast.error('No se pudo actualizar el agente')
   }
 }
 
@@ -191,22 +221,12 @@ async function saveAgent() {
       agents.value[index] = updated
     }
 
-    toast.add({
-      severity: 'success',
-      summary: 'Agente actualizado',
-      detail: updated.name,
-      life: 2000
-    })
+    toast.success(updated.name, 'Agente actualizado')
 
     editDialogVisible.value = false
     editingAgent.value = null
-  } catch (error) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'No se pudo guardar el agente',
-      life: 3000
-    })
+  } catch {
+    toast.error('No se pudo guardar el agente')
   }
 }
 
@@ -228,81 +248,60 @@ function openCreateDialog() {
 // Create new agent
 async function createAgent() {
   if (!newAgent.value.agent_key || !newAgent.value.name) {
-    toast.add({
-      severity: 'warn',
-      summary: 'Campos requeridos',
-      detail: 'Agent Key y Nombre son obligatorios',
-      life: 3000
-    })
+    toast.warn('Agent Key y Nombre son obligatorios', 'Campos requeridos')
     return
   }
 
   try {
     const created = await agentCatalogApi.create(newAgent.value)
     agents.value.unshift(created)
-
-    toast.add({
-      severity: 'success',
-      summary: 'Agente creado',
-      detail: created.name,
-      life: 2000
-    })
-
+    toast.success(created.name, 'Agente creado')
     createDialogVisible.value = false
   } catch (error: unknown) {
     const errorDetail =
       error instanceof Error && 'response' in error
         ? (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
         : 'No se pudo crear el agente'
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: errorDetail || 'No se pudo crear el agente',
-      life: 3000
-    })
+    toast.error(errorDetail || 'No se pudo crear el agente')
   }
 }
 
 // Delete agent
 function confirmDelete(agent: AgentCatalogItem) {
-  confirm.require({
-    message: `Estas seguro de eliminar el agente "${agent.name}"?`,
-    header: 'Confirmar eliminacion',
-    icon: 'pi pi-exclamation-triangle',
-    rejectLabel: 'Cancelar',
-    acceptLabel: 'Eliminar',
-    acceptClass: 'p-button-danger',
-    accept: () => deleteAgent(agent)
-  })
+  deletingAgent.value = agent
+  deleteDialogOpen.value = true
 }
 
-async function deleteAgent(agent: AgentCatalogItem) {
+async function deleteAgent() {
+  if (!deletingAgent.value) return
+  const agent = deletingAgent.value
+
   try {
     await agentCatalogApi.delete(agent.id)
     agents.value = agents.value.filter((a) => a.id !== agent.id)
-    toast.add({
-      severity: 'success',
-      summary: 'Agente eliminado',
-      detail: agent.name,
-      life: 2000
-    })
-  } catch (error) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'No se pudo eliminar el agente',
-      life: 3000
-    })
+    toast.success(agent.name, 'Agente eliminado')
+    deleteDialogOpen.value = false
+  } catch {
+    toast.error('No se pudo eliminar el agente')
   }
 }
 
-// Get domain display info
-function getDomainDisplay(domainKey: string | null) {
-  return {
-    label: getDomainLabel(domainKey),
-    color: getDomainColor(domainKey),
-    icon: getDomainIcon(domainKey)
-  }
+// Filter handlers
+function handleDomainFilter(val: string) {
+  domainFilter.value = val
+  filters.value.domain_key = val === 'all' ? undefined : val
+  fetchAgents()
+}
+
+function handleTypeFilter(val: string) {
+  typeFilter.value = val
+  filters.value.agent_type = val === 'all' ? undefined : val
+  fetchAgents()
+}
+
+function handleEnabledOnlyToggle(val: boolean) {
+  filters.value.enabled_only = val
+  fetchAgents()
 }
 
 // Get graph display info
@@ -320,6 +319,30 @@ function openSubgraphDialog(agentKey: string) {
   }
 }
 
+// Edit dialog domain select helpers
+const editDomainValue = computed({
+  get: () => editingAgent.value?.domain_key ?? '__null__',
+  set: (val: string) => {
+    if (editingAgent.value) {
+      editingAgent.value.domain_key = val === '__null__' ? null : val
+    }
+  }
+})
+
+const newAgentDomainValue = computed({
+  get: () => newAgent.value.domain_key ?? '__null__',
+  set: (val: string) => {
+    newAgent.value.domain_key = val === '__null__' ? undefined : val
+  }
+})
+
+const newAgentTypeValue = computed({
+  get: () => newAgent.value.agent_type ?? 'custom',
+  set: (val: string) => {
+    newAgent.value.agent_type = val as 'builtin' | 'specialized' | 'custom'
+  }
+})
+
 // Initialize
 onMounted(() => {
   fetchDomains()
@@ -328,380 +351,486 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="agent-catalog-page p-6">
-    <ConfirmDialog />
-
+  <div class="max-w-[1400px] mx-auto p-6">
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-2xl font-bold text-gray-800">Catalogo de Agentes</h1>
-        <p class="text-gray-500 mt-1">Administra los agentes del grafo de LangGraph</p>
+        <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">Catalogo de Agentes</h1>
+        <p class="text-gray-500 dark:text-gray-400 mt-1">Administra los agentes del grafo de LangGraph</p>
       </div>
       <div class="flex gap-2">
         <Button
-          label="Seed Builtin"
-          icon="pi pi-database"
-          severity="secondary"
-          :loading="seeding"
+          variant="outline"
+          :disabled="seeding"
           @click="seedBuiltin"
-        />
-        <Button label="Nuevo Agente" icon="pi pi-plus" severity="primary" @click="openCreateDialog" />
+        >
+          <i v-if="seeding" class="pi pi-spinner pi-spin mr-2" />
+          <i v-else class="pi pi-database mr-2" />
+          Seed Builtin
+        </Button>
+        <Button @click="openCreateDialog">
+          <i class="pi pi-plus mr-2" />
+          Nuevo Agente
+        </Button>
       </div>
     </div>
 
     <!-- Stats -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <Card>
-        <template #content>
-          <div class="text-center">
-            <div class="text-3xl font-bold text-gray-800">{{ stats.total }}</div>
-            <div class="text-gray-500">Total agentes</div>
-          </div>
-        </template>
+      <Card class="glass-panel text-center">
+        <CardContent class="pt-6">
+          <div class="text-3xl font-bold text-gray-800 dark:text-gray-100">{{ stats.total }}</div>
+          <div class="text-sm text-gray-500 dark:text-gray-400">Total agentes</div>
+        </CardContent>
       </Card>
-      <Card>
-        <template #content>
-          <div class="text-center">
-            <div class="text-3xl font-bold text-green-600">{{ stats.enabled }}</div>
-            <div class="text-gray-500">Habilitados</div>
-          </div>
-        </template>
+      <Card class="glass-panel text-center">
+        <CardContent class="pt-6">
+          <div class="text-3xl font-bold text-green-600 dark:text-green-400">{{ stats.enabled }}</div>
+          <div class="text-sm text-gray-500 dark:text-gray-400">Habilitados</div>
+        </CardContent>
       </Card>
-      <Card>
-        <template #content>
-          <div class="text-center">
-            <div class="text-3xl font-bold text-gray-400">{{ stats.disabled }}</div>
-            <div class="text-gray-500">Deshabilitados</div>
-          </div>
-        </template>
+      <Card class="glass-panel text-center">
+        <CardContent class="pt-6">
+          <div class="text-3xl font-bold text-gray-400 dark:text-gray-500">{{ stats.disabled }}</div>
+          <div class="text-sm text-gray-500 dark:text-gray-400">Deshabilitados</div>
+        </CardContent>
       </Card>
-      <Card>
-        <template #content>
-          <div class="text-center">
-            <div class="flex justify-center gap-1 flex-wrap">
-              <Tag
-                v-for="(count, domain) in stats.byDomain"
-                :key="domain"
-                :value="`${domain}: ${count}`"
-                :severity="getDomainDisplay(domain === 'global' ? null : (domain as string)).color"
-                class="text-xs"
-              />
-            </div>
-            <div class="text-gray-500 mt-1 text-sm">Por dominio</div>
+      <Card class="glass-panel text-center">
+        <CardContent class="pt-6">
+          <div class="flex justify-center gap-1 flex-wrap">
+            <Badge
+              v-for="(count, domain) in stats.byDomain"
+              :key="domain"
+              :variant="getDomainBadgeVariant(domain === 'global' ? null : (domain as string))"
+              class="text-xs"
+            >
+              {{ domain }}: {{ count }}
+            </Badge>
           </div>
-        </template>
+          <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">Por dominio</div>
+        </CardContent>
       </Card>
     </div>
 
     <!-- Filters -->
-    <Card class="mb-6">
-      <template #content>
+    <Card class="glass-panel mb-6">
+      <CardContent class="pt-6">
         <div class="flex flex-wrap gap-4 items-center">
           <div class="flex-1 min-w-48">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Dominio</label>
-            <Select
-              v-model="filters.domain_key"
-              :options="domainFilterOptions"
-              optionLabel="label"
-              optionValue="value"
-              placeholder="Todos"
-              class="w-full"
-              @change="fetchAgents"
-            />
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dominio</label>
+            <Select :model-value="domainFilter" @update:model-value="handleDomainFilter">
+              <SelectTrigger class="w-full">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los dominios</SelectItem>
+                <SelectItem
+                  v-for="opt in domainOptions"
+                  :key="opt.value ?? 'global'"
+                  :value="opt.value ?? 'global'"
+                >
+                  {{ opt.label }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div class="flex-1 min-w-48">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-            <Select
-              v-model="filters.agent_type"
-              :options="typeFilterOptions"
-              optionLabel="label"
-              optionValue="value"
-              placeholder="Todos"
-              class="w-full"
-              @change="fetchAgents"
-            />
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo</label>
+            <Select :model-value="typeFilter" @update:model-value="handleTypeFilter">
+              <SelectTrigger class="w-full">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los tipos</SelectItem>
+                <SelectItem
+                  v-for="opt in AGENT_TYPE_OPTIONS"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div class="flex items-center gap-2 pt-6">
-            <ToggleSwitch v-model="filters.enabled_only" @change="fetchAgents" />
-            <span class="text-sm text-gray-600">Solo habilitados</span>
+            <Switch
+              :checked="filters.enabled_only ?? false"
+              @update:checked="handleEnabledOnlyToggle"
+            />
+            <span class="text-sm text-gray-600 dark:text-gray-400">Solo habilitados</span>
           </div>
         </div>
-      </template>
+      </CardContent>
     </Card>
 
     <!-- Agents Table -->
-    <Card>
-      <template #content>
-        <div v-if="loading" class="flex justify-center py-8">
-          <ProgressSpinner />
+    <Card class="glass-card overflow-hidden">
+      <CardContent class="p-0">
+        <!-- Loading -->
+        <div v-if="loading" class="flex justify-center py-12 text-muted-foreground">
+          <i class="pi pi-spinner pi-spin text-2xl" />
         </div>
 
-        <DataTable
-          v-else
-          :value="agents"
-          :paginator="true"
-          :rows="15"
-          :rowsPerPageOptions="[10, 15, 25, 50]"
-          sortField="priority"
-          :sortOrder="-1"
-          class="p-datatable-sm"
+        <!-- Empty state -->
+        <div
+          v-else-if="agents.length === 0"
+          class="text-center py-12 text-muted-foreground"
         >
-          <template #empty>
-            <div class="text-center py-8 text-gray-500">
-              <i class="pi pi-android text-4xl mb-4" />
-              <p>No hay agentes registrados</p>
-              <p class="text-sm mt-2">Usa "Seed Builtin" para importar agentes predefinidos</p>
-            </div>
-          </template>
+          <i class="pi pi-android text-4xl mb-4" />
+          <p>No hay agentes registrados</p>
+          <p class="text-sm mt-2">Usa "Seed Builtin" para importar agentes predefinidos</p>
+        </div>
 
-          <Column field="agent_key" header="Agent Key" sortable>
-            <template #body="{ data }">
-              <div class="flex items-center gap-2">
-                <i :class="getDomainDisplay(data.domain_key).icon" class="text-gray-400" />
+        <!-- Table -->
+        <Table v-else>
+          <TableHeader>
+            <TableRow>
+              <TableHead class="min-w-[180px]">Agent Key</TableHead>
+              <TableHead class="min-w-[200px]">Nombre</TableHead>
+              <TableHead class="w-[120px]">Dominio</TableHead>
+              <TableHead class="w-[150px]">Grafo</TableHead>
+              <TableHead class="w-[120px]">Tipo</TableHead>
+              <TableHead class="w-[100px]">Prioridad</TableHead>
+              <TableHead class="w-[100px]">Habilitado</TableHead>
+              <TableHead class="w-[130px]">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow v-for="agent in agents" :key="agent.id">
+              <!-- Agent Key -->
+              <TableCell>
+                <div class="flex items-center gap-2">
+                  <i :class="['pi', getDomainIcon(agent.domain_key) || 'pi-globe']" class="text-muted-foreground" />
+                  <span class="font-mono text-sm text-foreground">{{ agent.agent_key }}</span>
+                </div>
+              </TableCell>
+
+              <!-- Nombre -->
+              <TableCell>
                 <div>
-                  <div class="font-mono text-sm">{{ data.agent_key }}</div>
+                  <div class="font-medium text-foreground">{{ agent.name }}</div>
+                  <div class="text-xs text-muted-foreground truncate max-w-xs" :title="agent.description || undefined">
+                    {{ agent.description || '-' }}
+                  </div>
                 </div>
-              </div>
-            </template>
-          </Column>
+              </TableCell>
 
-          <Column field="name" header="Nombre" sortable>
-            <template #body="{ data }">
-              <div>
-                <div class="font-medium">{{ data.name }}</div>
-                <div class="text-xs text-gray-400 truncate max-w-xs" :title="data.description">
-                  {{ data.description || '-' }}
+              <!-- Dominio -->
+              <TableCell>
+                <Badge :variant="getDomainBadgeVariant(agent.domain_key)">
+                  {{ getDomainLabel(agent.domain_key) }}
+                </Badge>
+              </TableCell>
+
+              <!-- Grafo -->
+              <TableCell>
+                <div class="flex items-center gap-1">
+                  <Badge variant="secondary" class="text-xs">Main</Badge>
+                  <Badge
+                    v-if="getGraphInfo(agent.agent_key).hasSubgraph"
+                    variant="info"
+                    class="text-xs"
+                  >
+                    {{ getGraphInfo(agent.agent_key).graph }}
+                  </Badge>
                 </div>
-              </div>
-            </template>
-          </Column>
+              </TableCell>
 
-          <Column field="domain_key" header="Dominio" sortable>
-            <template #body="{ data }">
-              <Tag
-                :value="getDomainDisplay(data.domain_key).label"
-                :severity="getDomainDisplay(data.domain_key).color"
-              />
-            </template>
-          </Column>
+              <!-- Tipo -->
+              <TableCell>
+                <Badge :variant="getAgentTypeBadgeVariant(agent.agent_type)">
+                  {{ agent.agent_type }}
+                </Badge>
+              </TableCell>
 
-          <Column header="Grafo">
-            <template #body="{ data }">
-              <div class="flex items-center gap-1">
-                <Tag value="Main" severity="secondary" class="text-xs" />
-                <Tag
-                  v-if="getGraphInfo(data.agent_key).hasSubgraph"
-                  :value="getGraphInfo(data.agent_key).graph"
-                  severity="info"
-                  class="text-xs"
+              <!-- Prioridad -->
+              <TableCell>
+                <span class="font-mono text-sm text-foreground">{{ agent.priority }}</span>
+              </TableCell>
+
+              <!-- Habilitado -->
+              <TableCell>
+                <Switch
+                  :checked="agent.enabled"
+                  @update:checked="toggleAgent(agent)"
                 />
-              </div>
-            </template>
-          </Column>
+              </TableCell>
 
-          <Column field="agent_type" header="Tipo" sortable>
-            <template #body="{ data }">
-              <Tag :value="data.agent_type" :severity="getAgentTypeSeverity(data.agent_type)" />
-            </template>
-          </Column>
-
-          <Column field="priority" header="Prioridad" sortable style="width: 100px">
-            <template #body="{ data }">
-              <span class="font-mono">{{ data.priority }}</span>
-            </template>
-          </Column>
-
-          <Column field="enabled" header="Habilitado" style="width: 100px">
-            <template #body="{ data }">
-              <ToggleSwitch :modelValue="data.enabled" @update:modelValue="toggleAgent(data)" />
-            </template>
-          </Column>
-
-          <Column header="Acciones" style="width: 130px">
-            <template #body="{ data }">
-              <div class="flex gap-1">
-                <Button
-                  v-if="getGraphInfo(data.agent_key).hasSubgraph"
-                  icon="pi pi-sitemap"
-                  severity="info"
-                  text
-                  rounded
-                  v-tooltip.top="'Ver Flow'"
-                  @click="openSubgraphDialog(data.agent_key)"
-                />
-                <Button
-                  icon="pi pi-pencil"
-                  severity="secondary"
-                  text
-                  rounded
-                  @click="openEditDialog(data)"
-                />
-                <Button
-                  icon="pi pi-trash"
-                  severity="danger"
-                  text
-                  rounded
-                  @click="confirmDelete(data)"
-                />
-              </div>
-            </template>
-          </Column>
-        </DataTable>
-      </template>
+              <!-- Acciones -->
+              <TableCell>
+                <div class="flex gap-1">
+                  <TooltipProvider v-if="getGraphInfo(agent.agent_key).hasSubgraph">
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          class="h-8 w-8 text-blue-600 hover:text-blue-700"
+                          @click="openSubgraphDialog(agent.agent_key)"
+                        >
+                          <i class="pi pi-sitemap text-sm" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent><p>Ver Flow</p></TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          class="h-8 w-8"
+                          @click="openEditDialog(agent)"
+                        >
+                          <i class="pi pi-pencil text-sm" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent><p>Editar</p></TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          class="h-8 w-8 text-destructive hover:text-destructive"
+                          @click="confirmDelete(agent)"
+                        >
+                          <i class="pi pi-trash text-sm" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent><p>Eliminar</p></TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </CardContent>
     </Card>
 
     <!-- Edit Dialog -->
-    <Dialog
-      v-model:visible="editDialogVisible"
-      header="Editar Agente"
-      :modal="true"
-      :style="{ width: '500px' }"
-    >
-      <div v-if="editingAgent" class="flex flex-col gap-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-          <InputText v-model="editingAgent.name" class="w-full" />
-        </div>
+    <Dialog v-model:open="editDialogVisible">
+      <DialogContent class="glass-dialog sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Editar Agente</DialogTitle>
+          <DialogDescription class="sr-only">Editar configuracion del agente</DialogDescription>
+        </DialogHeader>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Descripcion</label>
-          <Textarea v-model="editingAgent.description" rows="3" class="w-full" />
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
+        <div v-if="editingAgent" class="flex flex-col gap-4 py-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Dominio</label>
-            <Select
-              v-model="editingAgent.domain_key"
-              :options="domainOptions"
-              optionLabel="label"
-              optionValue="value"
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre</label>
+            <Input v-model="editingAgent.name" class="w-full" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripcion</label>
+            <Textarea
+              :model-value="editingAgent.description ?? ''"
+              @update:model-value="editingAgent.description = $event"
+              :rows="3"
               class="w-full"
             />
           </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Prioridad</label>
-            <InputNumber
-              v-model="editingAgent.priority"
-              class="w-full"
-              :min="0"
-              :max="100"
-              showButtons
-            />
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dominio</label>
+              <Select v-model="editDomainValue">
+                <SelectTrigger class="w-full">
+                  <SelectValue placeholder="Seleccionar dominio" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem
+                    v-for="opt in domainOptions"
+                    :key="opt.value ?? '__null__'"
+                    :value="opt.value ?? '__null__'"
+                  >
+                    {{ opt.label }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Prioridad</label>
+              <Input
+                v-model.number="editingAgent.priority"
+                type="number"
+                :min="0"
+                :max="100"
+                class="w-full"
+              />
+            </div>
           </div>
+
+          <div class="flex items-center gap-2">
+            <Switch
+              :checked="editingAgent.enabled"
+              @update:checked="editingAgent.enabled = $event"
+            />
+            <span class="text-sm text-gray-700 dark:text-gray-300">Habilitado</span>
+          </div>
+
+          <Alert variant="info">
+            <AlertDescription>
+              <p class="text-sm">
+                <strong>Agent Key:</strong> {{ editingAgent.agent_key }}<br />
+                <strong>Tipo:</strong> {{ editingAgent.agent_type }}<br />
+                <strong>Grafo:</strong> {{ getGraphDisplay(editingAgent.agent_key) }}<br />
+                <strong>Origen:</strong> {{ editingAgent.sync_source }}
+              </p>
+            </AlertDescription>
+          </Alert>
         </div>
 
-        <div class="flex items-center gap-2">
-          <ToggleSwitch v-model="editingAgent.enabled" />
-          <span class="text-sm">Habilitado</span>
-        </div>
-
-        <Message severity="info" :closable="false">
-          <p class="text-sm">
-            <strong>Agent Key:</strong> {{ editingAgent.agent_key }}<br />
-            <strong>Tipo:</strong> {{ editingAgent.agent_type }}<br />
-            <strong>Grafo:</strong> {{ getGraphDisplay(editingAgent.agent_key) }}<br />
-            <strong>Origen:</strong> {{ editingAgent.sync_source }}
-          </p>
-        </Message>
-      </div>
-
-      <template #footer>
-        <Button label="Cancelar" severity="secondary" text @click="editDialogVisible = false" />
-        <Button label="Guardar" icon="pi pi-check" severity="success" @click="saveAgent" />
-      </template>
+        <DialogFooter>
+          <Button variant="outline" @click="editDialogVisible = false">Cancelar</Button>
+          <Button @click="saveAgent">
+            <i class="pi pi-check mr-2" />
+            Guardar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
     </Dialog>
 
     <!-- Create Dialog -->
-    <Dialog
-      v-model:visible="createDialogVisible"
-      header="Nuevo Agente"
-      :modal="true"
-      :style="{ width: '500px' }"
-    >
-      <div class="flex flex-col gap-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
-            Agent Key <span class="text-red-500">*</span>
-          </label>
-          <InputText
-            v-model="newAgent.agent_key"
-            class="w-full"
-            placeholder="my_custom_agent"
-          />
-          <small class="text-gray-400">Identificador unico, sin espacios (ej: my_agent)</small>
-        </div>
+    <Dialog v-model:open="createDialogVisible">
+      <DialogContent class="glass-dialog sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Nuevo Agente</DialogTitle>
+          <DialogDescription class="sr-only">Crear un nuevo agente en el catalogo</DialogDescription>
+        </DialogHeader>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
-            Nombre <span class="text-red-500">*</span>
-          </label>
-          <InputText v-model="newAgent.name" class="w-full" placeholder="Mi Agente Custom" />
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Descripcion</label>
-          <Textarea
-            v-model="newAgent.description"
-            rows="2"
-            class="w-full"
-            placeholder="Describe que hace este agente..."
-          />
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
+        <div class="flex flex-col gap-4 py-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-            <Select
-              v-model="newAgent.agent_type"
-              :options="AGENT_TYPE_OPTIONS"
-              optionLabel="label"
-              optionValue="value"
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Agent Key <span class="text-red-500">*</span>
+            </label>
+            <Input
+              v-model="newAgent.agent_key"
               class="w-full"
+              placeholder="my_custom_agent"
+            />
+            <p class="text-xs text-muted-foreground mt-1">Identificador unico, sin espacios (ej: my_agent)</p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Nombre <span class="text-red-500">*</span>
+            </label>
+            <Input v-model="newAgent.name" class="w-full" placeholder="Mi Agente Custom" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripcion</label>
+            <Textarea
+              v-model="newAgent.description"
+              :rows="2"
+              class="w-full"
+              placeholder="Describe que hace este agente..."
             />
           </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Dominio</label>
-            <Select
-              v-model="newAgent.domain_key"
-              :options="domainOptions"
-              optionLabel="label"
-              optionValue="value"
-              class="w-full"
-            />
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo</label>
+              <Select v-model="newAgentTypeValue">
+                <SelectTrigger class="w-full">
+                  <SelectValue placeholder="Seleccionar tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem
+                    v-for="opt in AGENT_TYPE_OPTIONS"
+                    :key="opt.value"
+                    :value="opt.value"
+                  >
+                    {{ opt.label }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dominio</label>
+              <Select v-model="newAgentDomainValue">
+                <SelectTrigger class="w-full">
+                  <SelectValue placeholder="Seleccionar dominio" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem
+                    v-for="opt in domainOptions"
+                    :key="opt.value ?? '__null__'"
+                    :value="opt.value ?? '__null__'"
+                  >
+                    {{ opt.label }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Prioridad</label>
+              <Input
+                v-model.number="newAgent.priority"
+                type="number"
+                :min="0"
+                :max="100"
+                class="w-full"
+              />
+            </div>
+            <div class="flex items-center gap-2 pt-6">
+              <Switch
+                :checked="newAgent.enabled ?? true"
+                @update:checked="newAgent.enabled = $event"
+              />
+              <span class="text-sm text-gray-700 dark:text-gray-300">Habilitado</span>
+            </div>
+          </div>
+
+          <Alert variant="warning">
+            <AlertDescription>
+              <p class="text-sm">
+                Los agentes custom requieren implementacion en el backend para funcionar. Este
+                formulario solo crea el registro en la base de datos.
+              </p>
+            </AlertDescription>
+          </Alert>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Prioridad</label>
-            <InputNumber
-              v-model="newAgent.priority"
-              class="w-full"
-              :min="0"
-              :max="100"
-              showButtons
-            />
-          </div>
-          <div class="flex items-center gap-2 pt-6">
-            <ToggleSwitch v-model="newAgent.enabled" />
-            <span class="text-sm">Habilitado</span>
-          </div>
-        </div>
-
-        <Message severity="warn" :closable="false">
-          <p class="text-sm">
-            Los agentes custom requieren implementacion en el backend para funcionar. Este
-            formulario solo crea el registro en la base de datos.
-          </p>
-        </Message>
-      </div>
-
-      <template #footer>
-        <Button label="Cancelar" severity="secondary" text @click="createDialogVisible = false" />
-        <Button label="Crear" icon="pi pi-plus" severity="success" @click="createAgent" />
-      </template>
+        <DialogFooter>
+          <Button variant="outline" @click="createDialogVisible = false">Cancelar</Button>
+          <Button @click="createAgent">
+            <i class="pi pi-plus mr-2" />
+            Crear
+          </Button>
+        </DialogFooter>
+      </DialogContent>
     </Dialog>
+
+    <!-- Delete Confirmation Dialog -->
+    <AlertDialog v-model:open="deleteDialogOpen">
+      <AlertDialogContent class="glass-dialog">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Confirmar eliminacion</AlertDialogTitle>
+          <AlertDialogDescription>
+            Estas seguro de eliminar el agente "{{ deletingAgent?.name }}"? Esta accion no se puede deshacer.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            @click="deleteAgent"
+          >
+            Eliminar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <!-- Subgraph Flow Dialog -->
     <SubgraphFlowDialog
@@ -710,10 +839,3 @@ onMounted(() => {
     />
   </div>
 </template>
-
-<style scoped>
-.agent-catalog-page {
-  max-width: 1400px;
-  margin: 0 auto;
-}
-</style>
