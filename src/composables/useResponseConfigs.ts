@@ -75,7 +75,9 @@ export function useResponseConfigs(selectedDomain: Ref<DomainKey | null>) {
         (c) =>
           c.intent_key.toLowerCase().includes(query) ||
           (c.display_name && c.display_name.toLowerCase().includes(query)) ||
-          c.task_description.toLowerCase().includes(query)
+          c.task_description.toLowerCase().includes(query) ||
+          (c.template_text && c.template_text.toLowerCase().includes(query)) ||
+          (c.fallback_template_key && c.fallback_template_key.toLowerCase().includes(query))
       )
     }
 
@@ -323,6 +325,7 @@ export function useResponseConfigs(selectedDomain: Ref<DomainKey | null>) {
           fallback_template_key: config.fallback_template_key,
           response_type: config.response_type,
           template_text: config.template_text,
+          buttons: config.buttons ?? null,
           display_name: config.display_name,
           description: config.description,
           priority: config.priority,

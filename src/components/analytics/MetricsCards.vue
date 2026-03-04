@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import Card from 'primevue/card'
-import Skeleton from 'primevue/skeleton'
+import { TrendingUp, TrendingDown, Minus } from 'lucide-vue-next'
+import { Card, CardContent } from '@/components/ui/card'
 
 interface MetricCard {
   label: string
@@ -43,12 +43,6 @@ function getTrendClass(direction: string): string {
   return 'text-gray-500'
 }
 
-function getTrendIcon(direction: string): string {
-  if (direction === 'up') return 'pi pi-arrow-up'
-  if (direction === 'down') return 'pi pi-arrow-down'
-  return 'pi pi-minus'
-}
-
 const gridClass = `grid grid-cols-1 md:grid-cols-${props.columns} gap-4`
 </script>
 
@@ -57,19 +51,19 @@ const gridClass = `grid grid-cols-1 md:grid-cols-${props.columns} gap-4`
     <!-- Loading skeleton -->
     <template v-if="loading">
       <Card v-for="i in columns" :key="i">
-        <template #content>
+        <CardContent class="p-4">
           <div class="text-center">
-            <Skeleton height="2.5rem" class="mb-2" />
-            <Skeleton height="1rem" width="60%" class="mx-auto" />
+            <div class="h-10 w-24 mx-auto mb-2 rounded bg-muted animate-pulse" />
+            <div class="h-4 w-16 mx-auto rounded bg-muted animate-pulse" />
           </div>
-        </template>
+        </CardContent>
       </Card>
     </template>
 
     <!-- Metrics cards -->
     <template v-else>
       <Card v-for="metric in metrics" :key="metric.label">
-        <template #content>
+        <CardContent class="p-4">
           <div class="text-center">
             <div v-if="metric.icon" class="mb-2">
               <i :class="[metric.icon, getColorClass(metric.color)]" class="text-xl" />
@@ -77,23 +71,21 @@ const gridClass = `grid grid-cols-1 md:grid-cols-${props.columns} gap-4`
             <div class="text-3xl font-bold" :class="getColorClass(metric.color)">
               {{ metric.value }}
             </div>
-            <div class="text-sm text-gray-500 mt-1">{{ metric.label }}</div>
+            <div class="text-sm text-muted-foreground mt-1">{{ metric.label }}</div>
             <div v-if="metric.trend" class="flex items-center justify-center gap-1 mt-2 text-xs">
-              <i :class="[getTrendIcon(metric.trend.direction), getTrendClass(metric.trend.direction)]" />
+              <component
+                :is="metric.trend.direction === 'up' ? TrendingUp : metric.trend.direction === 'down' ? TrendingDown : Minus"
+                class="h-3 w-3"
+                :class="getTrendClass(metric.trend.direction)"
+              />
               <span :class="getTrendClass(metric.trend.direction)">
                 {{ metric.trend.value > 0 ? '+' : '' }}{{ metric.trend.value }}%
               </span>
-              <span class="text-gray-400">{{ metric.trend.label }}</span>
+              <span class="text-muted-foreground">{{ metric.trend.label }}</span>
             </div>
           </div>
-        </template>
+        </CardContent>
       </Card>
     </template>
   </div>
 </template>
-
-<style scoped>
-:deep(.p-card-content) {
-  padding: 0.75rem;
-}
-</style>

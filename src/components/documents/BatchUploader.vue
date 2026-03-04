@@ -4,16 +4,14 @@ import { useKnowledge } from '@/composables/useKnowledge'
 import { useToast } from '@/composables/useToast'
 import { getTypeOptions } from '@/utils/constants'
 import type { DocumentContext, BatchUploadItem } from '@/types/document.types'
-
-import FileUpload from 'primevue/fileupload'
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
-import Button from 'primevue/button'
-import Select from 'primevue/select'
-import InputText from 'primevue/inputtext'
-import ProgressBar from 'primevue/progressbar'
-import Tag from 'primevue/tag'
-import Message from 'primevue/message'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Progress } from '@/components/ui/progress'
 
 interface Props {
   context?: DocumentContext
@@ -39,6 +37,7 @@ const currentIndex = ref(0)
 const overallProgress = ref(0)
 const defaultType = ref('')
 const defaultCategory = ref('')
+const fileInputRef = ref<HTMLInputElement | null>(null)
 
 const typeOptions = computed(() => getTypeOptions(props.context))
 
@@ -52,8 +51,46 @@ const errorCount = computed(() =>
   uploadQueue.value.filter(item => item.status === 'error').length
 )
 
-function onFilesSelect(event: { files: File[] }) {
-  const files = event.files
+function onFileInputChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  if (!input.files) return
+
+  const files = Array.from(input.files)
+
+  if (uploadQueue.value.length + files.length > props.maxFiles) {
+    toast.warn(`Maximo ${props.maxFiles} archivos permitidos`)
+    return
+  }
+
+  for (const file of files) {
+    const isPdf = file.type === 'application/pdf'
+    const isText = file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.md')
+
+    if (!isPdf && !isText) {
+      toast.warn(`Archivo ${file.name} no soportado. Solo PDF y TXT.`)
+      continue
+    }
+
+    uploadQueue.value.push({
+      file,
+      title: file.name.replace(/\.[^/.]+$/, ''),
+      document_type: defaultType.value || '',
+      category: defaultCategory.value || undefined,
+      status: 'pending'
+    })
+  }
+
+  // Reset file input
+  input.value = ''
+}
+
+function triggerFileSelect() {
+  fileInputRef.value?.click()
+}
+
+function onFileDrop(e: DragEvent) {
+  if (!e.dataTransfer?.files) return
+  const files = Array.from(e.dataTransfer.files)
 
   if (uploadQueue.value.length + files.length > props.maxFiles) {
     toast.warn(`Maximo ${props.maxFiles} archivos permitidos`)
@@ -95,7 +132,6 @@ async function processQueue() {
     return
   }
 
-  // Validate all items have document type
   const invalidItems = uploadQueue.value.filter(item => !item.document_type)
   if (invalidItems.length > 0) {
     toast.warn('Todos los documentos deben tener un tipo asignado')
@@ -115,7 +151,6 @@ async function processQueue() {
 
     try {
       if (item.file) {
-        // Read file content
         const content = await readFileContent(item.file)
 
         await createDocument({
@@ -163,12 +198,12 @@ async function readFileContent(file: File): Promise<string> {
   })
 }
 
-function getStatusSeverity(status: string): 'info' | 'success' | 'warn' | 'danger' | 'secondary' {
-  const map: Record<string, 'info' | 'success' | 'warn' | 'danger' | 'secondary'> = {
+function getStatusVariant(status: string): 'info' | 'success' | 'warning' | 'destructive' | 'secondary' {
+  const map: Record<string, 'info' | 'success' | 'warning' | 'destructive' | 'secondary'> = {
     pending: 'secondary',
     uploading: 'info',
     success: 'success',
-    error: 'danger'
+    error: 'destructive'
   }
   return map[status] || 'secondary'
 }
@@ -189,123 +224,141 @@ function getStatusLabel(status: string): string {
     <!-- Default settings -->
     <div class="grid grid-cols-2 gap-4 mb-4">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">
-          Tipo por defecto
-        </label>
+        <Label class="mb-1">Tipo por defecto</Label>
         <Select
-          v-model="defaultType"
-          :options="typeOptions"
-          optionLabel="label"
-          optionValue="value"
-          placeholder="Seleccionar tipo"
-          class="w-full"
+          :model-value="defaultType"
           :disabled="isProcessing"
-        />
+          @update:model-value="(val: string) => defaultType = val"
+        >
+          <SelectTrigger class="w-full">
+            <SelectValue placeholder="Seleccionar tipo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem v-for="opt in typeOptions" :key="String(opt.value)" :value="String(opt.value)">
+              {{ opt.label }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">
-          Categoria por defecto
-        </label>
-        <InputText
+        <Label class="mb-1">Categoria por defecto</Label>
+        <Input
           v-model="defaultCategory"
           placeholder="Ej: ventas, soporte"
-          class="w-full"
           :disabled="isProcessing"
         />
       </div>
     </div>
 
     <!-- File upload zone -->
-    <FileUpload
-      mode="basic"
-      :multiple="true"
+    <input
+      ref="fileInputRef"
+      type="file"
+      multiple
       accept=".pdf,.txt,.md"
-      :maxFileSize="10000000"
-      :disabled="isProcessing"
-      @select="onFilesSelect"
-      chooseLabel="Seleccionar Archivos"
-      class="mb-4"
+      class="hidden"
+      @change="onFileInputChange"
     />
+    <div
+      class="mb-4 border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center hover:border-primary/50 transition-colors cursor-pointer"
+      :class="{ 'opacity-50 pointer-events-none': isProcessing }"
+      @click="triggerFileSelect"
+      @dragover.prevent
+      @drop.prevent="onFileDrop"
+    >
+      <i class="pi pi-cloud-upload text-3xl text-muted-foreground mb-2 block" />
+      <p class="text-sm text-muted-foreground">
+        Arrastra archivos PDF o TXT aqui, o haz clic para seleccionar
+      </p>
+      <p class="text-xs text-muted-foreground mt-1">Maximo {{ maxFiles }} archivos, 10MB cada uno</p>
+    </div>
 
-    <Message v-if="uploadQueue.length === 0" severity="info" :closable="false">
-      Arrastra archivos PDF o TXT aqui, o usa el boton para seleccionarlos
-    </Message>
+    <Alert v-if="uploadQueue.length === 0" variant="info">
+      <AlertDescription>Arrastra archivos PDF o TXT aqui, o usa el boton para seleccionarlos</AlertDescription>
+    </Alert>
 
     <!-- Queue table -->
-    <DataTable
-      v-if="uploadQueue.length > 0"
-      :value="uploadQueue"
-      stripedRows
-      class="p-datatable-sm mb-4"
-    >
-      <Column field="title" header="Titulo" style="min-width: 200px">
-        <template #body="{ data, index }">
-          <InputText
-            v-model="data.title"
-            class="w-full"
-            :disabled="isProcessing || data.status !== 'pending'"
-          />
-        </template>
-      </Column>
-
-      <Column field="document_type" header="Tipo" style="width: 150px">
-        <template #body="{ data }">
-          <Select
-            v-model="data.document_type"
-            :options="typeOptions"
-            optionLabel="label"
-            optionValue="value"
-            placeholder="Tipo"
-            class="w-full"
-            :disabled="isProcessing || data.status !== 'pending'"
-          />
-        </template>
-      </Column>
-
-      <Column field="category" header="Categoria" style="width: 120px">
-        <template #body="{ data }">
-          <InputText
-            v-model="data.category"
-            placeholder="Categoria"
-            class="w-full"
-            :disabled="isProcessing || data.status !== 'pending'"
-          />
-        </template>
-      </Column>
-
-      <Column field="status" header="Estado" style="width: 120px">
-        <template #body="{ data }">
-          <Tag :severity="getStatusSeverity(data.status)" :value="getStatusLabel(data.status)" />
-        </template>
-      </Column>
-
-      <Column header="" style="width: 60px">
-        <template #body="{ index, data }">
-          <Button
-            v-if="data.status === 'pending'"
-            icon="pi pi-times"
-            severity="danger"
-            text
-            rounded
-            size="small"
-            @click="removeFromQueue(index)"
-            :disabled="isProcessing"
-          />
-        </template>
-      </Column>
-    </DataTable>
+    <div v-if="uploadQueue.length > 0" class="rounded-md border overflow-auto mb-4">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead class="min-w-[200px]">Titulo</TableHead>
+            <TableHead class="w-[150px]">Tipo</TableHead>
+            <TableHead class="w-[120px]">Categoria</TableHead>
+            <TableHead class="w-[120px]">Estado</TableHead>
+            <TableHead class="w-[60px]" />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow
+            v-for="(data, index) in uploadQueue"
+            :key="index"
+            :class="index % 2 === 0 ? '' : 'bg-muted/50'"
+          >
+            <TableCell>
+              <Input
+                v-model="data.title"
+                class="h-8"
+                :disabled="isProcessing || data.status !== 'pending'"
+              />
+            </TableCell>
+            <TableCell>
+              <Select
+                :model-value="data.document_type"
+                :disabled="isProcessing || data.status !== 'pending'"
+                @update:model-value="(val: string) => data.document_type = val"
+              >
+                <SelectTrigger class="h-8">
+                  <SelectValue placeholder="Tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="opt in typeOptions" :key="String(opt.value)" :value="String(opt.value)">
+                    {{ opt.label }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </TableCell>
+            <TableCell>
+              <Input
+                v-model="data.category"
+                placeholder="Categoria"
+                class="h-8"
+                :disabled="isProcessing || data.status !== 'pending'"
+              />
+            </TableCell>
+            <TableCell>
+              <Badge :variant="getStatusVariant(data.status)">
+                {{ getStatusLabel(data.status) }}
+              </Badge>
+            </TableCell>
+            <TableCell>
+              <Button
+                v-if="data.status === 'pending'"
+                variant="ghost"
+                size="icon"
+                class="h-7 w-7 text-red-500 hover:text-red-600"
+                :disabled="isProcessing"
+                @click="removeFromQueue(index)"
+              >
+                <i class="pi pi-times text-xs" />
+              </Button>
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    </div>
 
     <!-- Progress -->
     <div v-if="isProcessing" class="mb-4">
-      <p class="text-sm text-gray-600 mb-2">
+      <p class="text-sm text-muted-foreground mb-2">
         Procesando {{ currentIndex + 1 }} de {{ uploadQueue.length }}...
       </p>
-      <ProgressBar :value="overallProgress" />
+      <Progress :model-value="overallProgress" class="h-2" />
     </div>
 
     <!-- Summary -->
     <div v-if="uploadQueue.length > 0" class="flex items-center gap-4 mb-4 text-sm">
-      <span class="text-gray-600">
+      <span class="text-muted-foreground">
         Total: <strong>{{ uploadQueue.length }}</strong>
       </span>
       <span v-if="pendingCount > 0" class="text-blue-600">
@@ -322,24 +375,27 @@ function getStatusLabel(status: string): string {
     <!-- Actions -->
     <div class="flex justify-end gap-2">
       <Button
-        label="Limpiar"
-        severity="secondary"
+        variant="secondary"
         @click="clearQueue"
         :disabled="isProcessing || uploadQueue.length === 0"
-      />
+      >
+        Limpiar
+      </Button>
       <Button
-        label="Cancelar"
-        severity="secondary"
+        variant="secondary"
         @click="emit('cancel')"
         :disabled="isProcessing"
-      />
+      >
+        Cancelar
+      </Button>
       <Button
-        label="Procesar Cola"
-        icon="pi pi-upload"
-        @click="processQueue"
         :disabled="isProcessing || pendingCount === 0"
         :loading="isProcessing"
-      />
+        @click="processQueue"
+      >
+        <i class="pi pi-upload mr-2" />
+        Procesar Cola
+      </Button>
     </div>
   </div>
 </template>

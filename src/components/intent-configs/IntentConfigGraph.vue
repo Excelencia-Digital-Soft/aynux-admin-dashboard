@@ -6,40 +6,47 @@
  * START → ROUTER → [action nodes] → RESPONSE_FORMATTER → END
  * with a detail drawer for editing selected node configurations.
  */
-import { onMounted, ref, watch } from 'vue'
-import { RefreshCw } from 'lucide-vue-next'
+import { onMounted, ref, watch, type Ref } from 'vue'
+import { RefreshCw, X } from 'lucide-vue-next'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Spinner } from '@/components/ui/spinner'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 import IntentConfigGraphCanvas from './IntentConfigGraphCanvas.vue'
 import IntentConfigDetailDrawer from './IntentConfigDetailDrawer.vue'
 import { useIntentConfigGraph } from './composables/useIntentConfigGraph'
 import { DOMAIN_CONFIGS } from './types'
+import { EDGE_TYPE_COLORS } from './utils/graphLayout'
 import { graphTopologyApi } from '@/api/graphTopology.api'
-import type { InstitutionConfigSummary } from '@/types/graphTopology.types'
+import type { GraphTopologyResponse, InstitutionConfigSummary } from '@/types/graphTopology.types'
 import type { RoutingConfigCreate } from '@/types/routingConfigs.types'
 
 // Props
 interface Props {
   height?: string
+  highlightedNodeId?: string | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  height: '650px'
+  height: '650px',
+  highlightedNodeId: null,
 })
 
 // Emits
 const emit = defineEmits<{
   (e: 'domainChange', domain: string): void
+  (e: 'topologyLoaded', topology: GraphTopologyResponse): void
+  (e: 'nodeSelect', nodeId: string | null): void
 }>()
 
 // Composable
 const {
   nodes,
   edges,
+  topology,
   selectedNodeId,
   selectedNode,
   drawerVisible,
@@ -50,6 +57,9 @@ const {
   isLoading,
   error,
   stats,
+  totalIssues,
+  dependencyHighlightNodes,
+  dependencyHighlightEdges,
   fetchTopology,
   selectNode,
   clearSelection,
@@ -58,7 +68,8 @@ const {
   updateAwaitingTypeConfig,
   createRoutingConfig,
   deleteRoutingConfig,
-  openCreateForm
+  openCreateForm,
+  highlightDependency
 } = useIntentConfigGraph()
 
 // Domain options for the dropdown
@@ -84,6 +95,15 @@ async function fetchLinkedConfigs() {
 
 watch(domainKey, () => {
   fetchLinkedConfigs()
+})
+
+// Emit topology and selection changes to parent
+watch(topology, (val) => {
+  if (val) emit('topologyLoaded', val)
+}, { immediate: true })
+
+watch(selectedNodeId, (val) => {
+  emit('nodeSelect', val ?? null)
 })
 
 // Handle node click
@@ -147,6 +167,15 @@ function handleRefresh() {
   fetchTopology()
 }
 
+// Welcome banner
+const WELCOME_STORAGE_KEY = 'topology-welcome-dismissed'
+const welcomeDismissed = ref(localStorage.getItem(WELCOME_STORAGE_KEY) === 'true')
+
+function dismissWelcome() {
+  welcomeDismissed.value = true
+  localStorage.setItem(WELCOME_STORAGE_KEY, 'true')
+}
+
 // Lifecycle
 onMounted(() => {
   fetchTopology()
@@ -162,7 +191,7 @@ onMounted(() => {
       <div class="toolbar-left">
         <h2 class="toolbar-title">
           <i class="pi pi-share-alt" />
-          LangGraph Topology
+          Flujo del Chatbot
         </h2>
       </div>
 
@@ -203,7 +232,7 @@ onMounted(() => {
     <div class="stats-bar glass-panel">
       <div class="stat-item">
         <span class="stat-value">{{ stats.nodes }}</span>
-        <span class="stat-label">Nodos</span>
+        <span class="stat-label">Pasos</span>
       </div>
       <div class="stat-item">
         <span class="stat-value">{{ stats.edges }}</span>
@@ -211,11 +240,15 @@ onMounted(() => {
       </div>
       <div class="stat-item">
         <span class="stat-value">{{ stats.routingConfigs }}</span>
-        <span class="stat-label">Routing</span>
+        <span class="stat-label">Reglas</span>
       </div>
       <div class="stat-item">
         <span class="stat-value">{{ stats.awaitingTypes }}</span>
-        <span class="stat-label">Awaiting</span>
+        <span class="stat-label">Esperando</span>
+      </div>
+      <div v-if="totalIssues.total > 0" class="stat-item stat-issues" :class="{ 'stat-critical': totalIssues.critical > 0 }">
+        <span class="stat-value">{{ totalIssues.total }}</span>
+        <span class="stat-label">{{ totalIssues.critical > 0 ? 'Errores' : 'Avisos' }}</span>
       </div>
     </div>
 
@@ -236,10 +269,22 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Welcome Banner -->
+    <Alert v-if="!welcomeDismissed" class="welcome-banner">
+      <AlertDescription class="flex items-center justify-between gap-2">
+        <span>
+          Este es el flujo de conversación de tu chatbot de WhatsApp. Cada caja representa un paso del proceso. Hacé clic en cualquier paso para ver y editar sus reglas.
+        </span>
+        <Button variant="ghost" size="icon" class="h-6 w-6 shrink-0" @click="dismissWelcome">
+          <X class="h-3.5 w-3.5" />
+        </Button>
+      </AlertDescription>
+    </Alert>
+
     <!-- Loading State -->
     <div v-if="isLoading && nodes.length === 0" class="loading-state">
       <Spinner size="lg" />
-      <p>Cargando topologia del grafo...</p>
+      <p>Cargando el flujo del chatbot...</p>
     </div>
 
     <!-- Error State -->
@@ -255,6 +300,9 @@ onMounted(() => {
       :nodes="nodes"
       :edges="edges"
       :selected-node-id="selectedNodeId"
+      :highlighted-node-id="highlightedNodeId"
+      :dependency-highlight-nodes="dependencyHighlightNodes"
+      :dependency-highlight-edges="dependencyHighlightEdges"
       :height="height"
       @node-click="handleNodeClick"
       @pane-click="handlePaneClick"
@@ -267,19 +315,19 @@ onMounted(() => {
       <div class="legend-items">
         <div class="legend-item">
           <span class="legend-dot" style="background: #10b981" />
-          <span>Terminal</span>
+          <span>Inicio / Fin</span>
         </div>
         <div class="legend-item">
           <span class="legend-dot" style="background: #8b5cf6" />
-          <span>Supervisor</span>
+          <span>Distribuidor</span>
         </div>
         <div class="legend-item">
           <span class="legend-dot" style="background: #3b82f6" />
-          <span>Action</span>
+          <span>Acción</span>
         </div>
         <div class="legend-item">
           <span class="legend-dot" style="background: #a855f7" />
-          <span>Formatter</span>
+          <span>Formateador</span>
         </div>
       </div>
       <div class="legend-edges">
@@ -287,9 +335,17 @@ onMounted(() => {
           <span class="legend-line solid" />
           <span>Directo</span>
         </div>
-        <div class="legend-item">
-          <span class="legend-line dashed" />
-          <span>Condicional</span>
+        <div
+          v-for="(cfg, key) in EDGE_TYPE_COLORS"
+          :key="key"
+          class="legend-item"
+        >
+          <span
+            class="legend-line"
+            :class="{ dashed: cfg.dashed }"
+            :style="{ background: cfg.dashed ? undefined : cfg.stroke, '--dash-color': cfg.stroke }"
+          />
+          <span>{{ cfg.label }}</span>
         </div>
       </div>
     </div>
@@ -308,6 +364,7 @@ onMounted(() => {
       @create-routing-config="handleCreateRoutingConfig"
       @delete-routing-config="handleDeleteRoutingConfig"
       @update:show-create-form="handleShowCreateFormUpdate"
+      @highlight-dependency="highlightDependency"
     />
   </div>
 </template>
@@ -373,6 +430,14 @@ onMounted(() => {
   align-items: center;
 }
 
+.stat-issues .stat-value {
+  color: #eab308;
+}
+
+.stat-critical .stat-value {
+  color: #ef4444;
+}
+
 .stat-value {
   font-size: 1.25rem;
   font-weight: 700;
@@ -408,6 +473,12 @@ onMounted(() => {
   display: flex;
   gap: 0.375rem;
   flex-wrap: wrap;
+}
+
+/* Welcome Banner */
+.welcome-banner {
+  font-size: 0.8rem;
+  line-height: 1.4;
 }
 
 /* Loading State */
@@ -493,8 +564,8 @@ onMounted(() => {
 .legend-line.dashed {
   background: repeating-linear-gradient(
     90deg,
-    #8b5cf6,
-    #8b5cf6 4px,
+    var(--dash-color, #8b5cf6),
+    var(--dash-color, #8b5cf6) 4px,
     transparent 4px,
     transparent 8px
   );

@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import type { RoutingConfigCreate } from '@/types/routingConfigs.types'
+import { getPriorityDisplay } from '../utils/labelHumanizer'
 
 interface AvailableNode {
   id: string
@@ -41,38 +42,38 @@ const emit = defineEmits<{
 const CONFIG_TYPES = [
   {
     value: 'global_keyword',
-    label: 'Global Keyword',
+    label: 'Palabra clave global',
     icon: 'pi-globe',
     priority: 100,
-    description: 'Keyword activo en cualquier contexto'
+    description: 'Funciona en cualquier momento de la conversación'
   },
   {
     value: 'button_mapping',
-    label: 'Button Mapping',
+    label: 'Botón de WhatsApp',
     icon: 'pi-stop',
     priority: 50,
-    description: 'Mapeo de boton interactivo'
+    description: 'Cuando el usuario toca un botón de respuesta rápida'
   },
   {
     value: 'list_selection',
-    label: 'List Selection',
+    label: 'Lista de WhatsApp',
     icon: 'pi-list',
     priority: 45,
-    description: 'Seleccion de lista interactiva'
+    description: 'Cuando el usuario elige de una lista'
   },
   {
     value: 'menu_option',
-    label: 'Menu Option',
+    label: 'Opción de menú',
     icon: 'pi-bars',
     priority: 40,
-    description: 'Opcion de menu'
+    description: 'Cuando el usuario escribe un número (1, 2, 3...)'
   },
   {
     value: 'intent_node_mapping',
-    label: 'Intent → Node',
+    label: 'Detección por IA',
     icon: 'pi-arrow-right-arrow-left',
     priority: 30,
-    description: 'Mapeo directo de intent a nodo'
+    description: 'Redirección automática usando inteligencia artificial'
   }
 ] as const
 
@@ -80,7 +81,31 @@ const CONFIG_TYPES = [
 const selectedType = ref<string>('')
 const targetNode = ref<string>(props.targetNode || '')
 const triggerValue = ref('')
+const textAlias = ref('')
 const description = ref('')
+
+// Text alias (WhatsApp button/list display text)
+const TEXT_ALIAS_MAX_LENGTH: Record<string, number> = {
+  button_mapping: 20,
+  list_selection: 24
+}
+
+const showTextAlias = computed(() =>
+  selectedType.value === 'button_mapping' || selectedType.value === 'list_selection'
+)
+
+const textAliasLabel = computed(() =>
+  selectedType.value === 'button_mapping' ? 'Texto del botón' : 'Texto del item'
+)
+
+const textAliasMaxLen = computed(() =>
+  TEXT_ALIAS_MAX_LENGTH[selectedType.value] ?? 20
+)
+
+// Clear text alias when type changes
+watch(selectedType, () => {
+  textAlias.value = ''
+})
 
 // Sync target node from prop
 watch(
@@ -96,11 +121,19 @@ const selectedPriority = computed(() => {
 })
 
 const canSave = computed(() => {
-  return selectedType.value && triggerValue.value.trim() && targetNode.value
+  if (!selectedType.value || !triggerValue.value.trim() || !targetNode.value) return false
+  // Validate text alias length if applicable
+  if (showTextAlias.value) {
+    const trimmed = textAlias.value.trim()
+    if (trimmed && trimmed.length > textAliasMaxLen.value) return false
+  }
+  return true
 })
 
 function handleSave() {
   if (!canSave.value) return
+
+  const trimmedAlias = textAlias.value.trim()
 
   const data: RoutingConfigCreate = {
     domain_key: props.domainKey,
@@ -110,7 +143,10 @@ function handleSave() {
     target_node: targetNode.value || null,
     priority: selectedPriority.value,
     is_enabled: true,
-    description: description.value.trim() || null
+    description: description.value.trim() || null,
+    ...(showTextAlias.value && trimmedAlias
+      ? { metadata: { text_alias: trimmedAlias } }
+      : {})
   }
 
   emit('save', data)
@@ -125,31 +161,45 @@ function handleCancel() {
   <div class="create-form">
     <div class="form-header">
       <i class="pi pi-plus-circle" style="color: #8b5cf6" />
-      <h4>Nuevo Ruteo</h4>
+      <h4>Nueva Regla</h4>
     </div>
 
     <!-- Config Type Selector -->
     <div class="form-field">
-      <Label class="field-label">Tipo de configuracion</Label>
-      <div class="type-cards">
+      <div class="type-section-header">
+        <Label class="field-label type-section-label">TIPO DE CONFIGURACIÓN</Label>
+        <i
+          class="pi pi-info-circle type-info-icon"
+          title="Selecciona el tipo de regla que determinará cómo se activa este ruteo"
+        />
+      </div>
+      <div class="type-cards-grid">
         <button
           v-for="ct in CONFIG_TYPES"
           :key="ct.value"
           type="button"
-          class="type-card"
+          class="type-glass-card"
           :class="{ selected: selectedType === ct.value }"
+          :title="ct.description"
           @click="selectedType = ct.value"
         >
-          <i :class="['pi', ct.icon]" />
-          <span class="type-label">{{ ct.label }}</span>
-          <span class="type-priority">P{{ ct.priority }}</span>
+          <div class="card-content">
+            <i :class="['pi', ct.icon, 'card-icon']" />
+            <span class="card-label">{{ ct.label }}</span>
+          </div>
+          <span
+            class="card-badge"
+            :class="`badge-${getPriorityDisplay(ct.priority).label.toLowerCase()}`"
+          >
+            {{ getPriorityDisplay(ct.priority).label }}
+          </span>
         </button>
       </div>
     </div>
 
     <!-- Target Node -->
     <div class="form-field">
-      <Label class="field-label">Destino (nodo)</Label>
+      <Label class="field-label">Paso destino</Label>
       <Select v-model="targetNode">
         <SelectTrigger class="w-full">
           <SelectValue placeholder="Seleccionar nodo..." />
@@ -168,12 +218,26 @@ function handleCancel() {
 
     <!-- Trigger Value / Intent Name -->
     <div class="form-field">
-      <Label class="field-label">Pattern / Intent Name</Label>
+      <Label class="field-label">Palabra o patrón de activación</Label>
       <Input
         v-model="triggerValue"
-        placeholder="ej. confirm_booking"
+        placeholder="ej: cancelar, menu, 1"
         class="w-full"
       />
+    </div>
+
+    <!-- Text Alias (WhatsApp button/list display text) -->
+    <div v-if="showTextAlias" class="form-field">
+      <Label class="field-label">{{ textAliasLabel }}</Label>
+      <Input
+        v-model="textAlias"
+        :maxlength="textAliasMaxLen"
+        :placeholder="`Texto visible en WhatsApp (máx. ${textAliasMaxLen})`"
+        class="w-full"
+      />
+      <span class="field-hint">
+        Texto que ve el usuario en WhatsApp. {{ textAlias.length }}/{{ textAliasMaxLen }}
+      </span>
     </div>
 
     <!-- Description -->
@@ -243,53 +307,117 @@ function handleCancel() {
   color: var(--text-color-secondary);
 }
 
-.type-cards {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-}
-
-.type-card {
+/* Type section header */
+.type-section-header {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.625rem;
-  border: 1.5px solid var(--surface-border);
-  border-radius: 0.375rem;
-  background: var(--surface-ground);
-  cursor: pointer;
-  font-size: 0.7rem;
-  color: var(--text-color);
-  transition: all 0.15s;
+  justify-content: space-between;
 }
 
-.type-card:hover {
-  border-color: #8b5cf6;
-  background: rgba(139, 92, 246, 0.05);
+.type-section-label {
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
-.type-card.selected {
-  border-color: #8b5cf6;
-  background: rgba(139, 92, 246, 0.1);
-  box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.3);
-}
-
-.type-card i {
+.type-info-icon {
   font-size: 0.75rem;
   color: var(--text-color-secondary);
+  opacity: 0.5;
+  cursor: help;
 }
 
-.type-card.selected i {
-  color: #8b5cf6;
+/* Glass card grid */
+.type-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
 }
 
-.type-label {
-  font-weight: 600;
-  white-space: nowrap;
+.type-glass-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0.625rem;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  cursor: pointer;
+  color: var(--text-color);
+  transition: all 0.2s ease;
 }
 
-.type-priority {
+.type-glass-card:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.type-glass-card.selected {
+  border-color: rgba(139, 92, 246, 0.5);
+  background: rgba(139, 92, 246, 0.08);
+  box-shadow:
+    0 0 0 1px rgba(139, 92, 246, 0.25),
+    0 0 16px -4px rgba(139, 92, 246, 0.15);
+}
+
+/* Card content (icon + label) */
+.card-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.card-icon {
+  font-size: 0.9rem;
+  color: var(--text-color-secondary);
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.type-glass-card.selected .card-icon {
+  color: #a78bfa;
+  opacity: 1;
+}
+
+.card-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+/* Priority badge */
+.card-badge {
   font-size: 0.6rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+
+.badge-alta {
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.12);
+  border: 1px solid rgba(52, 211, 153, 0.2);
+}
+
+.badge-media {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.badge-baja {
+  color: #9ca3af;
+  background: rgba(156, 163, 175, 0.1);
+  border: 1px solid rgba(156, 163, 175, 0.15);
+}
+
+.field-hint {
+  font-size: 0.65rem;
   color: var(--text-color-secondary);
   opacity: 0.7;
 }

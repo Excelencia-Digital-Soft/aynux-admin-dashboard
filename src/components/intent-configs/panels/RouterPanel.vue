@@ -3,9 +3,15 @@
  * RouterPanel - Config panel for the Router Supervisor node
  * Shows all routing configs grouped by config_type
  */
-import { computed } from 'vue'
+import { toRef } from 'vue'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent
+} from '@/components/ui/accordion'
 import {
   Tooltip,
   TooltipTrigger,
@@ -14,6 +20,14 @@ import {
 } from '@/components/ui/tooltip'
 import DetectionPatternsSection from './DetectionPatternsSection.vue'
 import type { RoutingConfigSummary } from '../types'
+import { useGroupedRoutingConfigs } from '@/composables/useGroupedRoutingConfigs'
+import {
+  humanizeTargetIntent,
+  humanizeNodeId,
+  getPriorityDisplay,
+  getConfigTypeLabel,
+  getConfigTypeTooltip
+} from '../utils/labelHumanizer'
 
 interface Props {
   routingConfigs: RoutingConfigSummary[]
@@ -27,6 +41,7 @@ const emit = defineEmits<{
   (e: 'updateConfig', configId: string, updates: Record<string, unknown>): void
   (e: 'addConfig'): void
   (e: 'deleteConfig', configId: string): void
+  (e: 'highlightDependency', routingConfigId: string | null): void
 }>()
 
 function handleToggleEnabled(config: RoutingConfigSummary) {
@@ -45,32 +60,17 @@ function handleDelete(configId: string) {
   emit('deleteConfig', configId)
 }
 
-// Group by config_type
-const groupedConfigs = computed(() => {
-  const groups: Record<string, RoutingConfigSummary[]> = {}
-  for (const config of props.routingConfigs) {
-    if (!groups[config.config_type]) {
-      groups[config.config_type] = []
-    }
-    groups[config.config_type].push(config)
-  }
-  // Sort each group by priority desc
-  for (const type of Object.keys(groups)) {
-    groups[type].sort((a, b) => b.priority - a.priority)
-  }
-  return groups
-})
-
-const configTypeLabels: Record<string, string> = {
-  global_keyword: 'Global Keywords',
-  button_mapping: 'Button Mappings',
-  menu_option: 'Menu Options',
-  list_selection: 'List Selections',
-  intent_node_mapping: 'Intent → Node'
-}
+// Group by config_type using shared composable
+const { groupedConfigs, defaultOpenGroups } = useGroupedRoutingConfigs(
+  toRef(props, 'routingConfigs')
+)
 
 function getTypeLabel(type: string): string {
-  return configTypeLabels[type] || type
+  return getConfigTypeLabel(type)
+}
+
+function getTypeTooltip(type: string): string | null {
+  return getConfigTypeTooltip(type)
 }
 
 function getTypeVariant(type: string): 'destructive' | 'info' | 'warning' | 'secondary' | 'outline' {
@@ -90,18 +90,18 @@ function getTypeVariant(type: string): 'destructive' | 'info' | 'warning' | 'sec
     <div class="router-panel">
       <div class="panel-header">
         <i class="pi pi-sitemap" style="color: #8b5cf6" />
-        <h3>Router Supervisor</h3>
+        <h3>Distribuidor de Mensajes</h3>
       </div>
 
       <p class="panel-description">
-        Enruta mensajes usando matchers de prioridad. Configura global keywords, buttons, y opciones de menu.
+        Aquí se configuran las reglas que deciden a dónde va cada mensaje. Las reglas se revisan por orden de prioridad.
       </p>
 
       <div class="config-stats-row">
         <div class="config-stats">
           <div class="stat">
             <span class="stat-value">{{ routingConfigs.length }}</span>
-            <span class="stat-label">Total configs</span>
+            <span class="stat-label">Total reglas</span>
           </div>
           <div class="stat">
             <span class="stat-value">{{ routingConfigs.filter(c => c.is_enabled).length }}</span>
@@ -114,104 +114,135 @@ function getTypeVariant(type: string): 'destructive' | 'info' | 'warning' | 'sec
         </button>
       </div>
 
-      <!-- Config groups -->
-      <div
-        v-for="(configs, type) in groupedConfigs"
-        :key="type"
-        class="config-group"
+      <!-- Config groups (accordion) -->
+      <Accordion
+        v-if="Object.keys(groupedConfigs).length > 0"
+        type="multiple"
+        :default-value="defaultOpenGroups"
+        class="routing-accordion"
       >
-        <div class="group-header">
-          <Badge :variant="getTypeVariant(type as string)">{{ getTypeLabel(type as string) }}</Badge>
-          <span class="group-count">{{ configs.length }}</span>
-        </div>
-
-        <div class="config-list">
-          <div
-            v-for="config in configs"
-            :key="config.id"
-            class="config-item"
-            :class="{ disabled: !config.is_enabled }"
-          >
-            <div class="config-row">
-              <div class="config-trigger">
-                <code>{{ config.trigger_value }}</code>
-              </div>
-              <div class="config-actions">
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <div class="scale-75 flex-shrink-0">
+        <AccordionItem
+          v-for="(configs, type) in groupedConfigs"
+          :key="type"
+          :value="type as string"
+          class="accordion-group"
+        >
+          <AccordionTrigger class="group-header">
+            <div class="group-header-left">
+              <Badge :variant="getTypeVariant(type as string)">{{ getTypeLabel(type as string) }}</Badge>
+              <Tooltip v-if="getTypeTooltip(type as string)">
+                <TooltipTrigger as-child>
+                  <i class="pi pi-question-circle help-icon" @click.stop />
+                </TooltipTrigger>
+                <TooltipContent side="top">{{ getTypeTooltip(type as string) }}</TooltipContent>
+              </Tooltip>
+            </div>
+            <span class="group-count">{{ configs.length }}</span>
+          </AccordionTrigger>
+          <AccordionContent>
+            <div class="config-list">
+              <div
+                v-for="config in configs"
+                :key="config.id"
+                class="config-item"
+                :class="{ disabled: !config.is_enabled }"
+                @mouseenter="emit('highlightDependency', config.id)"
+                @mouseleave="emit('highlightDependency', null)"
+              >
+                <div class="config-row">
+                  <div class="config-trigger">
+                    <code>{{ config.trigger_value }}</code>
+                  </div>
+                  <div class="config-actions">
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <div class="scale-75 flex-shrink-0">
+                          <Switch
+                            :checked="config.is_enabled"
+                            @update:checked="() => handleToggleEnabled(config)"
+                          />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="left">
+                        Si está desactivada, esta regla no se usará.
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <button class="delete-btn" @click.stop="handleDelete(config.id)">
+                          <i class="pi pi-trash" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="left">Eliminar esta regla</TooltipContent>
+                    </Tooltip>
+                  </div>
+                </div>
+                <div class="config-target">
+                  <i class="pi pi-arrow-right" />
+                  <span>{{ humanizeTargetIntent(config.target_intent) }}</span>
+                  <span v-if="config.target_node" class="target-node">
+                    ({{ humanizeNodeId(config.target_node) }})
+                  </span>
+                </div>
+                <div class="config-flags">
+                  <label class="flag-toggle" @click.stop>
+                    <div class="scale-[0.6]">
                       <Switch
-                        :checked="config.is_enabled"
-                        @update:checked="() => handleToggleEnabled(config)"
+                        :checked="config.clears_context"
+                        @update:checked="() => handleToggleClearsContext(config)"
                       />
                     </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="left">
-                    Activa o desactiva esta regla. Si esta desactivada, el trigger no sera procesado por el router.
-                  </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <button class="delete-btn" @click="handleDelete(config.id)">
-                      <i class="pi pi-trash" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="left">Eliminar esta regla</TooltipContent>
-                </Tooltip>
+                    <span>Reiniciar</span>
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <i class="pi pi-question-circle help-icon" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        Al activar esta regla, el bot olvida lo que estaba preguntando y empieza de nuevo. Útil para palabras como "cancelar" o "menú".
+                      </TooltipContent>
+                    </Tooltip>
+                  </label>
+                  <label v-if="config.config_type === 'global_keyword'" class="flag-toggle" @click.stop>
+                    <div class="scale-[0.6]">
+                      <Switch
+                        :checked="config.is_escape_intent"
+                        @update:checked="() => handleToggleEscapeIntent(config)"
+                      />
+                    </div>
+                    <span>Interrumpir</span>
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <i class="pi pi-question-circle help-icon" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        Permite que esta palabra funcione incluso cuando el bot está esperando una respuesta del usuario. Sin esto, solo funciona cuando el bot no está esperando nada.
+                      </TooltipContent>
+                    </Tooltip>
+                  </label>
+                  <Tooltip v-if="config.requires_auth">
+                    <TooltipTrigger as-child>
+                      <Badge variant="warning" class="text-[0.55rem] px-1 py-0">Identificación</Badge>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">El usuario debe estar identificado antes de usar esta acción</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <span class="priority" :style="{ color: getPriorityDisplay(config.priority).color }">
+                        {{ getPriorityDisplay(config.priority).label }}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">Prioridad: {{ config.priority }}</TooltipContent>
+                  </Tooltip>
+                </div>
               </div>
             </div>
-            <div class="config-target">
-              <i class="pi pi-arrow-right" />
-              <span>{{ config.target_intent }}</span>
-              <span v-if="config.target_node" class="target-node">
-                ({{ config.target_node }})
-              </span>
-            </div>
-            <div class="config-flags">
-              <label class="flag-toggle">
-                <div class="scale-[0.6]">
-                  <Switch
-                    :checked="config.clears_context"
-                    @update:checked="() => handleToggleClearsContext(config)"
-                  />
-                </div>
-                <span>Clear ctx</span>
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <i class="pi pi-question-circle help-icon" />
-                  </TooltipTrigger>
-                  <TooltipContent side="top">
-                    Limpia el contexto pendiente (awaiting_input) al activar esta ruta. Util para keywords como cancelar o hola que reinician el flujo.
-                  </TooltipContent>
-                </Tooltip>
-              </label>
-              <label v-if="config.config_type === 'global_keyword'" class="flag-toggle">
-                <div class="scale-[0.6]">
-                  <Switch
-                    :checked="config.is_escape_intent"
-                    @update:checked="() => handleToggleEscapeIntent(config)"
-                  />
-                </div>
-                <span>Escape</span>
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <i class="pi pi-question-circle help-icon" />
-                  </TooltipTrigger>
-                  <TooltipContent side="top">
-                    Permite interrumpir un flujo en espera (awaiting_input) para ejecutar esta accion. Sin esto, el keyword solo funciona fuera de flujos activos.
-                  </TooltipContent>
-                </Tooltip>
-              </label>
-              <Badge v-if="config.requires_auth" variant="warning" class="text-[0.55rem] px-1 py-0">Auth</Badge>
-              <span class="priority">P{{ config.priority }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       <div v-if="routingConfigs.length === 0" class="empty-configs">
         <i class="pi pi-info-circle" />
-        <p>No hay routing configs para el router</p>
+        <p>No hay reglas configuradas</p>
       </div>
 
       <!-- Detection Patterns -->
@@ -304,19 +335,47 @@ function getTypeVariant(type: string): 'destructive' | 'info' | 'warning' | 'sec
   text-transform: uppercase;
 }
 
-.config-group {
+.routing-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.accordion-group {
   border: 1px solid var(--surface-border);
   border-radius: 0.5rem;
   overflow: hidden;
 }
 
-.group-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.routing-accordion :deep(.group-header) {
   padding: 0.5rem 0.75rem;
   background: var(--surface-ground);
-  border-bottom: 1px solid var(--surface-border);
+  text-decoration: none;
+}
+
+.routing-accordion :deep(.group-header:hover) {
+  text-decoration: none;
+}
+
+.routing-accordion :deep(.group-header > svg) {
+  color: var(--text-color-secondary);
+  opacity: 0.5;
+  width: 14px;
+  height: 14px;
+}
+
+.routing-accordion :deep([data-radix-accordion-content]) {
+  transition-duration: 200ms;
+}
+
+.routing-accordion :deep([data-radix-accordion-content] > div) {
+  padding: 0;
+}
+
+.group-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
 }
 
 .group-count {

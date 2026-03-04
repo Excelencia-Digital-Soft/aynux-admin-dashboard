@@ -1,21 +1,21 @@
 <script setup lang="ts">
 import { ref, nextTick, computed } from 'vue'
-import Card from 'primevue/card'
-import Button from 'primevue/button'
-import InputText from 'primevue/inputtext'
-import Textarea from 'primevue/textarea'
-import Badge from 'primevue/badge'
-import Panel from 'primevue/panel'
-import Tag from 'primevue/tag'
-import Checkbox from 'primevue/checkbox'
-import Tabs from 'primevue/tabs'
-import TabList from 'primevue/tablist'
-import Tab from 'primevue/tab'
-import TabPanels from 'primevue/tabpanels'
-import TabPanel from 'primevue/tabpanel'
-import Message from 'primevue/message'
 import { useEnavTesting } from '@/composables/useEnavTesting'
 import type { InteractiveButton, InteractiveListItem } from '@/types/chat.types'
+import {
+  RefreshCw, Send, Copy, FileText, Zap, Info, List,
+  Network, Trash2, ChevronsUpDown, MessageSquare
+} from 'lucide-vue-next'
+
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'
 
 const {
   isSending,
@@ -38,6 +38,7 @@ const {
 } = useEnavTesting()
 
 const chatContainer = ref<HTMLElement | null>(null)
+const quickActionsOpen = ref(true)
 
 // Phone presets for ENAV
 const PHONE_PRESETS = [
@@ -125,67 +126,66 @@ function linkifyText(text: string): string {
     <div class="flex items-center justify-between mb-6">
       <div class="flex items-center gap-3">
         <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
-          <i class="pi pi-file-pdf text-2xl text-purple-600 dark:text-purple-400" />
+          <FileText class="h-6 w-6 text-purple-600 dark:text-purple-400" />
         </div>
         <div>
-          <h1 class="text-2xl font-bold text-surface-800 dark:text-surface-100">
+          <h1 class="text-2xl font-bold text-foreground">
             ENAV Testing
           </h1>
-          <p class="text-sm text-surface-500 dark:text-surface-400">
+          <p class="text-sm text-muted-foreground">
             Prueba el agente de DDJJ / CIU para vinateros
           </p>
         </div>
       </div>
 
       <div class="flex items-center gap-2">
-        <Badge v-if="hasSession" :value="messageCount" severity="info" />
+        <Badge v-if="hasSession" variant="info">{{ messageCount }}</Badge>
         <Button
-          icon="pi pi-refresh"
-          severity="secondary"
-          text
-          rounded
+          variant="ghost"
+          size="icon"
           @click="clearSession"
-          v-tooltip.bottom="'Limpiar sesion'"
+          title="Limpiar sesion"
           :disabled="!hasSession"
-        />
+        >
+          <RefreshCw class="h-4 w-4" />
+        </Button>
       </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Chat Panel -->
       <div class="lg:col-span-2">
-        <Card class="chat-card overflow-hidden">
-          <template #header>
-            <div class="flex items-center justify-between p-4 bg-gradient-to-r from-purple-600 to-purple-500 text-white">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-                  <i class="pi pi-file-pdf text-xl" />
-                </div>
-                <div>
-                  <div class="font-semibold">ENAV - Vinateros</div>
-                  <div class="text-xs text-purple-100 flex items-center gap-2">
-                    <span v-if="hasSession" class="flex items-center gap-1">
-                      <span class="w-2 h-2 bg-purple-300 rounded-full animate-pulse" />
-                      Sesion activa
-                    </span>
-                    <span v-else>Sin sesion</span>
-                  </div>
+        <Card class="overflow-hidden">
+          <!-- Chat Header -->
+          <div class="flex items-center justify-between p-4 bg-gradient-to-r from-purple-600 to-purple-500 text-white">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                <FileText class="h-5 w-5" />
+              </div>
+              <div>
+                <div class="font-semibold">ENAV - Vinateros</div>
+                <div class="text-xs text-purple-100 flex items-center gap-2">
+                  <span v-if="hasSession" class="flex items-center gap-1">
+                    <span class="w-2 h-2 bg-purple-300 rounded-full animate-pulse" />
+                    Sesion activa
+                  </span>
+                  <span v-else>Sin sesion</span>
                 </div>
               </div>
-              <Button
-                icon="pi pi-copy"
-                severity="secondary"
-                text
-                rounded
-                v-tooltip.bottom="'Copiar chat'"
-                :disabled="messages.length === 0"
-                class="text-white hover:bg-white/20"
-                @click="copyChat"
-              />
             </div>
-          </template>
+            <Button
+              variant="ghost"
+              size="icon"
+              title="Copiar chat"
+              :disabled="messages.length === 0"
+              class="text-white hover:bg-white/20"
+              @click="copyChat"
+            >
+              <Copy class="h-4 w-4" />
+            </Button>
+          </div>
 
-          <template #content>
+          <CardContent class="p-0">
             <!-- Chat Messages -->
             <div
               ref="chatContainer"
@@ -196,9 +196,9 @@ function linkifyText(text: string): string {
                 v-if="messages.length === 0"
                 class="h-full flex items-center justify-center"
               >
-                <div class="text-center text-gray-400 dark:text-gray-500">
-                  <div class="w-16 h-16 mx-auto mb-4 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                    <i class="pi pi-comments text-3xl" />
+                <div class="text-center text-muted-foreground">
+                  <div class="w-16 h-16 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
+                    <MessageSquare class="h-8 w-8" />
                   </div>
                   <p class="text-lg font-medium">Inicia una conversacion</p>
                   <p class="text-sm mt-1">Escribe un mensaje o usa una accion rapida</p>
@@ -234,9 +234,8 @@ function linkifyText(text: string): string {
                             target="_blank"
                             class="inline-flex items-center gap-2 text-purple-600 dark:text-purple-400 hover:underline"
                           >
-                            <i class="pi pi-file-pdf text-lg" />
+                            <FileText class="h-4 w-4" />
                             <span>{{ msg.documentCaption || 'Descargar PDF' }}</span>
-                            <i class="pi pi-external-link text-xs" />
                           </a>
                         </div>
 
@@ -273,7 +272,7 @@ function linkifyText(text: string): string {
                             @click="handleListSelect(item)"
                           >
                             <div class="font-medium text-sm">{{ item.titulo }}</div>
-                            <div v-if="item.descripcion" class="text-xs text-gray-500 dark:text-gray-400">
+                            <div v-if="item.descripcion" class="text-xs text-muted-foreground">
                               {{ item.descripcion }}
                             </div>
                           </div>
@@ -281,26 +280,26 @@ function linkifyText(text: string): string {
 
                         <!-- Metadata footer -->
                         <div class="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100 dark:border-gray-600">
-                          <span class="text-xs text-gray-400 dark:text-gray-500">
+                          <span class="text-xs text-muted-foreground">
                             {{ formatTime(msg.timestamp) }}
                           </span>
-                          <Tag
+                          <Badge
                             v-if="msg.metadata?.bypass_matched"
-                            value="Bypass"
-                            severity="info"
-                            class="text-xs"
-                            style="font-size: 0.6rem; padding: 0.1rem 0.3rem;"
-                          />
-                          <Tag
+                            variant="info"
+                            class="text-[0.6rem] px-1.5 py-0"
+                          >
+                            Bypass
+                          </Badge>
+                          <Badge
                             v-if="msg.metadata?.domain"
-                            :value="String(msg.metadata.domain)"
-                            severity="secondary"
-                            class="text-xs"
-                            style="font-size: 0.6rem; padding: 0.1rem 0.3rem;"
-                          />
+                            variant="secondary"
+                            class="text-[0.6rem] px-1.5 py-0"
+                          >
+                            {{ msg.metadata.domain }}
+                          </Badge>
                           <span
                             v-if="msg.metadata?.processing_time_ms"
-                            class="text-xs text-gray-400 dark:text-gray-500"
+                            class="text-xs text-muted-foreground"
                           >
                             {{ msg.metadata.processing_time_ms }}ms
                           </span>
@@ -324,27 +323,26 @@ function linkifyText(text: string): string {
             </div>
 
             <!-- Input area -->
-            <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+            <div class="p-4 border-t border-border">
               <div class="flex gap-2">
                 <Textarea
                   v-model="inputMessage"
                   placeholder="Escribe tu mensaje..."
-                  class="flex-1"
-                  :autoResize="true"
+                  class="flex-1 min-h-[40px] max-h-[120px] resize-none"
                   rows="1"
                   @keydown="handleKeydown"
                   :disabled="isSending"
                 />
                 <Button
-                  icon="pi pi-send"
                   @click="handleSend"
-                  :loading="isSending"
-                  :disabled="!inputMessage.trim()"
-                  class="bg-purple-500 border-purple-500 hover:bg-purple-600"
-                />
+                  :disabled="!inputMessage.trim() || isSending"
+                  class="bg-purple-500 border-purple-500 hover:bg-purple-600 text-white"
+                >
+                  <Send class="h-4 w-4" />
+                </Button>
               </div>
             </div>
-          </template>
+          </CardContent>
         </Card>
       </div>
 
@@ -352,270 +350,259 @@ function linkifyText(text: string): string {
       <div class="space-y-4">
         <!-- Debug Panel with Tabs -->
         <Card>
-          <template #title>
-            <div class="flex items-center gap-2">
-              <i class="pi pi-code" />
-              <span>Panel de Debug</span>
+          <CardContent class="p-4">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="font-semibold text-sm">Panel de Debug</span>
             </div>
-          </template>
-          <template #content>
-            <Tabs value="0">
-              <TabList>
-                <Tab value="0">
-                  <div class="flex items-center gap-2 text-sm">
-                    <i class="pi pi-bolt" />
-                    <span>Webhook</span>
-                    <Tag
-                      v-if="webhookConfig.enabled"
-                      value="ON"
-                      severity="success"
-                      class="ml-1"
-                      style="font-size: 0.65rem; padding: 0.1rem 0.3rem;"
-                    />
-                  </div>
-                </Tab>
-                <Tab value="1">
-                  <div class="flex items-center gap-2 text-sm">
-                    <i class="pi pi-info-circle" />
-                    <span>Sesion</span>
-                  </div>
-                </Tab>
-                <Tab value="2">
-                  <div class="flex items-center gap-2 text-sm">
-                    <i class="pi pi-list" />
-                    <span>Pasos</span>
-                  </div>
-                </Tab>
-                <Tab value="3">
-                  <div class="flex items-center gap-2 text-sm">
-                    <i class="pi pi-sitemap" />
-                    <span>Estado</span>
-                  </div>
-                </Tab>
-              </TabList>
 
-              <TabPanels>
-                <!-- Webhook Config -->
-                <TabPanel value="0">
-                  <div class="webhook-panel p-3">
-                    <div class="flex items-center justify-between mb-4">
-                      <Message severity="info" :closable="false" class="flex-1">
-                        <template #default>
-                          <div class="text-sm">
-                            Simula el flujo de WhatsApp para
-                            <code class="bg-blue-100 dark:bg-blue-900 px-1 rounded">ENAV</code>.
-                          </div>
-                        </template>
-                      </Message>
-                      <Button
-                        icon="pi pi-trash"
-                        severity="secondary"
-                        text
-                        size="small"
-                        v-tooltip.top="'Limpiar config guardada'"
-                        @click="clearWebhookConfig"
-                        class="ml-2"
+            <Tabs default-value="webhook">
+              <TabsList class="w-full grid grid-cols-4">
+                <TabsTrigger value="webhook" class="text-xs gap-1">
+                  <Zap class="h-3 w-3" />
+                  Webhook
+                </TabsTrigger>
+                <TabsTrigger value="session" class="text-xs gap-1">
+                  <Info class="h-3 w-3" />
+                  Sesion
+                </TabsTrigger>
+                <TabsTrigger value="steps" class="text-xs gap-1">
+                  <List class="h-3 w-3" />
+                  Pasos
+                </TabsTrigger>
+                <TabsTrigger value="state" class="text-xs gap-1">
+                  <Network class="h-3 w-3" />
+                  Estado
+                </TabsTrigger>
+              </TabsList>
+
+              <!-- Webhook Config -->
+              <TabsContent value="webhook">
+                <div class="space-y-4 pt-2">
+                  <div class="flex items-center justify-between">
+                    <Alert variant="info" class="flex-1">
+                      <AlertDescription class="text-sm">
+                        Simula el flujo de WhatsApp para
+                        <code class="bg-blue-100 dark:bg-blue-900 px-1 rounded">ENAV</code>.
+                      </AlertDescription>
+                    </Alert>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="ml-2 h-8 w-8"
+                      title="Limpiar config guardada"
+                      @click="clearWebhookConfig"
+                    >
+                      <Trash2 class="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+
+                  <!-- Toggle -->
+                  <div class="flex items-center gap-3">
+                    <Checkbox
+                      :checked="webhookConfig.enabled"
+                      @update:checked="(val: boolean) => updateWebhookConfig({ enabled: val })"
+                    />
+                    <label class="font-medium cursor-pointer text-sm" @click="updateWebhookConfig({ enabled: !webhookConfig.enabled })">
+                      Activar Modo Webhook
+                    </label>
+                  </div>
+
+                  <!-- Config (visible cuando activo) -->
+                  <div v-if="webhookConfig.enabled" class="space-y-3 pl-4 border-l-2 border-purple-300 ml-2">
+                    <div>
+                      <label class="text-sm text-muted-foreground block mb-1">Telefono simulado</label>
+                      <div class="flex gap-2">
+                        <Input
+                          :model-value="webhookConfig.phoneNumber"
+                          @input="(e: Event) => updateWebhookConfig({ phoneNumber: (e.target as HTMLInputElement).value })"
+                          class="flex-1"
+                          placeholder="5493446405060"
+                          :disabled="hasSession"
+                        />
+                        <Button
+                          variant="secondary"
+                          size="icon"
+                          class="h-9 w-9"
+                          @click="handleResetPhone"
+                          :disabled="hasSession || isDefaultPhone"
+                          title="Restaurar default"
+                        >
+                          <RefreshCw class="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+
+                      <!-- Phone Presets -->
+                      <div class="flex flex-wrap gap-1 mt-2">
+                        <Badge
+                          v-for="preset in PHONE_PRESETS"
+                          :key="preset.value"
+                          :variant="webhookConfig.phoneNumber === preset.value ? 'success' : 'secondary'"
+                          :class="`cursor-pointer text-xs ${hasSession ? 'opacity-50' : ''}`"
+                          @click="selectPreset(preset.value)"
+                        >
+                          {{ preset.label }}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label class="text-sm text-muted-foreground block mb-1">Nombre usuario</label>
+                      <Input
+                        :model-value="webhookConfig.userName"
+                        @input="(e: Event) => updateWebhookConfig({ userName: (e.target as HTMLInputElement).value })"
+                        class="w-full"
+                        placeholder="Test Vinatero"
+                        :disabled="hasSession"
                       />
                     </div>
 
-                    <div class="space-y-4">
-                      <!-- Toggle -->
-                      <div class="flex items-center gap-3">
-                        <Checkbox
-                          :modelValue="webhookConfig.enabled"
-                          @update:modelValue="(val: boolean) => updateWebhookConfig({ enabled: val })"
-                          :binary="true"
+                    <div>
+                      <label class="text-sm text-muted-foreground block mb-1">Dominio</label>
+                      <div class="flex items-center gap-2">
+                        <Badge variant="info">ENAV</Badge>
+                        <span class="text-xs text-muted-foreground">(DDJJ/CIU)</span>
+                      </div>
+                    </div>
+
+                    <!-- Toggle: Simular Bypass Rules -->
+                    <div class="flex items-center gap-3 mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                      <Checkbox
+                        :checked="webhookConfig.simulateBypass"
+                        @update:checked="(val: boolean) => updateWebhookConfig({ simulateBypass: val })"
+                      />
+                      <div @click="updateWebhookConfig({ simulateBypass: !webhookConfig.simulateBypass })" class="cursor-pointer">
+                        <label class="font-medium cursor-pointer text-sm">Simular Bypass Rules</label>
+                        <small class="block text-muted-foreground">
+                          Usa bypass rules para auto-poblar phone/DID
+                        </small>
+                      </div>
+                    </div>
+
+                    <!-- Bypass Rules Section -->
+                    <div v-if="webhookConfig.simulateBypass" class="space-y-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                      <div>
+                        <label class="text-sm text-muted-foreground block mb-1">DID (Bot Phone)</label>
+                        <Input
+                          :model-value="webhookConfig.did || ''"
+                          @input="(e: Event) => updateWebhookConfig({ did: (e.target as HTMLInputElement).value || null })"
+                          class="w-full"
+                          placeholder="5493446405060"
+                          :disabled="hasSession"
                         />
-                        <label class="font-medium cursor-pointer" @click="updateWebhookConfig({ enabled: !webhookConfig.enabled })">
-                          Activar Modo Webhook
-                        </label>
+                        <small class="text-muted-foreground text-xs">
+                          Numero del bot para bypass rules tipo whatsapp_phone_number_id
+                        </small>
                       </div>
+                    </div>
 
-                      <!-- Config (visible cuando activo) -->
-                      <div v-if="webhookConfig.enabled" class="space-y-3 pl-4 border-l-2 border-purple-300 ml-2">
-                        <div>
-                          <label class="text-sm text-gray-600 dark:text-gray-400 block mb-1">Telefono simulado</label>
-                          <div class="flex gap-2">
-                            <InputText
-                              :modelValue="webhookConfig.phoneNumber"
-                              @input="(e: Event) => updateWebhookConfig({ phoneNumber: (e.target as HTMLInputElement).value })"
-                              class="flex-1"
-                              placeholder="5493446405060"
-                              :disabled="hasSession"
-                            />
-                            <Button
-                              icon="pi pi-refresh"
-                              severity="secondary"
-                              size="small"
-                              @click="handleResetPhone"
-                              :disabled="hasSession || isDefaultPhone"
-                              v-tooltip.top="'Restaurar default'"
-                            />
-                          </div>
-
-                          <!-- Phone Presets -->
-                          <div class="flex flex-wrap gap-1 mt-2">
-                            <Tag
-                              v-for="preset in PHONE_PRESETS"
-                              :key="preset.value"
-                              :value="preset.label"
-                              :severity="webhookConfig.phoneNumber === preset.value ? 'success' : 'secondary'"
-                              class="cursor-pointer text-xs"
-                              :class="{ 'opacity-50': hasSession }"
-                              @click="selectPreset(preset.value)"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label class="text-sm text-gray-600 dark:text-gray-400 block mb-1">Nombre usuario</label>
-                          <InputText
-                            :modelValue="webhookConfig.userName"
-                            @input="(e: Event) => updateWebhookConfig({ userName: (e.target as HTMLInputElement).value })"
-                            class="w-full"
-                            placeholder="Test Vinatero"
-                            :disabled="hasSession"
-                          />
-                        </div>
-
-                        <div>
-                          <label class="text-sm text-gray-600 dark:text-gray-400 block mb-1">Dominio</label>
-                          <div class="flex items-center gap-2">
-                            <Tag value="ENAV" severity="info" />
-                            <span class="text-xs text-gray-500 dark:text-gray-400">(DDJJ/CIU)</span>
-                          </div>
-                        </div>
-
-                        <!-- Toggle: Simular Bypass Rules -->
-                        <div class="flex items-center gap-3 mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                          <Checkbox
-                            :modelValue="webhookConfig.simulateBypass"
-                            @update:modelValue="(val: boolean) => updateWebhookConfig({ simulateBypass: val })"
-                            :binary="true"
-                          />
-                          <div @click="updateWebhookConfig({ simulateBypass: !webhookConfig.simulateBypass })" class="cursor-pointer">
-                            <label class="font-medium cursor-pointer">Simular Bypass Rules</label>
-                            <small class="block text-gray-500 dark:text-gray-400">
-                              Usa bypass rules para auto-poblar phone/DID
-                            </small>
-                          </div>
-                        </div>
-
-                        <!-- Bypass Rules Section -->
-                        <div v-if="webhookConfig.simulateBypass" class="space-y-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                          <div>
-                            <label class="text-sm text-gray-600 dark:text-gray-400 block mb-1">DID (Bot Phone)</label>
-                            <InputText
-                              :modelValue="webhookConfig.did || ''"
-                              @input="(e: Event) => updateWebhookConfig({ did: (e.target as HTMLInputElement).value || null })"
-                              class="w-full"
-                              placeholder="5493446405060"
-                              :disabled="hasSession"
-                            />
-                            <small class="text-gray-400 dark:text-gray-500 text-xs">
-                              Numero del bot para bypass rules tipo whatsapp_phone_number_id
-                            </small>
-                          </div>
-                        </div>
-
-                        <!-- Manual Overrides -->
-                        <div v-if="!webhookConfig.simulateBypass" class="space-y-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                          <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">Overrides manuales (opcional)</p>
-                          <div>
-                            <label class="text-sm text-gray-600 dark:text-gray-400 block mb-1">Organization ID</label>
-                            <InputText
-                              :modelValue="webhookConfig.organizationId || ''"
-                              @input="(e: Event) => updateWebhookConfig({ organizationId: (e.target as HTMLInputElement).value || null })"
-                              class="w-full"
-                              placeholder="UUID de organizacion"
-                              :disabled="hasSession"
-                            />
-                          </div>
-                        </div>
+                    <!-- Manual Overrides -->
+                    <div v-if="!webhookConfig.simulateBypass" class="space-y-3 p-3 bg-muted/50 rounded-lg">
+                      <p class="text-xs text-muted-foreground font-medium">Overrides manuales (opcional)</p>
+                      <div>
+                        <label class="text-sm text-muted-foreground block mb-1">Organization ID</label>
+                        <Input
+                          :model-value="webhookConfig.organizationId || ''"
+                          @input="(e: Event) => updateWebhookConfig({ organizationId: (e.target as HTMLInputElement).value || null })"
+                          class="w-full"
+                          placeholder="UUID de organizacion"
+                          :disabled="hasSession"
+                        />
                       </div>
                     </div>
                   </div>
-                </TabPanel>
+                </div>
+              </TabsContent>
 
-                <!-- Session Info -->
-                <TabPanel value="1">
-                  <div class="space-y-4 p-3">
-                    <div>
-                      <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Session ID</label>
-                      <code class="text-xs break-all bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded block mt-1">
-                        {{ sessionId || 'N/A' }}
-                      </code>
-                    </div>
-
-                    <div>
-                      <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Telefono</label>
-                      <code class="text-xs break-all bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded block mt-1">
-                        {{ webhookConfig.phoneNumber }}
-                      </code>
-                    </div>
-
-                    <div>
-                      <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Mensajes</label>
-                      <Tag :value="`${messageCount} mensajes`" severity="info" class="mt-1" />
-                    </div>
-
-                    <div>
-                      <label class="block text-sm font-medium text-gray-500 dark:text-gray-400">Dominio</label>
-                      <Tag value="enav" severity="info" class="mt-1" />
-                    </div>
-                  </div>
-                </TabPanel>
-
-                <!-- Execution Steps -->
-                <TabPanel value="2">
-                  <div v-if="executionSteps.length === 0" class="text-center text-gray-400 dark:text-gray-500 py-4">
-                    <i class="pi pi-list text-2xl mb-2" />
-                    <p class="text-sm">Sin pasos de ejecucion</p>
+              <!-- Session Info -->
+              <TabsContent value="session">
+                <div class="space-y-4 pt-2">
+                  <div>
+                    <label class="block text-sm font-medium text-muted-foreground">Session ID</label>
+                    <code class="text-xs break-all bg-muted px-2 py-1 rounded block mt-1">
+                      {{ sessionId || 'N/A' }}
+                    </code>
                   </div>
 
-                  <div v-else class="space-y-2 max-h-64 overflow-y-auto p-3">
-                    <div
-                      v-for="(step, idx) in executionSteps"
-                      :key="idx"
-                      class="p-2 bg-gray-50 dark:bg-gray-800 rounded text-xs"
-                    >
-                      <pre class="overflow-auto">{{ JSON.stringify(step, null, 2) }}</pre>
-                    </div>
-                  </div>
-                </TabPanel>
-
-                <!-- Graph State -->
-                <TabPanel value="3">
-                  <div v-if="!graphState" class="text-center text-gray-400 dark:text-gray-500 py-4">
-                    <i class="pi pi-sitemap text-2xl mb-2" />
-                    <p class="text-sm">Sin estado de grafo</p>
+                  <div>
+                    <label class="block text-sm font-medium text-muted-foreground">Telefono</label>
+                    <code class="text-xs break-all bg-muted px-2 py-1 rounded block mt-1">
+                      {{ webhookConfig.phoneNumber }}
+                    </code>
                   </div>
 
-                  <div v-else class="max-h-64 overflow-y-auto p-3">
-                    <pre class="text-xs bg-gray-50 dark:bg-gray-800 p-2 rounded">{{
-                      JSON.stringify(graphState, null, 2)
-                    }}</pre>
+                  <div>
+                    <label class="block text-sm font-medium text-muted-foreground">Mensajes</label>
+                    <Badge variant="info" class="mt-1">{{ messageCount }} mensajes</Badge>
                   </div>
-                </TabPanel>
-              </TabPanels>
+
+                  <div>
+                    <label class="block text-sm font-medium text-muted-foreground">Dominio</label>
+                    <Badge variant="info" class="mt-1">enav</Badge>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <!-- Execution Steps -->
+              <TabsContent value="steps">
+                <div v-if="executionSteps.length === 0" class="text-center text-muted-foreground py-4">
+                  <List class="h-6 w-6 mx-auto mb-2" />
+                  <p class="text-sm">Sin pasos de ejecucion</p>
+                </div>
+
+                <div v-else class="space-y-2 max-h-64 overflow-y-auto pt-2">
+                  <div
+                    v-for="(step, idx) in executionSteps"
+                    :key="idx"
+                    class="p-2 bg-muted/50 rounded text-xs"
+                  >
+                    <pre class="overflow-auto">{{ JSON.stringify(step, null, 2) }}</pre>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <!-- Graph State -->
+              <TabsContent value="state">
+                <div v-if="!graphState" class="text-center text-muted-foreground py-4">
+                  <Network class="h-6 w-6 mx-auto mb-2" />
+                  <p class="text-sm">Sin estado de grafo</p>
+                </div>
+
+                <div v-else class="max-h-64 overflow-y-auto pt-2">
+                  <pre class="text-xs bg-muted/50 p-2 rounded">{{
+                    JSON.stringify(graphState, null, 2)
+                  }}</pre>
+                </div>
+              </TabsContent>
             </Tabs>
-          </template>
+          </CardContent>
         </Card>
 
         <!-- Quick Actions -->
-        <Panel header="Acciones Rapidas" toggleable>
-          <div class="flex flex-wrap gap-2">
-            <Button
-              v-for="action in quickActions"
-              :key="action.label"
-              :label="action.label"
-              size="small"
-              severity="secondary"
-              outlined
-              @click="setQuickMessage(action.message)"
-            />
-          </div>
-        </Panel>
+        <Collapsible v-model:open="quickActionsOpen">
+          <Card>
+            <CardContent class="p-4">
+              <CollapsibleTrigger as-child>
+                <button class="flex items-center justify-between w-full text-left">
+                  <span class="font-semibold text-sm">Acciones Rapidas</span>
+                  <ChevronsUpDown class="h-4 w-4 text-muted-foreground" />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div class="flex flex-wrap gap-2 mt-3">
+                  <Button
+                    v-for="action in quickActions"
+                    :key="action.label"
+                    variant="outline"
+                    size="sm"
+                    @click="setQuickMessage(action.message)"
+                  >
+                    {{ action.label }}
+                  </Button>
+                </div>
+              </CollapsibleContent>
+            </CardContent>
+          </Card>
+        </Collapsible>
       </div>
     </div>
   </div>
@@ -624,10 +611,6 @@ function linkifyText(text: string): string {
 <style scoped>
 .enav-testing-page {
   min-height: calc(100vh - 8rem);
-}
-
-.chat-card :deep(.p-card-body) {
-  padding: 0;
 }
 
 @keyframes bounce {
@@ -709,10 +692,6 @@ function linkifyText(text: string): string {
 
 .dark-mode :deep(.message-link:hover) {
   color: #d8b4fe;
-}
-
-.webhook-panel {
-  background: var(--surface-card);
 }
 
 code {

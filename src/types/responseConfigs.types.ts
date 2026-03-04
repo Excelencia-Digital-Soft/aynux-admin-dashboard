@@ -9,6 +9,18 @@ import type { DomainKey, CacheStatsResponse, BulkImportResponse, SeedResponse } 
 export type { DomainKey, CacheStatsResponse, BulkImportResponse, SeedResponse }
 
 // ============================================================================
+// Button Config Types
+// ============================================================================
+
+/**
+ * WhatsApp interactive button definition
+ */
+export interface ButtonConfig {
+  id: string
+  title: string
+}
+
+// ============================================================================
 // Core Response Config Types
 // ============================================================================
 
@@ -26,12 +38,14 @@ export interface ResponseConfig {
   fallback_template_key: string // Key in fallback_templates.yaml
   response_type: 'fixed' | 'prompt' // 'fixed' = template, 'prompt' = vLLM
   template_text: string | null // Template/prompt text stored in DB
+  buttons: ButtonConfig[] | null // WhatsApp button definitions (max 3)
   display_name: string | null
   description: string | null
   priority: number // 0-1000, higher = first
   is_enabled: boolean
   created_at: string | null
   updated_at: string | null
+  warnings?: ValidationWarning[] | null
 }
 
 /**
@@ -46,6 +60,7 @@ export interface ResponseConfigCreate {
   fallback_template_key: string
   response_type?: 'fixed' | 'prompt'
   template_text?: string | null
+  buttons?: ButtonConfig[] | null
   display_name?: string | null
   description?: string | null
   priority?: number
@@ -61,6 +76,7 @@ export interface ResponseConfigUpdate {
   fallback_template_key?: string
   response_type?: 'fixed' | 'prompt'
   template_text?: string | null
+  buttons?: ButtonConfig[] | null
   display_name?: string | null
   description?: string | null
   priority?: number
@@ -125,6 +141,7 @@ export interface ResponseConfigExport {
   fallback_template_key: string
   response_type: 'fixed' | 'prompt'
   template_text: string | null
+  buttons: ButtonConfig[] | null
   display_name: string | null
   description: string | null
   priority: number
@@ -156,6 +173,7 @@ export interface ResponseConfigFormData {
   fallback_template_key: string
   response_type: 'fixed' | 'prompt'
   template_text: string
+  buttons: ButtonConfig[]
   priority: number
   is_critical: boolean
   is_enabled: boolean
@@ -172,9 +190,26 @@ export const DEFAULT_RESPONSE_CONFIG_FORM: ResponseConfigFormData = {
   fallback_template_key: '',
   response_type: 'fixed',
   template_text: '',
+  buttons: [],
   priority: 0,
   is_critical: false,
   is_enabled: true
+}
+
+// ============================================================================
+// Validation Types
+// ============================================================================
+
+/**
+ * Validation warning returned after save operations
+ */
+export interface ValidationWarning {
+  severity: 'critical' | 'warning'
+  type: string
+  node_id: string | null
+  intent_key: string | null
+  detail: string
+  fix_hint: string | null
 }
 
 // ============================================================================
@@ -189,6 +224,32 @@ export interface ResponseParam {
   label: string
   description: string
   source: string
+}
+
+// ============================================================================
+// Config Diff Types (Inheritance Visualization)
+// ============================================================================
+
+/**
+ * Comparison of a single intent_key across system and org configs
+ */
+export interface ConfigDiffItem {
+  intent_key: string
+  source: 'system' | 'override'
+  system_config: ResponseConfig | null
+  override_config: ResponseConfig | null
+  diff_fields: string[]
+}
+
+/**
+ * Full config diff response
+ */
+export interface ConfigDiffResponse {
+  organization_id: string
+  domain_key: string
+  configs: ConfigDiffItem[]
+  total_system: number
+  total_overrides: number
 }
 
 // ============================================================================

@@ -27,11 +27,17 @@ interface Props {
   nodes: TopologyFlowNode[]
   edges: TopologyFlowEdge[]
   selectedNodeId?: string | null
+  highlightedNodeId?: string | null
+  dependencyHighlightNodes?: Set<string>
+  dependencyHighlightEdges?: Set<string>
   height?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   selectedNodeId: null,
+  highlightedNodeId: null,
+  dependencyHighlightNodes: () => new Set<string>(),
+  dependencyHighlightEdges: () => new Set<string>(),
   height: '600px'
 })
 
@@ -53,7 +59,30 @@ function onVueFlowInit() {
   }
 }
 
-// Styled edges with hover highlight
+// Whether dependency highlighting is active
+const isDependencyHighlightActive = computed(() => props.dependencyHighlightNodes.size > 0)
+
+// Nodes with simulator highlight and dependency highlight applied
+const styledNodes = computed(() => {
+  return props.nodes.map((node) => {
+    const isSimHighlighted = node.id === props.highlightedNodeId
+    const isDepHighlighted = isDependencyHighlightActive.value && props.dependencyHighlightNodes.has(node.id)
+    const isDimmed = isDependencyHighlightActive.value && !props.dependencyHighlightNodes.has(node.id)
+
+    const classes: string[] = []
+    if (isSimHighlighted) classes.push('simulator-highlight')
+    if (isDepHighlighted) classes.push('dependency-highlight')
+    if (isDimmed) classes.push('dependency-dimmed')
+
+    return {
+      ...node,
+      class: classes.join(' '),
+      data: { ...node.data, isSimulatorHighlighted: isSimHighlighted },
+    }
+  })
+})
+
+// Styled edges with hover highlight and dependency highlight
 const styledEdges = computed(() => {
   return props.edges.map((edge) => {
     // Highlight edges connected to selected node
@@ -61,13 +90,24 @@ const styledEdges = computed(() => {
       props.selectedNodeId &&
       (edge.source === props.selectedNodeId || edge.target === props.selectedNodeId)
 
-    return {
-      ...edge,
-      animated: isConnected || edge.animated,
-      style: isConnected
-        ? { stroke: '#a78bfa', strokeWidth: '3' }
-        : edge.style
+    // Dependency highlighting
+    const isDepHighlighted = isDependencyHighlightActive.value && props.dependencyHighlightEdges.has(edge.id)
+    const isDimmed = isDependencyHighlightActive.value && !props.dependencyHighlightEdges.has(edge.id)
+
+    let style = edge.style
+    let animated = isConnected || edge.animated
+
+    if (isDepHighlighted) {
+      style = { ...style, strokeWidth: '3.5' }
+      animated = true
+    } else if (isDimmed) {
+      style = { ...style, opacity: '0.2' }
+      animated = false
+    } else if (isConnected) {
+      style = { stroke: '#a78bfa', strokeWidth: '3' }
     }
+
+    return { ...edge, animated, style }
   })
 })
 
@@ -110,7 +150,7 @@ watch(
   <div class="graph-canvas" :style="{ height }">
     <VueFlow
       v-if="nodes.length > 0"
-      :nodes="nodes"
+      :nodes="styledNodes"
       :edges="styledEdges"
       :default-viewport="{ zoom: 0.9, x: 50, y: 30 }"
       :min-zoom="0.3"
@@ -213,6 +253,47 @@ watch(
 
 .fit-view-btn:hover {
   background: var(--surface-hover);
+}
+
+/* Simulator highlight animation */
+:deep(.simulator-highlight) {
+  z-index: 100 !important;
+}
+
+:deep(.simulator-highlight .action-node),
+:deep(.simulator-highlight .glass-node) {
+  outline: 3px solid #22c55e;
+  outline-offset: 3px;
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+  animation: simulator-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes simulator-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(34, 197, 94, 0.6);
+  }
+}
+
+/* Dependency highlighting */
+:deep(.dependency-highlight .action-node),
+:deep(.dependency-highlight .glass-node),
+:deep(.dependency-highlight .router-node) {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+  box-shadow: 0 0 16px rgba(96, 165, 250, 0.35);
+}
+
+:deep(.dependency-dimmed) {
+  opacity: 0.25;
+  transition: opacity 0.2s ease;
+}
+
+:deep(.dependency-highlight) {
+  opacity: 1;
+  transition: opacity 0.2s ease;
 }
 
 /* Dark mode canvas */

@@ -1,305 +1,307 @@
 <template>
-  <div class="yaml-versions">
+  <div class="p-4">
     <!-- Header -->
-    <div class="page-header">
-      <div class="header-left">
-        <Button 
-          @click="goBack" 
-          icon="pi pi-arrow-left" 
-          severity="secondary"
-          text
-          v-tooltip="'Volver a la lista'"
-        />
-        <h2>
+    <div class="flex justify-between items-center mb-8 flex-wrap gap-4">
+      <div class="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          @click="goBack"
+          title="Volver a la lista"
+        >
+          <ArrowLeft class="h-4 w-4" />
+        </Button>
+        <h2 class="text-xl font-semibold text-foreground flex items-center gap-2">
           Historial de Versiones
-          <Tag :value="promptKey" severity="secondary" class="ml-2" />
+          <Badge variant="secondary">{{ promptKey }}</Badge>
         </h2>
       </div>
-      
-      <div class="header-right">
-        <Button 
-          @click="refreshVersions" 
-          icon="pi pi-refresh" 
-          severity="secondary"
-          :loading="loading"
-        />
-      </div>
+      <Button
+        variant="secondary"
+        @click="refreshVersions"
+        :loading="loading"
+      >
+        <RefreshCw class="mr-2 h-4 w-4" />
+        Actualizar
+      </Button>
     </div>
 
     <!-- Current Version Info -->
     <Card class="mb-4">
-      <template #title>
-        <i class="pi pi-info-circle"></i>
-        Versión Actual
-      </template>
-      <template #content>
-        <div v-if="currentPrompt" class="current-version">
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <strong>Versión:</strong>
-              <Tag :value="currentPrompt.version" class="ml-2" />
-            </div>
-            <div>
-              <strong>Última actualización:</strong>
-              <span class="ml-2">{{ formatDate(currentPrompt.updated_at) }}</span>
-            </div>
-            <div>
-              <strong>Estado:</strong>
-              <Tag 
-                :value="currentPrompt.active ? 'Activo' : 'Inactivo'" 
-                :severity="currentPrompt.active ? 'success' : 'danger'"
-                class="ml-2"
-              />
-            </div>
+      <CardHeader>
+        <CardTitle class="flex items-center gap-2 text-base">
+          <Info class="h-4 w-4" />
+          Versión Actual
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div v-if="currentPrompt" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <strong class="text-sm">Versión:</strong>
+            <Badge class="ml-2">{{ currentPrompt.version }}</Badge>
+          </div>
+          <div>
+            <strong class="text-sm">Última actualización:</strong>
+            <span class="ml-2 text-sm">{{ formatDate(currentPrompt.updated_at) }}</span>
+          </div>
+          <div>
+            <strong class="text-sm">Estado:</strong>
+            <Badge
+              :variant="currentPrompt.active ? 'success' : 'destructive'"
+              class="ml-2"
+            >
+              {{ currentPrompt.active ? 'Activo' : 'Inactivo' }}
+            </Badge>
           </div>
         </div>
-      </template>
+      </CardContent>
     </Card>
 
     <!-- Version History -->
     <Card>
-      <template #title>
+      <CardHeader>
         <div class="flex justify-between items-center">
-          <span>
-            <i class="pi pi-history"></i>
+          <CardTitle class="flex items-center gap-2 text-base">
+            <History class="h-4 w-4" />
             Historial de Cambios
-          </span>
+          </CardTitle>
           <div class="flex space-x-2">
-            <Button 
-              @click="createVersion" 
-              icon="pi pi-plus" 
-              size="small"
-              severity="secondary"
-              v-tooltip="'Crear nueva versión'"
-            />
-            <Button 
-              @click="exportHistory" 
-              icon="pi pi-download" 
-              size="small"
-              severity="secondary"
-              v-tooltip="'Exportar historial'"
-            />
+            <Button
+              variant="secondary"
+              size="sm"
+              @click="createVersion"
+              title="Crear nueva versión"
+            >
+              <Plus class="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              @click="exportHistory"
+              title="Exportar historial"
+            >
+              <Download class="h-3.5 w-3.5" />
+            </Button>
           </div>
         </div>
-      </template>
-      
-      <template #content>
-        <!-- Empty state when no versions -->
-        <div v-if="!loading && versions.length === 0" class="text-center py-8">
-          <i class="pi pi-history text-4xl text-muted mb-4"></i>
-          <h4 class="text-muted">Sin historial de versiones</h4>
-          <p class="text-sm text-muted">
+      </CardHeader>
+      <CardContent>
+        <!-- Loading -->
+        <div v-if="loading" class="flex justify-center py-8">
+          <Spinner size="lg" />
+        </div>
+
+        <!-- Empty state -->
+        <div v-else-if="versions.length === 0" class="text-center py-8">
+          <History class="h-10 w-10 text-muted-foreground mx-auto mb-4" />
+          <h4 class="text-muted-foreground font-medium">Sin historial de versiones</h4>
+          <p class="text-sm text-muted-foreground mt-2">
             Este template aún no tiene versiones anteriores registradas.
             Las versiones se crean automáticamente al guardar cambios.
           </p>
         </div>
 
-        <DataTable
-          v-else
-          :value="versions"
-          :loading="loading"
-          responsiveLayout="scroll"
-          dataKey="id"
-          selectionMode="single"
-          v-model:selection="selectedVersion"
-        >
-          <Column selectionMode="single" headerStyle="width: 3rem"></Column>
-          
-          <Column field="version" header="Versión" sortable>
-            <template #body="{data}">
-              <Tag 
-                :value="data.version" 
-                :severity="getCurrentVersionSeverity(data.version)"
-              />
-            </template>
-          </Column>
-          
-          <Column field="created_at" header="Fecha" sortable>
-            <template #body="{data}">
-              <div>
-                <div>{{ formatDate(data.created_at) }}</div>
-                <div class="text-sm text-muted">{{ formatRelativeTime(data.created_at) }}</div>
-              </div>
-            </template>
-          </Column>
-          
-          <Column field="created_by" header="Autor" sortable>
-            <template #body="{data}">
-              <div class="flex items-center">
-                <i class="pi pi-user mr-2"></i>
-                {{ data.created_by }}
-              </div>
-            </template>
-          </Column>
-          
-          <Column field="notes" header="Notas">
-            <template #body="{data}">
-              <div v-if="data.notes">
-                {{ data.notes }}
-              </div>
-              <div v-else class="text-muted text-italic">
-                Sin notas
-              </div>
-            </template>
-          </Column>
-          
-          <Column header="Acciones" style="min-width: 200px">
-            <template #body="{data}">
-              <div class="flex space-x-1">
-                <Button 
-                  @click="viewVersion(data)" 
-                  icon="pi pi-eye" 
-                  size="small"
-                  severity="info"
-                  v-tooltip="'Ver detalles'"
-                />
-                <Button 
-                  @click="compareVersion(data)" 
-                  icon="pi pi-code-compare" 
-                  size="small"
-                  severity="secondary"
-                  v-tooltip="'Comparar con actual'"
-                />
-                <Button 
-                  @click="rollbackToVersion(data)" 
-                  icon="pi pi-undo" 
-                  size="small"
-                  severity="warning"
-                  v-tooltip="'Rollback a esta versión'"
-                  :disabled="isCurrentVersion(data.version)"
-                />
-              </div>
-            </template>
-          </Column>
-        </DataTable>
-      </template>
+        <!-- Table -->
+        <div v-else class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b bg-muted/50">
+                <th class="p-3 text-left font-medium text-muted-foreground">Versión</th>
+                <th class="p-3 text-left font-medium text-muted-foreground">Fecha</th>
+                <th class="p-3 text-left font-medium text-muted-foreground">Autor</th>
+                <th class="p-3 text-left font-medium text-muted-foreground">Notas</th>
+                <th class="p-3 text-left font-medium text-muted-foreground min-w-[200px]">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="data in versions"
+                :key="data.id"
+                class="border-b hover:bg-muted/50 transition-colors"
+              >
+                <td class="p-3">
+                  <Badge :variant="getCurrentVersionVariant(data.version)">
+                    {{ data.version }}
+                  </Badge>
+                </td>
+                <td class="p-3">
+                  <div>
+                    <div>{{ formatDate(data.created_at) }}</div>
+                    <div class="text-sm text-muted-foreground">{{ formatRelativeTime(data.created_at) }}</div>
+                  </div>
+                </td>
+                <td class="p-3">
+                  <div class="flex items-center gap-2">
+                    <User class="h-3.5 w-3.5" />
+                    {{ data.created_by }}
+                  </div>
+                </td>
+                <td class="p-3">
+                  <div v-if="data.notes">{{ data.notes }}</div>
+                  <div v-else class="text-muted-foreground italic">Sin notas</div>
+                </td>
+                <td class="p-3">
+                  <div class="flex space-x-1">
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      class="h-7 w-7"
+                      @click="viewVersion(data)"
+                      title="Ver detalles"
+                    >
+                      <Eye class="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      class="h-7 w-7"
+                      @click="compareVersion(data)"
+                      title="Comparar con actual"
+                    >
+                      <GitCompare class="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      class="h-7 w-7"
+                      @click="rollbackToVersion(data)"
+                      :disabled="isCurrentVersion(data.version)"
+                      title="Rollback a esta versión"
+                    >
+                      <Undo2 class="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
     </Card>
 
     <!-- Version Details Dialog -->
-    <Dialog 
-      v-model:visible="showVersionDetails" 
-      header="Detalles de la Versión"
-      :style="{ width: '80vw' }"
-      :maximizable="true"
-      modal
-    >
-      <div v-if="selectedVersion" class="version-details">
-        <Card class="mb-4">
-          <template #title>Información</template>
-          <template #content>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <strong>Versión:</strong>
-                <Tag :value="selectedVersion.version" class="ml-2" />
+    <Dialog v-model:open="showVersionDetails">
+      <DialogContent class="max-w-[80vw] sm:max-w-[900px]">
+        <DialogHeader>
+          <DialogTitle>Detalles de la Versión</DialogTitle>
+          <DialogDescription class="sr-only">Detalles completos de la versión seleccionada</DialogDescription>
+        </DialogHeader>
+        <div v-if="selectedVersion" class="space-y-4 max-h-[70vh] overflow-y-auto">
+          <Card>
+            <CardHeader>
+              <CardTitle class="text-base">Información</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <strong class="text-sm">Versión:</strong>
+                  <Badge class="ml-2">{{ selectedVersion.version }}</Badge>
+                </div>
+                <div>
+                  <strong class="text-sm">Fecha:</strong>
+                  <span class="ml-2 text-sm">{{ formatDate(selectedVersion.created_at) }}</span>
+                </div>
+                <div>
+                  <strong class="text-sm">Autor:</strong>
+                  <span class="ml-2 text-sm">{{ selectedVersion.created_by }}</span>
+                </div>
+                <div>
+                  <strong class="text-sm">ID:</strong>
+                  <span class="ml-2 font-mono text-xs">{{ selectedVersion.id }}</span>
+                </div>
               </div>
-              <div>
-                <strong>Fecha:</strong>
-                <span class="ml-2">{{ formatDate(selectedVersion.created_at) }}</span>
+              <div v-if="selectedVersion.notes" class="mt-4">
+                <strong class="text-sm">Notas:</strong>
+                <p class="mt-2 text-sm">{{ selectedVersion.notes }}</p>
               </div>
-              <div>
-                <strong>Autor:</strong>
-                <span class="ml-2">{{ selectedVersion.created_by }}</span>
-              </div>
-              <div>
-                <strong>ID:</strong>
-                <span class="ml-2 font-mono text-xs">{{ selectedVersion.id }}</span>
-              </div>
-            </div>
-            
-            <div v-if="selectedVersion.notes" class="mt-4">
-              <strong>Notas:</strong>
-              <p class="mt-2">{{ selectedVersion.notes }}</p>
-            </div>
-          </template>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <template #title>Contenido del Template</template>
-          <template #content>
-            <div class="template-content">
-              <pre class="template-text">{{ formatYamlContent(selectedVersion.template) }}</pre>
+          <Card>
+            <CardHeader>
+              <CardTitle class="text-base">Contenido del Template</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <pre class="bg-muted/50 border rounded p-4 font-mono text-sm whitespace-pre-wrap max-h-[400px] overflow-y-auto">{{ formatYamlContent(selectedVersion.template) }}</pre>
               <Button
-                @click="copyToClipboard(selectedVersion.template)" 
-                icon="pi pi-copy" 
-                size="small"
-                severity="secondary"
-                label="Copiar contenido"
+                variant="secondary"
+                size="sm"
+                @click="copyToClipboard(selectedVersion.template)"
                 class="mt-2"
-              />
-            </div>
-          </template>
-        </Card>
-      </div>
+              >
+                <Copy class="mr-2 h-3.5 w-3.5" />
+                Copiar contenido
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </DialogContent>
     </Dialog>
 
     <!-- Version Compare Dialog -->
-    <Dialog 
-      v-model:visible="showVersionCompare" 
-      header="Comparar Versiones"
-      :style="{ width: '90vw' }"
-      :maximizable="true"
-      modal
-    >
-      <div v-if="selectedVersion && currentPrompt" class="version-compare">
-        <div class="compare-header">
-          <div class="compare-info">
-            <h4>Versión Anterior ({{ selectedVersion.version }})</h4>
-            <p>{{ formatDate(selectedVersion.created_at) }} - {{ selectedVersion.created_by }}</p>
+    <Dialog v-model:open="showVersionCompare">
+      <DialogContent class="max-w-[90vw] sm:max-w-[1200px]">
+        <DialogHeader>
+          <DialogTitle>Comparar Versiones</DialogTitle>
+          <DialogDescription class="sr-only">Comparación entre versión seleccionada y actual</DialogDescription>
+        </DialogHeader>
+        <div v-if="selectedVersion && currentPrompt" class="max-h-[70vh] overflow-y-auto">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-4">
+            <div>
+              <h4 class="font-medium text-foreground mb-1">Versión Anterior ({{ selectedVersion.version }})</h4>
+              <p class="text-sm text-muted-foreground">{{ formatDate(selectedVersion.created_at) }} - {{ selectedVersion.created_by }}</p>
+            </div>
+            <div>
+              <h4 class="font-medium text-foreground mb-1">Versión Actual ({{ currentPrompt.version }})</h4>
+              <p class="text-sm text-muted-foreground">{{ formatDate(currentPrompt.updated_at) }}</p>
+            </div>
           </div>
-          <div class="compare-info">
-            <h4>Versión Actual ({{ currentPrompt.version }})</h4>
-            <p>{{ formatDate(currentPrompt.updated_at) }}</p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h5 class="text-sm font-medium mb-2">Contenido Anterior</h5>
+              <pre class="bg-muted/50 border rounded p-4 font-mono text-sm whitespace-pre-wrap max-h-[500px] overflow-y-auto">{{ formatYamlContent(selectedVersion.template) }}</pre>
+            </div>
+            <div>
+              <h5 class="text-sm font-medium mb-2">Contenido Actual</h5>
+              <pre class="bg-muted/50 border rounded p-4 font-mono text-sm whitespace-pre-wrap max-h-[500px] overflow-y-auto">{{ formatYamlContent(currentPrompt.template) }}</pre>
+            </div>
           </div>
         </div>
-        
-        <div class="compare-content">
-          <div class="compare-side">
-            <h5>Contenido Anterior</h5>
-            <pre class="compare-text">{{ formatYamlContent(selectedVersion.template) }}</pre>
-          </div>
-          
-          <div class="compare-side">
-            <h5>Contenido Actual</h5>
-            <pre class="compare-text">{{ formatYamlContent(currentPrompt.template) }}</pre>
-          </div>
-        </div>
-      </div>
+      </DialogContent>
     </Dialog>
 
     <!-- Create Version Dialog -->
-    <Dialog 
-      v-model:visible="showCreateVersion" 
-      header="Crear Nueva Versión"
-      :style="{ width: '50vw' }"
-      modal
-    >
-      <div class="create-version-form">
-        <div class="field">
-          <label for="description">Descripción del Cambio</label>
-          <Textarea 
+    <Dialog v-model:open="showCreateVersion">
+      <DialogContent class="sm:max-w-[50vw]">
+        <DialogHeader>
+          <DialogTitle>Crear Nueva Versión</DialogTitle>
+          <DialogDescription class="sr-only">Crear una nueva versión del template</DialogDescription>
+        </DialogHeader>
+
+        <div class="py-4">
+          <label for="description" class="block text-sm font-medium text-foreground mb-2">
+            Descripción del Cambio
+          </label>
+          <textarea
             id="description"
-            v-model="newVersionDescription" 
+            v-model="newVersionDescription"
             placeholder="Describe los cambios realizados en esta versión..."
             rows="4"
-            class="w-full"
+            class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           />
         </div>
-      </div>
-      
-      <template #footer>
-        <Button 
-          @click="showCreateVersion = false" 
-          label="Cancelar"
-          severity="secondary"
-        />
-        <Button
-          @click="handleCreateVersion"
-          label="Crear Versión"
-          icon="pi pi-check"
-          severity="success"
-          :loading="creatingVersion"
-        />
-      </template>
+
+        <DialogFooter>
+          <Button variant="secondary" @click="showCreateVersion = false">
+            Cancelar
+          </Button>
+          <Button @click="handleCreateVersion" :loading="creatingVersion">
+            <Check class="mr-2 h-3.5 w-3.5" />
+            Crear Versión
+          </Button>
+        </DialogFooter>
+      </DialogContent>
     </Dialog>
   </div>
 </template>
@@ -316,10 +318,37 @@ import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/es'
 
+import { useConfirm } from '@/composables/useConfirm'
+
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Spinner } from '@/components/ui/spinner'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog'
+import {
+  ArrowLeft,
+  Info,
+  History,
+  Plus,
+  Download,
+  Eye,
+  GitCompare,
+  Undo2,
+  User,
+  RefreshCw,
+  Copy,
+  Check
+} from 'lucide-vue-next'
+
 dayjs.extend(relativeTime)
 dayjs.locale('es')
-
-import { useConfirm } from '@/composables/useConfirm'
 
 const router = useRouter()
 const route = useRoute()
@@ -336,18 +365,18 @@ const showCreateVersion = ref(false)
 const newVersionDescription = ref('')
 const creatingVersion = ref(false)
 
-// Store state (use storeToRefs for reactivity)
+// Store state
 const { currentPrompt, versions, loading } = storeToRefs(yamlStore)
 
 // Computed
 const promptKey = computed(() => route.params.key as string)
 
-const getCurrentVersionSeverity = (version: string) => {
+function getCurrentVersionVariant(version: string) {
   const currentVersion = currentPrompt.value?.version
-  if (!currentVersion) return 'secondary'
-  if (version === currentVersion) return 'success'
-  if (version > currentVersion) return 'warning'
-  return 'secondary'
+  if (!currentVersion) return 'secondary' as const
+  if (version === currentVersion) return 'success' as const
+  if (version > currentVersion) return 'warning' as const
+  return 'secondary' as const
 }
 
 const isCurrentVersion = (version: string) => {
@@ -401,15 +430,14 @@ async function rollbackToVersion(version: PromptVersion) {
 
   try {
     await yamlStore.rollbackPrompt(promptKey.value, version.id)
-    
+
     toast.add({
       severity: 'success',
       summary: 'Rollback exitoso',
       detail: `Se ha hecho rollback a la versión ${version.version}`,
       life: 5000
     })
-    
-    // Refresh data
+
     await Promise.all([
       yamlStore.fetchPromptByKey(promptKey.value),
       yamlStore.fetchVersions(promptKey.value)
@@ -431,19 +459,19 @@ function createVersion() {
 
 async function handleCreateVersion() {
   if (!promptKey.value) return
-  
+
   creatingVersion.value = true
-  
+
   try {
     await yamlStore.createVersion(promptKey.value, newVersionDescription.value)
-    
+
     toast.add({
       severity: 'success',
       summary: 'Versión creada',
       detail: 'Se ha creado una nueva versión correctamente',
       life: 3000
     })
-    
+
     showCreateVersion.value = false
     await yamlStore.fetchVersions(promptKey.value)
   } catch (error: any) {
@@ -460,7 +488,7 @@ async function handleCreateVersion() {
 
 function exportHistory() {
   if (!versions.value.length) return
-  
+
   const historyData = {
     prompt_key: promptKey.value,
     current_version: currentPrompt.value?.version,
@@ -468,7 +496,7 @@ function exportHistory() {
     exported_at: new Date().toISOString(),
     exported_by: authStore.username
   }
-  
+
   const blob = new Blob([JSON.stringify(historyData, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -476,7 +504,7 @@ function exportHistory() {
   link.download = `${promptKey.value}_version_history.json`
   link.click()
   URL.revokeObjectURL(url)
-  
+
   toast.add({
     severity: 'success',
     summary: 'Historial exportado',
@@ -505,12 +533,11 @@ function copyToClipboard(text: string) {
 
 // Lifecycle
 onMounted(async () => {
-  // Check permissions
   if (!authStore.isAdminOrOwner) {
     router.push('/unauthorized')
     return
   }
-  
+
   if (promptKey.value) {
     await Promise.all([
       yamlStore.fetchPromptByKey(promptKey.value),
@@ -521,107 +548,3 @@ onMounted(async () => {
   }
 })
 </script>
-
-<style scoped>
-.yaml-versions {
-  padding: 1rem;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.header-left h2 {
-  margin: 0;
-  font-size: 1.5rem;
-  color: var(--text-color);
-}
-
-.text-muted {
-  color: var(--text-color-secondary);
-}
-
-.template-content,
-.compare-side {
-  position: relative;
-}
-
-.template-text,
-.compare-text {
-  background: var(--surface-100);
-  border: 1px solid var(--surface-border);
-  border-radius: 4px;
-  padding: 1rem;
-  font-family: 'Courier New', monospace;
-  font-size: 0.9rem;
-  white-space: pre-wrap;
-  max-height: 500px;
-  overflow-y: auto;
-  margin: 0;
-}
-
-.compare-header {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-  margin-bottom: 2rem;
-}
-
-.compare-info h4 {
-  margin: 0 0 0.5rem 0;
-  color: var(--text-color);
-}
-
-.compare-info p {
-  margin: 0;
-  color: var(--text-color-secondary);
-  font-size: 0.9rem;
-}
-
-.compare-content {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-}
-
-.compare-side h5 {
-  margin: 0 0 1rem 0;
-  color: var(--text-color);
-}
-
-.create-version-form .field {
-  margin-bottom: 1rem;
-}
-
-.create-version-form label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-  color: var(--text-color);
-}
-
-@media (max-width: 1200px) {
-  .compare-header,
-  .compare-content {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 768px) {
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-</style>

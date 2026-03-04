@@ -32,7 +32,7 @@ function handleAddConfig(event: Event) {
   >
     <Handle type="target" :position="Position.Top" class="handle" />
 
-    <div class="node-badge">SUPERVISOR</div>
+    <div class="node-badge">DISTRIBUIDOR</div>
 
     <div class="node-header">
       <i :class="['pi', data.icon]" />
@@ -42,21 +42,21 @@ function handleAddConfig(event: Event) {
     <div class="node-stats">
       <div class="stat">
         <span class="stat-value">{{ data.routingConfigCount }}</span>
-        <span class="stat-label">routing</span>
+        <span class="stat-label">reglas</span>
       </div>
       <div class="stat" v-if="uniqueIntentCount > 0">
         <span class="stat-value">{{ uniqueIntentCount }}</span>
-        <span class="stat-label">intents</span>
+        <span class="stat-label">intenciones</span>
       </div>
       <div class="stat" v-if="data.awaitingTypeConfigCount > 0">
         <span class="stat-value">{{ data.awaitingTypeConfigCount }}</span>
-        <span class="stat-label">awaiting</span>
+        <span class="stat-label">esperando</span>
       </div>
     </div>
 
     <div class="node-description">{{ data.description }}</div>
 
-    <button class="add-config-btn" @click="handleAddConfig" title="Agregar routing config">
+    <button class="add-config-btn" @click="handleAddConfig" title="Agregar regla">
       <i class="pi pi-plus" />
     </button>
 

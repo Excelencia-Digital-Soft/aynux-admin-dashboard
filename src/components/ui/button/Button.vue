@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { Primitive, type PrimitiveProps } from 'radix-vue'
 import { type VariantProps, cva } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
+import { Loader2 } from 'lucide-vue-next'
 
 const buttonVariants = cva(
   'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
@@ -60,7 +61,7 @@ const delegatedProps = computed(() => {
     :class="cn(buttonVariants({ variant, size }), props.class)"
     :disabled="disabled || loading"
   >
-    <i v-if="loading" class="pi pi-spin pi-spinner mr-2" />
+    <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
     <slot />
   </Primitive>
 </template>

@@ -15,6 +15,7 @@ import type { RoutingConfigCreate, RoutingConfigUpdate } from '@/types/routingCo
 import type { AwaitingTypeConfigUpdate } from '@/api/awaitingTypeConfigs.api'
 import { layoutTopology } from '../utils/graphLayout'
 import type { TopologyFlowNode, TopologyFlowEdge, SelectedNodeInfo } from '../types'
+import { useConfigValidation } from './useConfigValidation'
 
 export function useIntentConfigGraph() {
   const toast = useToast()
@@ -35,12 +36,28 @@ export function useIntentConfigGraph() {
   const selectedNodeId = ref<string | null>(null)
   const drawerVisible = ref(false)
 
+  // Dependency highlighting (Phase 4)
+  const highlightedRoutingConfigId = ref<string | null>(null)
+
   // Create form
   const showCreateForm = ref(false)
 
   // Loading
   const isLoading = ref(false)
   const error = ref<string | null>(null)
+
+  // Validation
+  const {
+    validationResult,
+    isValidating,
+    nodeIssueMap,
+    totalIssues,
+    refreshValidation,
+    getNodeIssues
+  } = useConfigValidation()
+
+  // Default organization for validation (SYSTEM_ORG)
+  const SYSTEM_ORG = '00000000-0000-0000-0000-000000000000'
 
   // ==========================================================================
   // Computed
@@ -112,6 +129,12 @@ export function useIntentConfigGraph() {
 
       // Layout the graph
       rebuildGraph()
+
+      // Trigger validation in background (non-blocking)
+      refreshValidation(domainKey.value, SYSTEM_ORG).then(() => {
+        // Re-inject validation data into nodes after results arrive
+        injectValidationData()
+      })
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error desconocido'
       error.value = `Error cargando topologia: ${msg}`
@@ -289,6 +312,89 @@ export function useIntentConfigGraph() {
   }
 
   // ==========================================================================
+  // Dependency Highlighting (Phase 4)
+  // ==========================================================================
+
+  /**
+   * Computed set of node IDs that should be highlighted as part of
+   * a routing config dependency chain (source → target).
+   */
+  const dependencyHighlightNodes = computed<Set<string>>(() => {
+    if (!highlightedRoutingConfigId.value || !topology.value) return new Set()
+
+    const rc = topology.value.routing_configs.find(
+      (c) => c.id === highlightedRoutingConfigId.value
+    )
+    if (!rc) return new Set()
+
+    const nodeSet = new Set<string>()
+
+    // Target node (the node this routing config routes TO)
+    if (rc.target_node) nodeSet.add(rc.target_node)
+
+    // Source node: find which node generates the trigger for this routing config.
+    // For button_mapping/list_selection: the node whose response_configs contain
+    // buttons matching the trigger_value.
+    // For simplicity, we use the supervisor/router node as the source since it
+    // dispatches all routing decisions.
+    const supervisorNode = topology.value.nodes.find(
+      (n) => n.node_type === 'supervisor'
+    )
+    if (supervisorNode) nodeSet.add(supervisorNode.id)
+
+    return nodeSet
+  })
+
+  /**
+   * Computed set of edge IDs that should be highlighted as part of
+   * a routing config dependency chain.
+   */
+  const dependencyHighlightEdges = computed<Set<string>>(() => {
+    if (!highlightedRoutingConfigId.value || !topology.value) return new Set()
+
+    const rc = topology.value.routing_configs.find(
+      (c) => c.id === highlightedRoutingConfigId.value
+    )
+    if (!rc || !rc.target_node) return new Set()
+
+    // Find edges that connect to the target node
+    const edgeSet = new Set<string>()
+    for (const edge of edges.value) {
+      if (edge.target === rc.target_node) {
+        edgeSet.add(edge.id)
+      }
+    }
+    return edgeSet
+  })
+
+  function highlightDependency(routingConfigId: string | null) {
+    highlightedRoutingConfigId.value = routingConfigId
+  }
+
+  /**
+   * Inject validation issue counts into node data for badge rendering.
+   */
+  function injectValidationData() {
+    const issueMap = nodeIssueMap.value
+    for (const node of nodes.value) {
+      const issues = issueMap[node.id]
+      if (issues) {
+        node.data = {
+          ...node.data,
+          validationCritical: issues.critical,
+          validationWarning: issues.warning
+        }
+      } else {
+        node.data = {
+          ...node.data,
+          validationCritical: 0,
+          validationWarning: 0
+        }
+      }
+    }
+  }
+
+  // ==========================================================================
   // Return
   // ==========================================================================
 
@@ -308,6 +414,17 @@ export function useIntentConfigGraph() {
     error,
     stats,
 
+    // Validation
+    validationResult,
+    isValidating,
+    totalIssues,
+    getNodeIssues,
+
+    // Dependency highlighting
+    highlightedRoutingConfigId,
+    dependencyHighlightNodes,
+    dependencyHighlightEdges,
+
     // Actions
     fetchTopology,
     selectNode,
@@ -318,6 +435,7 @@ export function useIntentConfigGraph() {
     updateAwaitingTypeConfig,
     createRoutingConfig,
     deleteRoutingConfig,
-    openCreateForm
+    openCreateForm,
+    highlightDependency
   }
 }

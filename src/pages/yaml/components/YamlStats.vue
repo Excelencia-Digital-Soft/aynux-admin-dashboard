@@ -1,48 +1,48 @@
 <template>
   <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
     <Card>
-      <template #content>
+      <CardContent class="p-4">
         <div class="text-center">
           <div class="text-2xl font-bold text-blue-600">{{ currentAnalytics?.total || 0 }}</div>
-          <div class="text-sm text-muted">Total {{ isTask ? 'Tasks' : 'Templates' }}</div>
+          <div class="text-sm text-muted-foreground">Total {{ isTask ? 'Tasks' : 'Templates' }}</div>
         </div>
-      </template>
+      </CardContent>
     </Card>
 
     <Card>
-      <template #content>
+      <CardContent class="p-4">
         <div class="text-center">
           <div class="text-2xl font-bold text-green-600">{{ currentAnalytics?.active || 0 }}</div>
-          <div class="text-sm text-muted">Activos</div>
+          <div class="text-sm text-muted-foreground">Activos</div>
         </div>
-      </template>
+      </CardContent>
     </Card>
 
     <Card v-if="!isTask">
-      <template #content>
+      <CardContent class="p-4">
         <div class="text-center">
           <div class="text-2xl font-bold text-orange-600">{{ lockedCount }}</div>
-          <div class="text-sm text-muted">Bloqueados</div>
+          <div class="text-sm text-muted-foreground">Bloqueados</div>
         </div>
-      </template>
+      </CardContent>
     </Card>
 
     <Card v-if="isTask">
-      <template #content>
+      <CardContent class="p-4">
         <div class="text-center">
           <div class="text-2xl font-bold text-orange-600">{{ criticalTaskCount }}</div>
-          <div class="text-sm text-muted">Críticos</div>
+          <div class="text-sm text-muted-foreground">Criticos</div>
         </div>
-      </template>
+      </CardContent>
     </Card>
 
     <Card>
-      <template #content>
+      <CardContent class="p-4">
         <div class="text-center">
           <div class="text-2xl font-bold text-purple-600">{{ currentDomainsCount }}</div>
-          <div class="text-sm text-muted">Dominios</div>
+          <div class="text-sm text-muted-foreground">Dominios</div>
         </div>
-      </template>
+      </CardContent>
     </Card>
   </div>
 </template>
@@ -51,14 +51,14 @@
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useYamlStore } from '@/stores/yaml.store'
-import Card from 'primevue/card'
+import { Card, CardContent } from '@/components/ui/card'
 import type { YamlTask } from '@/types/yaml.types'
 
 const yamlStore = useYamlStore()
-const { 
-  templateType, 
-  analytics, 
-  taskAnalytics, 
+const {
+  templateType,
+  analytics,
+  taskAnalytics,
   formatterAnalytics,
   tasks,
   prompts,
@@ -104,9 +104,3 @@ const currentDomainsCount = computed(() => {
   return domains.value.length
 })
 </script>
-
-<style scoped>
-.text-muted {
-  color: var(--text-color-secondary);
-}
-</style>

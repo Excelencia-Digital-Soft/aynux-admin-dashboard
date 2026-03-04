@@ -6,6 +6,7 @@
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import type { TopologyNodeData } from '../types'
+import { ACTION_NODE_BADGE_MAP } from '../utils/labelHumanizer'
 
 interface Props {
   data: TopologyNodeData
@@ -16,25 +17,18 @@ const props = defineProps<Props>()
 const badgeLabel = computed(() => {
   // Show sub-graph name if available
   if (props.data.subgraph) {
-    return props.data.subgraph.toUpperCase()
+    return ACTION_NODE_BADGE_MAP[props.data.subgraph] || props.data.subgraph.toUpperCase()
   }
   const id = props.data.nodeId
-  const map: Record<string, string> = {
-    auth_plex: 'AUTH',
-    debt_manager: 'DEBT',
-    payment_processor: 'PAYMENT',
-    account_switcher: 'SWITCH',
-    info_node: 'INFO',
-    turnos: 'TURNOS',
-    registro: 'REGISTRO',
-    reschedule: 'RESCHEDULE',
-    session: 'SESSION'
-  }
-  return map[id] || id.toUpperCase()
+  return ACTION_NODE_BADGE_MAP[id] || id.toUpperCase()
 })
 
 const totalConfigs = computed(() =>
   props.data.routingConfigCount + props.data.awaitingTypeConfigCount
+)
+
+const hasValidationIssues = computed(() =>
+  (props.data.validationCritical ?? 0) > 0 || (props.data.validationWarning ?? 0) > 0
 )
 
 const MAX_VISIBLE_INTENTS = 4
@@ -80,15 +74,15 @@ function handleAddConfig(event: Event) {
     <div class="node-stats">
       <div class="stat" v-if="data.awaitingTypeConfigCount > 0">
         <span class="stat-value">{{ data.awaitingTypeConfigCount }}</span>
-        <span class="stat-label">awaiting</span>
+        <span class="stat-label">esperando</span>
       </div>
       <div class="stat" v-if="data.routingConfigCount > 0">
         <span class="stat-value">{{ data.routingConfigCount }}</span>
-        <span class="stat-label">routing</span>
+        <span class="stat-label">reglas</span>
       </div>
       <div class="stat" v-if="totalConfigs === 0">
         <span class="stat-value">0</span>
-        <span class="stat-label">configs</span>
+        <span class="stat-label">config.</span>
       </div>
     </div>
 
@@ -121,7 +115,13 @@ function handleAddConfig(event: Event) {
       </span>
     </div>
 
-    <button class="add-config-btn" :style="{ background: data.color }" @click="handleAddConfig" title="Agregar routing config">
+    <!-- Validation warning badge -->
+    <div v-if="hasValidationIssues" class="validation-badge" :class="{ 'badge-critical': (data.validationCritical ?? 0) > 0 }">
+      <i class="pi pi-exclamation-triangle" />
+      <span>{{ (data.validationCritical ?? 0) + (data.validationWarning ?? 0) }}</span>
+    </div>
+
+    <button class="add-config-btn" :style="{ background: data.color }" @click="handleAddConfig" title="Agregar regla">
       <i class="pi pi-plus" />
     </button>
 
@@ -272,6 +272,38 @@ function handleAddConfig(event: Event) {
 .add-config-btn:hover {
   opacity: 1 !important;
   transform: scale(1.1);
+}
+
+/* Validation badge */
+.validation-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: white;
+  background: #eab308;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+}
+
+.validation-badge i {
+  font-size: 0.55rem;
+}
+
+.validation-badge.badge-critical {
+  background: #ef4444;
+  animation: pulse-badge 2s infinite;
+}
+
+@keyframes pulse-badge {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
 
 .handle {

@@ -35,6 +35,10 @@ export function useEnavConsulta() {
   const page = ref(1)
   const pageSize = ref(25)
 
+  // Sorting
+  const sortBy = ref<string | null>('fecha')
+  const sortOrder = ref<'asc' | 'desc'>('desc')
+
   const canSearch = computed(() => clientecodigo.value.trim().length > 0)
 
   async function search(newPage?: number) {
@@ -61,6 +65,11 @@ export function useEnavConsulta() {
         params.periodo = periodo.value
       }
 
+      if (sortBy.value) {
+        params.sort_by = sortBy.value
+        params.sort_order = sortOrder.value
+      }
+
       const data: CosechaConsultaResponse = await consultaCosecha(params as any)
       records.value = data.items
       total.value = data.total
@@ -84,6 +93,23 @@ export function useEnavConsulta() {
     search()
   }
 
+  function toggleSort(column: string) {
+    if (sortBy.value === column) {
+      if (sortOrder.value === 'desc') {
+        sortOrder.value = 'asc'
+      } else {
+        // Reset to default
+        sortBy.value = 'fecha'
+        sortOrder.value = 'desc'
+      }
+    } else {
+      sortBy.value = column
+      sortOrder.value = 'desc'
+    }
+    page.value = 1
+    search()
+  }
+
   function resetSearch() {
     page.value = 1
     records.value = []
@@ -92,10 +118,14 @@ export function useEnavConsulta() {
     hasSearched.value = false
     error.value = null
     clienterazonsocial.value = null
+    sortBy.value = 'fecha'
+    sortOrder.value = 'desc'
   }
 
   function submitSearch() {
     page.value = 1
+    sortBy.value = 'fecha'
+    sortOrder.value = 'desc'
     search()
   }
 
@@ -121,6 +151,10 @@ export function useEnavConsulta() {
     page,
     pageSize,
 
+    // Sorting
+    sortBy,
+    sortOrder,
+
     // Computed
     canSearch,
 
@@ -128,6 +162,7 @@ export function useEnavConsulta() {
     search,
     submitSearch,
     onPageChange,
-    resetSearch
+    resetSearch,
+    toggleSort
   }
 }

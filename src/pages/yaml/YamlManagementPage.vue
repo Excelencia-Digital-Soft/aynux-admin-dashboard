@@ -1,5 +1,5 @@
 <template>
-  <div class="yaml-management">
+  <div class="p-4">
     <YamlPageHeader
       v-model="selectedType"
       @create="navigateToCreate"
@@ -30,38 +30,28 @@
       style="display: none"
     />
 
-    <!-- Test Dialog -->
-    <Dialog
-      v-model:visible="showTestDialog"
-      :header="isTask ? 'Test Task' : 'Test Prompt'"
-      :style="{ width: '90vw', maxWidth: '1200px' }"
-      :maximizable="true"
-      modal
-      @update:visible="showTestDialog = false"
-    >
-      <YamlTestDialog
-        v-if="showTestDialog && testPromptKey"
-        :visible="showTestDialog"
-        :templateKey="testPromptKey"
-        :templateType="templateType"
-        @close="showTestDialog = false"
-      />
-    </Dialog>
+    <!-- Test Dialog (YamlTestDialog manages its own Dialog) -->
+    <YamlTestDialog
+      v-if="showTestDialog && testPromptKey"
+      :visible="showTestDialog"
+      :templateKey="testPromptKey"
+      :templateType="templateType"
+      @close="showTestDialog = false"
+    />
 
     <!-- Preview Dialog -->
-    <Dialog
-      v-model:visible="showPreviewDialog"
-      header="Vista Previa del Template"
-      :style="{ width: '80vw', maxWidth: '900px' }"
-      :maximizable="true"
-      modal
-      @update:visible="showPreviewDialog = false"
-    >
-      <YamlPreview
-        v-if="showPreviewDialog && previewTemplate"
-        :template="previewTemplate"
-        @close="showPreviewDialog = false"
-      />
+    <Dialog v-model:open="showPreviewDialog">
+      <DialogContent class="max-w-[80vw] sm:max-w-[900px]">
+        <DialogHeader>
+          <DialogTitle>Vista Previa del Template</DialogTitle>
+          <DialogDescription class="sr-only">Preview del template seleccionado</DialogDescription>
+        </DialogHeader>
+        <YamlPreview
+          v-if="showPreviewDialog && previewTemplate"
+          :template="previewTemplate"
+          @close="showPreviewDialog = false"
+        />
+      </DialogContent>
     </Dialog>
   </div>
 </template>
@@ -82,7 +72,13 @@ import YamlStats from './components/YamlStats.vue'
 import YamlDataTable from './components/YamlDataTable.vue'
 import YamlTestDialog from './components/YamlTestDialog.vue'
 import YamlPreview from './components/YamlPreview.vue'
-import Dialog from 'primevue/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription
+} from '@/components/ui/dialog'
 
 // Types
 import type { YamlTask, YamlFormatter, TemplateType } from '@/types/yaml.types'
@@ -304,8 +300,3 @@ onMounted(async () => {
 })
 </script>
 
-<style scoped>
-.yaml-management {
-  padding: 1rem;
-}
-</style>

@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useAuth } from '@/composables/useAuth'
-import InputText from 'primevue/inputtext'
-import Password from 'primevue/password'
-import Button from 'primevue/button'
-import Message from 'primevue/message'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
-const { login, loginError, clearError, isAuthenticated } = useAuth()
+const { login, loginError, clearError } = useAuth()
 
 const email = ref('')
 const password = ref('')
 const isLoading = ref(false)
+const showPassword = ref(false)
 
 onMounted(() => {
   clearError()
@@ -53,48 +54,56 @@ function handleKeydown(event: KeyboardEvent) {
       </div>
 
       <!-- Error Message -->
-      <Message v-if="loginError" severity="error" class="mb-4" :closable="false">
-        {{ loginError }}
-      </Message>
+      <Alert v-if="loginError" variant="destructive" class="mb-4">
+        <AlertDescription>{{ loginError }}</AlertDescription>
+      </Alert>
 
       <!-- Login Form -->
-      <form @submit.prevent="handleLogin" class="space-y-6">
+      <form class="space-y-6" @submit.prevent="handleLogin">
         <div class="flex flex-col gap-2">
-          <label for="email" class="text-sm font-medium text-gray-700">Email</label>
-          <InputText
+          <Label for="email" class="text-gray-700">Email</Label>
+          <Input
             id="email"
             v-model="email"
             type="email"
             placeholder="usuario@ejemplo.com"
-            class="w-full"
             :disabled="isLoading"
             @keydown="handleKeydown"
           />
         </div>
 
         <div class="flex flex-col gap-2">
-          <label for="password" class="text-sm font-medium text-gray-700">Password</label>
-          <Password
-            id="password"
-            v-model="password"
-            placeholder="Tu password"
-            :feedback="false"
-            toggleMask
-            class="w-full"
-            inputClass="w-full"
-            :disabled="isLoading"
-            @keydown="handleKeydown"
-          />
+          <Label for="password" class="text-gray-700">Password</Label>
+          <div class="relative">
+            <Input
+              id="password"
+              v-model="password"
+              :type="showPassword ? 'text' : 'password'"
+              placeholder="Tu password"
+              class="pr-10"
+              :disabled="isLoading"
+              @keydown="handleKeydown"
+            />
+            <button
+              type="button"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              tabindex="-1"
+              @click="showPassword = !showPassword"
+            >
+              <i :class="showPassword ? 'pi pi-eye-slash' : 'pi pi-eye'" class="text-sm" />
+            </button>
+          </div>
         </div>
 
         <Button
           type="submit"
-          label="Iniciar Sesion"
-          icon="pi pi-sign-in"
-          :loading="isLoading"
           class="w-full"
+          :loading="isLoading"
           :disabled="!email || !password"
-        />
+        >
+          <i class="pi pi-sign-in mr-2" />
+          Iniciar Sesion
+        </Button>
       </form>
 
       <!-- Footer -->

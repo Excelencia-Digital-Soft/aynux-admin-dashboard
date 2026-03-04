@@ -37,15 +37,23 @@ const {
   page,
   pageSize,
   totals,
+  sortBy,
+  sortOrder,
   canSearch,
   submitSearch,
-  onPageChange
+  onPageChange,
+  toggleSort
 } = useEnavConsulta()
 
 function formatDate(value: string | null): string {
   if (!value) return '-'
-  const d = new Date(value + 'T00:00:00')
-  return d.toLocaleDateString('es-AR')
+  const d = new Date(value)
+  return d.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+function sortIcon(column: string): string {
+  if (sortBy.value !== column) return ''
+  return sortOrder.value === 'asc' ? ' \u2191' : ' \u2193'
 }
 
 function formatNumber(value: number | null): string {
@@ -178,18 +186,18 @@ function formatDecimal(value: number | null): string {
         <Table>
           <TableHeader>
             <TableRow class="border-white/10 hover:bg-transparent">
-              <TableHead class="text-white/70 bg-white/5">Fecha</TableHead>
-              <TableHead class="text-white/70 bg-white/5">Nro CIU</TableHead>
-              <TableHead class="text-white/70 bg-white/5">Variedad</TableHead>
-              <TableHead class="text-white/70 bg-white/5">Kg Neto</TableHead>
-              <TableHead class="text-white/70 bg-white/5">Azucar</TableHead>
-              <TableHead class="text-white/70 bg-white/5">Patente</TableHead>
-              <TableHead class="text-white/70 bg-white/5">Bruto</TableHead>
-              <TableHead class="text-white/70 bg-white/5">Tara</TableHead>
-              <TableHead class="text-white/70 bg-white/5">Tipo Cosecha</TableHead>
-              <TableHead class="text-white/70 bg-white/5">Comercializacion</TableHead>
-              <TableHead class="text-white/70 bg-white/5">Chofer</TableHead>
-              <TableHead class="text-white/70 bg-white/5">Observaciones</TableHead>
+              <TableHead class="text-white/70 bg-white/5 cursor-pointer select-none hover:text-white transition-colors" @click="toggleSort('fecha')">Fecha{{ sortIcon('fecha') }}</TableHead>
+              <TableHead class="text-white/70 bg-white/5 cursor-pointer select-none hover:text-white transition-colors" @click="toggleSort('id')">Nro CIU{{ sortIcon('id') }}</TableHead>
+              <TableHead class="text-white/70 bg-white/5 cursor-pointer select-none hover:text-white transition-colors" @click="toggleSort('descvariedad')">Variedad{{ sortIcon('descvariedad') }}</TableHead>
+              <TableHead class="text-white/70 bg-white/5 cursor-pointer select-none hover:text-white transition-colors" @click="toggleSort('neto')">Kg Neto{{ sortIcon('neto') }}</TableHead>
+              <TableHead class="text-white/70 bg-white/5 cursor-pointer select-none hover:text-white transition-colors" @click="toggleSort('azucar')">Azucar{{ sortIcon('azucar') }}</TableHead>
+              <TableHead class="text-white/70 bg-white/5 cursor-pointer select-none hover:text-white transition-colors" @click="toggleSort('codigotransporte')">Patente{{ sortIcon('codigotransporte') }}</TableHead>
+              <TableHead class="text-white/70 bg-white/5 cursor-pointer select-none hover:text-white transition-colors" @click="toggleSort('bruto')">Bruto{{ sortIcon('bruto') }}</TableHead>
+              <TableHead class="text-white/70 bg-white/5 cursor-pointer select-none hover:text-white transition-colors" @click="toggleSort('tara')">Tara{{ sortIcon('tara') }}</TableHead>
+              <TableHead class="text-white/70 bg-white/5 cursor-pointer select-none hover:text-white transition-colors" @click="toggleSort('tipocosecha')">Tipo Cosecha{{ sortIcon('tipocosecha') }}</TableHead>
+              <TableHead class="text-white/70 bg-white/5 cursor-pointer select-none hover:text-white transition-colors" @click="toggleSort('tipocomercializacion')">Comercializacion{{ sortIcon('tipocomercializacion') }}</TableHead>
+              <TableHead class="text-white/70 bg-white/5 cursor-pointer select-none hover:text-white transition-colors" @click="toggleSort('choferdescripcion')">Chofer{{ sortIcon('choferdescripcion') }}</TableHead>
+              <TableHead class="text-white/70 bg-white/5 cursor-pointer select-none hover:text-white transition-colors" @click="toggleSort('observacion')">Observaciones{{ sortIcon('observacion') }}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

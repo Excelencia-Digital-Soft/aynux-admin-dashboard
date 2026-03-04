@@ -146,6 +146,7 @@ export function layoutTopology(
         routingConfigCount: node.routing_config_count,
         awaitingTypeConfigCount: node.awaiting_type_config_count,
         subgraph: node.subgraph,
+        responseKeys: node.response_keys || [],
         routingIntents: nodeIntentsMap[node.id] || [],
         awaitingTypeNames: nodeAwaitingMap[node.id] || [],
         isSelected: node.id === selectedNodeId
@@ -153,9 +154,31 @@ export function layoutTopology(
     }
   })
 
+  // Pre-compute dominant routing config type per edge (source→target)
+  // An edge's color is determined by the routing config types that route TO its target
+  const edgeConfigTypeMap: Record<string, string> = {}
+  for (const edge of apiEdges) {
+    if (edge.edge_type === 'conditional') {
+      // Find the dominant config_type for routing configs targeting this edge's target
+      const targetConfigs = routingConfigs.filter(
+        (rc) => rc.target_node === edge.target && rc.is_enabled
+      )
+      if (targetConfigs.length > 0) {
+        // Use the most common config_type among routing configs for this target
+        const typeCounts: Record<string, number> = {}
+        for (const rc of targetConfigs) {
+          typeCounts[rc.config_type] = (typeCounts[rc.config_type] || 0) + 1
+        }
+        const dominant = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0]
+        edgeConfigTypeMap[edge.id] = dominant[0]
+      }
+    }
+  }
+
   // Convert to Vue Flow edges
   const flowEdges: TopologyFlowEdge[] = apiEdges.map((edge) => {
     const isConditional = edge.edge_type === 'conditional'
+    const configType = edgeConfigTypeMap[edge.id] || null
     const base: TopologyFlowEdge = {
       id: edge.id,
       source: edge.source,
@@ -163,10 +186,11 @@ export function layoutTopology(
       type: 'smoothstep',
       animated: isConditional,
       label: edge.label || undefined,
-      style: getEdgeStyle(edge),
+      style: getEdgeStyleByType(edge, configType),
       data: {
         edgeType: edge.edge_type as 'direct' | 'conditional',
-        condition: edge.condition
+        condition: edge.condition,
+        configType,
       }
     }
     // Add label pill/badge styling for conditional edges with labels
@@ -201,15 +225,40 @@ function mapNodeType(apiType: string): TopologyNodeType {
   }
 }
 
-function getEdgeStyle(edge: ApiGraphEdge): Record<string, string> {
-  if (edge.edge_type === 'conditional') {
-    return {
-      stroke: '#8b5cf6',
-      strokeWidth: '2'
+/**
+ * Edge color palette by routing config type.
+ * Used for visual differentiation in the graph and the legend.
+ */
+export const EDGE_TYPE_COLORS: Record<string, { stroke: string; label: string; dashed?: boolean }> = {
+  button_mapping: { stroke: '#4ade80', label: 'Botón' },
+  global_keyword: { stroke: '#facc15', label: 'Keyword Global' },
+  intent_node_mapping: { stroke: '#a78bfa', label: 'Intent NLU', dashed: true },
+  list_selection: { stroke: '#60a5fa', label: 'Lista' },
+  menu_option: { stroke: '#f97316', label: 'Opción menú' },
+  prefix_wildcard: { stroke: '#2dd4bf', label: 'Prefijo' },
+}
+
+function getEdgeStyleByType(
+  edge: ApiGraphEdge,
+  configType: string | null
+): Record<string, string> {
+  if (edge.edge_type === 'conditional' && configType) {
+    const typeColor = EDGE_TYPE_COLORS[configType]
+    if (typeColor) {
+      const style: Record<string, string> = {
+        stroke: typeColor.stroke,
+        strokeWidth: '2',
+      }
+      if (typeColor.dashed) {
+        style.strokeDasharray = '6,3'
+      }
+      return style
     }
+    // Fallback for unknown config types
+    return { stroke: '#8b5cf6', strokeWidth: '2' }
   }
-  return {
-    stroke: '#64748b',
-    strokeWidth: '1.5'
+  if (edge.edge_type === 'conditional') {
+    return { stroke: '#8b5cf6', strokeWidth: '2' }
   }
+  return { stroke: '#64748b', strokeWidth: '1.5' }
 }

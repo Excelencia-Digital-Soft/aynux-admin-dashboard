@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { agentKnowledgeApi, type AgentKnowledgeStats } from '@/api/agentKnowledge.api'
-
-import Card from 'primevue/card'
-import Button from 'primevue/button'
-import Skeleton from 'primevue/skeleton'
-import Message from 'primevue/message'
-import ProgressBar from 'primevue/progressbar'
+import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Progress } from '@/components/ui/progress'
 
 interface AgentWithStats {
   agentKey: string
@@ -35,7 +33,6 @@ async function loadAgentsWithStats() {
   try {
     const response = await agentKnowledgeApi.getAvailableAgents()
 
-    // Initialize agents without stats
     agents.value = response.agents.map((agentKey) => ({
       agentKey,
       label: formatAgentLabel(agentKey),
@@ -44,7 +41,6 @@ async function loadAgentsWithStats() {
       error: null
     }))
 
-    // Load stats for each agent in parallel
     await Promise.allSettled(
       agents.value.map(async (agent, index) => {
         try {
@@ -71,10 +67,10 @@ function getCoveragePercentage(stats: AgentKnowledgeStats): number {
   return Math.round((stats.documents_with_embedding / stats.total_documents) * 100)
 }
 
-function getCoverageSeverity(percentage: number): 'success' | 'warn' | 'danger' {
-  if (percentage >= 80) return 'success'
-  if (percentage >= 50) return 'warn'
-  return 'danger'
+function getCoverageColor(percentage: number): string {
+  if (percentage >= 80) return 'bg-green-500'
+  if (percentage >= 50) return 'bg-amber-500'
+  return 'bg-red-500'
 }
 
 function handleSelectAgent(agentKey: string) {
@@ -91,99 +87,86 @@ onMounted(() => {
     <!-- Loading skeleton -->
     <div v-if="isLoading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       <Card v-for="i in 6" :key="i">
-        <template #content>
-          <Skeleton height="120px" />
-        </template>
+        <CardContent class="pt-6">
+          <div class="space-y-3 animate-pulse">
+            <div class="h-5 bg-muted rounded w-3/4" />
+            <div class="h-20 bg-muted rounded" />
+            <div class="h-4 bg-muted rounded w-1/2" />
+          </div>
+        </CardContent>
       </Card>
     </div>
 
     <!-- Error message -->
-    <Message v-else-if="error" severity="error" :closable="false">
-      {{ error }}
-    </Message>
+    <Alert v-else-if="error" variant="destructive">
+      <AlertDescription>{{ error }}</AlertDescription>
+    </Alert>
 
     <!-- Empty state -->
-    <Message v-else-if="agents.length === 0" severity="info" :closable="false">
-      No hay agentes configurados
-    </Message>
+    <Alert v-else-if="agents.length === 0" variant="info">
+      <AlertDescription>No hay agentes configurados</AlertDescription>
+    </Alert>
 
     <!-- Agent cards grid -->
     <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <Card v-for="agent in agents" :key="agent.agentKey" class="agent-card">
-        <template #header>
-          <div class="flex items-center justify-between p-4 pb-0">
+      <Card v-for="agent in agents" :key="agent.agentKey">
+        <CardHeader class="pb-2">
+          <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
-              <i class="pi pi-user text-primary-500 text-xl" />
-              <h3 class="text-lg font-semibold text-gray-800">{{ agent.label }}</h3>
+              <i class="pi pi-user text-primary text-xl" />
+              <h3 class="text-lg font-semibold">{{ agent.label }}</h3>
             </div>
-            <span class="text-xs text-gray-400 font-mono">{{ agent.agentKey }}</span>
+            <span class="text-xs text-muted-foreground font-mono">{{ agent.agentKey }}</span>
           </div>
-        </template>
-        <template #content>
-          <div v-if="agent.loading" class="space-y-2">
-            <Skeleton height="20px" />
-            <Skeleton height="20px" />
+        </CardHeader>
+        <CardContent class="pb-2">
+          <div v-if="agent.loading" class="space-y-2 animate-pulse">
+            <div class="h-5 bg-muted rounded" />
+            <div class="h-5 bg-muted rounded" />
           </div>
 
-          <Message v-else-if="agent.error" severity="warn" :closable="false" class="text-sm">
-            {{ agent.error }}
-          </Message>
+          <Alert v-else-if="agent.error" variant="warning" class="text-sm">
+            <AlertDescription>{{ agent.error }}</AlertDescription>
+          </Alert>
 
           <div v-else-if="agent.stats" class="space-y-3">
             <!-- Stats grid -->
             <div class="grid grid-cols-3 gap-2 text-center">
-              <div class="p-2 bg-gray-50 rounded">
-                <div class="text-2xl font-bold text-gray-800">{{ agent.stats.total_documents }}</div>
-                <div class="text-xs text-gray-500">Total</div>
+              <div class="p-2 bg-muted/50 rounded">
+                <div class="text-2xl font-bold">{{ agent.stats.total_documents }}</div>
+                <div class="text-xs text-muted-foreground">Total</div>
               </div>
-              <div class="p-2 bg-green-50 rounded">
+              <div class="p-2 bg-green-500/10 rounded">
                 <div class="text-2xl font-bold text-green-600">{{ agent.stats.active_documents }}</div>
-                <div class="text-xs text-gray-500">Activos</div>
+                <div class="text-xs text-muted-foreground">Activos</div>
               </div>
-              <div class="p-2 bg-blue-50 rounded">
+              <div class="p-2 bg-blue-500/10 rounded">
                 <div class="text-2xl font-bold text-blue-600">{{ agent.stats.documents_with_embedding }}</div>
-                <div class="text-xs text-gray-500">Con Embedding</div>
+                <div class="text-xs text-muted-foreground">Con Embedding</div>
               </div>
             </div>
 
             <!-- Coverage bar -->
             <div class="space-y-1">
-              <div class="flex justify-between text-xs text-gray-500">
+              <div class="flex justify-between text-xs text-muted-foreground">
                 <span>Cobertura de embeddings</span>
                 <span>{{ getCoveragePercentage(agent.stats) }}%</span>
               </div>
-              <ProgressBar
-                :value="getCoveragePercentage(agent.stats)"
-                :showValue="false"
-                style="height: 6px"
-                :pt="{
-                  value: { class: getCoverageSeverity(getCoveragePercentage(agent.stats)) === 'success' ? 'bg-green-500' : getCoverageSeverity(getCoveragePercentage(agent.stats)) === 'warn' ? 'bg-amber-500' : 'bg-red-500' }
-                }"
+              <Progress
+                :model-value="getCoveragePercentage(agent.stats)"
+                class="h-1.5"
+                :indicator-class="getCoverageColor(getCoveragePercentage(agent.stats))"
               />
             </div>
           </div>
-        </template>
-        <template #footer>
-          <div class="flex justify-end gap-2">
-            <Button
-              label="Ver Documentos"
-              icon="pi pi-folder-open"
-              size="small"
-              @click="handleSelectAgent(agent.agentKey)"
-            />
-          </div>
-        </template>
+        </CardContent>
+        <CardFooter class="justify-end pt-2">
+          <Button size="sm" @click="handleSelectAgent(agent.agentKey)">
+            <i class="pi pi-folder-open mr-2 text-xs" />
+            Ver Documentos
+          </Button>
+        </CardFooter>
       </Card>
     </div>
   </div>
 </template>
-
-<style scoped>
-.agent-card :deep(.p-card-content) {
-  padding-top: 0.5rem;
-}
-
-.agent-card :deep(.p-card-footer) {
-  padding-top: 0;
-}
-</style>

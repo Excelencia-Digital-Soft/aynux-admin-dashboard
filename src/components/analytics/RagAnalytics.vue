@@ -4,12 +4,19 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearSca
 import { Bar, Line, Doughnut } from 'vue-chartjs'
 import { analyticsApi } from '@/api/analytics.api'
 import type { RagMetrics } from '@/types/document.types'
+import { RefreshCw, BarChart3, PieChart, TrendingUp, Clock } from 'lucide-vue-next'
 
-import Card from 'primevue/card'
-import Select from 'primevue/select'
-import Button from 'primevue/button'
-import ProgressSpinner from 'primevue/progressspinner'
-import Message from 'primevue/message'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 
 // Register Chart.js components
 ChartJS.register(
@@ -35,13 +42,13 @@ const props = withDefaults(defineProps<Props>(), {
 const isLoading = ref(false)
 const error = ref<string | null>(null)
 const metrics = ref<RagMetrics | null>(null)
-const selectedDays = ref(30)
+const selectedDays = ref('30')
 const latencyTimeSeries = ref<Array<{ timestamp: string; value: number }>>([])
 
 const daysOptions = [
-  { label: 'Ultimos 7 dias', value: 7 },
-  { label: 'Ultimos 30 dias', value: 30 },
-  { label: 'Ultimos 90 dias', value: 90 }
+  { label: 'Ultimos 7 dias', value: '7' },
+  { label: 'Ultimos 30 dias', value: '30' },
+  { label: 'Ultimos 90 dias', value: '90' }
 ]
 
 // Chart data computations
@@ -161,10 +168,10 @@ async function fetchMetrics() {
 
   try {
     const [metricsData, timeSeriesData] = await Promise.all([
-      analyticsApi.getRagMetrics({ days: selectedDays.value }),
+      analyticsApi.getRagMetrics({ days: Number(selectedDays.value) }),
       analyticsApi.getPerformanceTimeSeries({
         metric: 'latency',
-        days: selectedDays.value,
+        days: Number(selectedDays.value),
         granularity: 'day'
       })
     ])
@@ -208,6 +215,10 @@ onMounted(() => {
   fetchMetrics()
   setupAutoRefresh()
 })
+
+const selectedDaysLabel = computed(() => {
+  return daysOptions.find(o => o.value === selectedDays.value)?.label ?? ''
+})
 </script>
 
 <template>
@@ -215,94 +226,101 @@ onMounted(() => {
     <!-- Header -->
     <div class="flex items-center justify-between mb-4">
       <div class="flex items-center gap-4">
-        <Select
-          v-model="selectedDays"
-          :options="daysOptions"
-          optionLabel="label"
-          optionValue="value"
-          class="w-48"
-        />
+        <Select v-model="selectedDays">
+          <SelectTrigger class="w-48">
+            <SelectValue :placeholder="selectedDaysLabel" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem
+              v-for="option in daysOptions"
+              :key="option.value"
+              :value="option.value"
+            >
+              {{ option.label }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
         <Button
-          icon="pi pi-refresh"
-          severity="secondary"
-          text
-          rounded
+          variant="ghost"
+          size="icon"
           @click="fetchMetrics"
-          :loading="isLoading"
-          v-tooltip="'Actualizar'"
-        />
+          :disabled="isLoading"
+          title="Actualizar"
+        >
+          <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': isLoading }" />
+        </Button>
       </div>
     </div>
 
     <!-- Loading state -->
     <div v-if="isLoading && !metrics" class="flex justify-center py-12">
-      <ProgressSpinner />
+      <Spinner size="lg" />
     </div>
 
     <!-- Error state -->
-    <Message v-if="error" severity="error" :closable="false">
-      {{ error }}
-    </Message>
+    <Alert v-if="error" variant="destructive">
+      <AlertDescription>{{ error }}</AlertDescription>
+    </Alert>
 
     <!-- Metrics content -->
     <template v-if="metrics">
       <!-- Summary cards -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <Card>
-          <template #content>
+          <CardContent class="p-4">
             <div class="text-center">
               <div class="text-3xl font-bold text-blue-600">
                 {{ formatNumber(metrics.total_queries) }}
               </div>
-              <div class="text-sm text-gray-500 mt-1">Total consultas</div>
+              <div class="text-sm text-muted-foreground mt-1">Total consultas</div>
             </div>
-          </template>
+          </CardContent>
         </Card>
 
         <Card>
-          <template #content>
+          <CardContent class="p-4">
             <div class="text-center">
               <div class="text-3xl font-bold text-green-600">
                 {{ formatNumber(metrics.avg_latency_ms) }}ms
               </div>
-              <div class="text-sm text-gray-500 mt-1">Latencia promedio</div>
+              <div class="text-sm text-muted-foreground mt-1">Latencia promedio</div>
             </div>
-          </template>
+          </CardContent>
         </Card>
 
         <Card>
-          <template #content>
+          <CardContent class="p-4">
             <div class="text-center">
               <div class="text-3xl font-bold text-amber-600">
                 {{ formatNumber(metrics.avg_token_count) }}
               </div>
-              <div class="text-sm text-gray-500 mt-1">Tokens promedio</div>
+              <div class="text-sm text-muted-foreground mt-1">Tokens promedio</div>
             </div>
-          </template>
+          </CardContent>
         </Card>
 
         <Card>
-          <template #content>
+          <CardContent class="p-4">
             <div class="text-center">
               <div class="text-3xl font-bold text-purple-600">
                 {{ formatPercentage(metrics.positive_feedback_rate) }}
               </div>
-              <div class="text-sm text-gray-500 mt-1">Feedback positivo</div>
+              <div class="text-sm text-muted-foreground mt-1">Feedback positivo</div>
             </div>
-          </template>
+          </CardContent>
         </Card>
       </div>
 
       <!-- Charts row 1 -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <Card>
-          <template #title>
-            <div class="flex items-center gap-2">
-              <i class="pi pi-chart-bar text-blue-500" />
+          <CardHeader class="pb-2">
+            <CardTitle class="text-sm font-semibold flex items-center gap-2">
+              <BarChart3 class="h-4 w-4 text-blue-500" />
               <span>Consultas por Dia</span>
-            </div>
-          </template>
-          <template #content>
+            </CardTitle>
+          </CardHeader>
+          <CardContent class="p-4 pt-0">
             <div class="h-64">
               <Bar
                 v-if="queriesByDayData"
@@ -310,17 +328,17 @@ onMounted(() => {
                 :options="chartOptions"
               />
             </div>
-          </template>
+          </CardContent>
         </Card>
 
         <Card>
-          <template #title>
-            <div class="flex items-center gap-2">
-              <i class="pi pi-chart-pie text-green-500" />
+          <CardHeader class="pb-2">
+            <CardTitle class="text-sm font-semibold flex items-center gap-2">
+              <PieChart class="h-4 w-4 text-green-500" />
               <span>Tipos de Documentos</span>
-            </div>
-          </template>
-          <template #content>
+            </CardTitle>
+          </CardHeader>
+          <CardContent class="p-4 pt-0">
             <div class="h-64">
               <Doughnut
                 v-if="documentTypesData"
@@ -328,20 +346,20 @@ onMounted(() => {
                 :options="doughnutOptions"
               />
             </div>
-          </template>
+          </CardContent>
         </Card>
       </div>
 
       <!-- Charts row 2 -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <template #title>
-            <div class="flex items-center gap-2">
-              <i class="pi pi-chart-line text-amber-500" />
+          <CardHeader class="pb-2">
+            <CardTitle class="text-sm font-semibold flex items-center gap-2">
+              <TrendingUp class="h-4 w-4 text-amber-500" />
               <span>Tendencia de Latencia</span>
-            </div>
-          </template>
-          <template #content>
+            </CardTitle>
+          </CardHeader>
+          <CardContent class="p-4 pt-0">
             <div class="h-64">
               <Line
                 v-if="latencyTimeSeriesData"
@@ -349,17 +367,17 @@ onMounted(() => {
                 :options="chartOptions"
               />
             </div>
-          </template>
+          </CardContent>
         </Card>
 
         <Card>
-          <template #title>
-            <div class="flex items-center gap-2">
-              <i class="pi pi-clock text-purple-500" />
+          <CardHeader class="pb-2">
+            <CardTitle class="text-sm font-semibold flex items-center gap-2">
+              <Clock class="h-4 w-4 text-purple-500" />
               <span>Distribucion de Latencia</span>
-            </div>
-          </template>
-          <template #content>
+            </CardTitle>
+          </CardHeader>
+          <CardContent class="p-4 pt-0">
             <div class="h-64">
               <Bar
                 v-if="latencyDistributionData"
@@ -367,20 +385,9 @@ onMounted(() => {
                 :options="chartOptions"
               />
             </div>
-          </template>
+          </CardContent>
         </Card>
       </div>
     </template>
   </div>
 </template>
-
-<style scoped>
-.rag-analytics :deep(.p-card-content) {
-  padding: 0.5rem;
-}
-
-.rag-analytics :deep(.p-card-title) {
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-</style>

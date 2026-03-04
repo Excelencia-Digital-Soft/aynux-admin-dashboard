@@ -40,6 +40,8 @@ export interface CosechaConsultaParams {
   fecha_hasta?: string
   page?: number
   page_size?: number
+  sort_by?: string
+  sort_order?: 'asc' | 'desc'
 }
 
 export async function consultaCosecha(

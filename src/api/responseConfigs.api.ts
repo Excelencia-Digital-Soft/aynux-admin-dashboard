@@ -10,6 +10,7 @@ import type {
   ResponseConfigUpdate,
   ResponseConfigListResponse,
   ResponseConfigFilterOptions,
+  ConfigDiffResponse,
   DomainListResponse,
   CacheStatsResponse,
   SeedResponse,
@@ -209,6 +210,26 @@ export const responseConfigsApi = {
       `${BASE_PATH}/params/${domainKey}`
     )
     return response.data.params
+  },
+
+  // =========================================================================
+  // Config Diff (Inheritance Visualization)
+  // =========================================================================
+
+  /**
+   * Get config diff between SYSTEM_ORG and target organization
+   */
+  async getConfigDiff(
+    organizationId: string,
+    domainKey: string = 'pharmacy'
+  ): Promise<ConfigDiffResponse> {
+    const params = new URLSearchParams()
+    params.append('organization_id', organizationId)
+    params.append('domain_key', domainKey)
+    const response = await api.get<ConfigDiffResponse>(
+      `${BASE_PATH}/config-diff?${params.toString()}`
+    )
+    return response.data
   },
 
   // =========================================================================

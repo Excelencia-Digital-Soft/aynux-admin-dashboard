@@ -10,7 +10,8 @@ import type {
   ResponseConfigCreate,
   ResponseConfigUpdate,
   ResponseConfigFormData,
-  ResponseParam
+  ResponseParam,
+  ValidationWarning
 } from '@/types/responseConfigs.types'
 import { DEFAULT_RESPONSE_CONFIG_FORM } from '@/types/responseConfigs.types'
 import type { DomainKey } from '@/types/domainIntents.types'
@@ -27,6 +28,9 @@ export function useResponseConfigDialog(
   const saving = ref(false)
   const editingConfig = ref<ResponseConfig | null>(null)
   const formData = ref<ResponseConfigFormData>({ ...DEFAULT_RESPONSE_CONFIG_FORM })
+
+  // Validation warnings from last save
+  const saveWarnings = ref<ValidationWarning[]>([])
 
   // Parameter registry
   const availableParams = ref<ResponseParam[]>([])
@@ -65,11 +69,13 @@ export function useResponseConfigDialog(
   function openCreateDialog() {
     editingConfig.value = null
     formData.value = { ...DEFAULT_RESPONSE_CONFIG_FORM }
+    saveWarnings.value = []
     showDialog.value = true
   }
 
   function openEditDialog(config: ResponseConfig) {
     editingConfig.value = config
+    saveWarnings.value = []
     formData.value = {
       intent_key: config.intent_key,
       display_name: config.display_name || '',
@@ -78,6 +84,7 @@ export function useResponseConfigDialog(
       fallback_template_key: config.fallback_template_key,
       response_type: config.response_type || 'fixed',
       template_text: config.template_text || '',
+      buttons: config.buttons ? [...config.buttons] : [],
       priority: config.priority,
       is_critical: config.is_critical,
       is_enabled: config.is_enabled
@@ -115,7 +122,9 @@ export function useResponseConfigDialog(
     }
 
     saving.value = true
+    saveWarnings.value = []
     try {
+      let result: ResponseConfig
       if (editingConfig.value) {
         // Update existing
         const updateData: ResponseConfigUpdate = {
@@ -124,18 +133,13 @@ export function useResponseConfigDialog(
           fallback_template_key: formData.value.fallback_template_key,
           response_type: formData.value.response_type,
           template_text: formData.value.template_text || null,
+          buttons: formData.value.buttons.length > 0 ? formData.value.buttons : null,
           display_name: formData.value.display_name || null,
           description: formData.value.description || null,
           priority: formData.value.priority,
           is_enabled: formData.value.is_enabled
         }
-        await responseConfigsApi.updateConfig(editingConfig.value.id, updateData)
-        toast.add({
-          severity: 'success',
-          summary: 'Configuración actualizada',
-          detail: `"${formData.value.display_name || formData.value.intent_key}" guardada correctamente`,
-          life: 3000
-        })
+        result = await responseConfigsApi.updateConfig(editingConfig.value.id, updateData)
       } else {
         // Create new
         const createData: ResponseConfigCreate = {
@@ -147,20 +151,36 @@ export function useResponseConfigDialog(
           fallback_template_key: formData.value.fallback_template_key,
           response_type: formData.value.response_type,
           template_text: formData.value.template_text || null,
+          buttons: formData.value.buttons.length > 0 ? formData.value.buttons : null,
           display_name: formData.value.display_name || null,
           description: formData.value.description || null,
           priority: formData.value.priority,
           is_enabled: formData.value.is_enabled
         }
-        await responseConfigsApi.createConfig(createData)
+        result = await responseConfigsApi.createConfig(createData)
+      }
+
+      // Capture inline validation warnings from response
+      const warnings = result.warnings ?? []
+      saveWarnings.value = warnings
+
+      if (warnings.length > 0) {
+        const critical = warnings.filter(w => w.severity === 'critical').length
+        toast.add({
+          severity: critical > 0 ? 'warn' : 'info',
+          summary: 'Guardado con avisos',
+          detail: `${warnings.length} aviso(s) de validación detectado(s)`,
+          life: 5000
+        })
+      } else {
         toast.add({
           severity: 'success',
-          summary: 'Configuración creada',
-          detail: `"${formData.value.display_name || formData.value.intent_key}" creada correctamente`,
+          summary: isEditing() ? 'Configuración actualizada' : 'Configuración creada',
+          detail: `"${formData.value.display_name || formData.value.intent_key}" guardada correctamente`,
           life: 3000
         })
+        closeDialog()
       }
-      closeDialog()
       await loadConfigs()
     } catch (error: unknown) {
       console.error('Error saving config:', error)
@@ -183,6 +203,7 @@ export function useResponseConfigDialog(
     saving,
     editingConfig,
     formData,
+    saveWarnings,
 
     // Params
     availableParams,

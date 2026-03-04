@@ -92,6 +92,7 @@ const menuItems = computed<MenuItem[]>(() => [
             { label: 'Modelos AI', icon: 'pi pi-microchip-ai', route: '/ai-models' },
             { label: 'Catalogo Agentes', icon: 'pi pi-box', route: '/agent-catalog' },
             { label: 'Dominios', icon: 'pi pi-globe', route: '/domains' },
+            { label: 'Mapeo Intents', icon: 'pi pi-link', route: '/intent-mappings' },
             { label: 'LangGraph Topologia', icon: 'pi pi-share-alt', route: '/graph-topology' },
             { label: 'Editor Workflows', icon: 'pi pi-sitemap', route: '/workflow-editor' },
           ]

@@ -5,11 +5,11 @@ import { Bar, Doughnut } from 'vue-chartjs'
 import { useKnowledge } from '@/composables/useKnowledge'
 import { getTypeLabel } from '@/utils/constants'
 import type { KnowledgeStats } from '@/types/document.types'
+import { RefreshCw, Database, CheckCircle, XCircle, Sparkles, PieChart, BarChart3, List } from 'lucide-vue-next'
 
-import Card from 'primevue/card'
-import Button from 'primevue/button'
-import ProgressSpinner from 'primevue/progressspinner'
-import Tag from 'primevue/tag'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement)
@@ -157,23 +157,25 @@ onMounted(() => {
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-2xl font-bold text-gray-800">Estadisticas</h1>
-        <p class="text-gray-500 mt-1">
+        <h1 class="text-2xl font-bold text-foreground">Estadisticas</h1>
+        <p class="text-muted-foreground mt-1">
           Metricas y distribucion de la base de conocimiento
         </p>
       </div>
       <Button
-        icon="pi pi-refresh"
-        severity="secondary"
+        variant="ghost"
+        size="icon"
         @click="loadStats"
-        :loading="isLoading"
-        v-tooltip="'Actualizar'"
-      />
+        :disabled="isLoading"
+        title="Actualizar"
+      >
+        <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': isLoading }" />
+      </Button>
     </div>
 
     <!-- Loading state -->
     <div v-if="isLoading && !stats" class="flex justify-center py-12">
-      <ProgressSpinner />
+      <Spinner size="lg" />
     </div>
 
     <!-- Stats content -->
@@ -181,88 +183,88 @@ onMounted(() => {
       <!-- Summary cards -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <Card>
-          <template #content>
+          <CardContent class="p-4">
             <div class="text-center">
-              <i class="pi pi-database text-2xl text-blue-500 mb-2" />
-              <div class="text-3xl font-bold text-gray-800">
+              <Database class="h-6 w-6 text-blue-500 mx-auto mb-2" />
+              <div class="text-3xl font-bold text-foreground">
                 {{ stats.total_documents }}
               </div>
-              <div class="text-sm text-gray-500">Total documentos</div>
+              <div class="text-sm text-muted-foreground">Total documentos</div>
             </div>
-          </template>
+          </CardContent>
         </Card>
 
         <Card>
-          <template #content>
+          <CardContent class="p-4">
             <div class="text-center">
-              <i class="pi pi-check-circle text-2xl text-green-500 mb-2" />
+              <CheckCircle class="h-6 w-6 text-green-500 mx-auto mb-2" />
               <div class="text-3xl font-bold text-green-600">
                 {{ stats.total_active }}
               </div>
-              <div class="text-sm text-gray-500">Activos ({{ activePercentage }}%)</div>
+              <div class="text-sm text-muted-foreground">Activos ({{ activePercentage }}%)</div>
             </div>
-          </template>
+          </CardContent>
         </Card>
 
         <Card>
-          <template #content>
+          <CardContent class="p-4">
             <div class="text-center">
-              <i class="pi pi-times-circle text-2xl text-red-500 mb-2" />
+              <XCircle class="h-6 w-6 text-red-500 mx-auto mb-2" />
               <div class="text-3xl font-bold text-red-600">
                 {{ stats.total_inactive }}
               </div>
-              <div class="text-sm text-gray-500">Inactivos</div>
+              <div class="text-sm text-muted-foreground">Inactivos</div>
             </div>
-          </template>
+          </CardContent>
         </Card>
 
         <Card>
-          <template #content>
+          <CardContent class="p-4">
             <div class="text-center">
-              <i class="pi pi-sparkles text-2xl text-purple-500 mb-2" />
+              <Sparkles class="h-6 w-6 text-purple-500 mx-auto mb-2" />
               <div class="text-3xl font-bold text-purple-600">
                 {{ stats.documents_with_embedding }}
               </div>
-              <div class="text-sm text-gray-500">Con embedding ({{ embeddingPercentage }}%)</div>
+              <div class="text-sm text-muted-foreground">Con embedding ({{ embeddingPercentage }}%)</div>
             </div>
-          </template>
+          </CardContent>
         </Card>
       </div>
 
       <!-- Type breakdown table -->
       <Card class="mb-6">
-        <template #title>
-          <div class="flex items-center gap-2">
-            <i class="pi pi-list text-blue-500" />
+        <CardHeader class="pb-2">
+          <CardTitle class="text-sm font-semibold flex items-center gap-2">
+            <List class="h-4 w-4 text-blue-500" />
             <span>Documentos por Tipo</span>
-          </div>
-        </template>
-        <template #content>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
           <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
             <div
               v-for="(count, type) in stats.documents_by_type"
               :key="type"
-              class="p-3 bg-gray-50 rounded-lg"
+              class="p-3 bg-muted/50 rounded-lg"
             >
-              <div class="text-xl font-bold text-gray-800">{{ count }}</div>
-              <div class="text-sm text-gray-500 truncate" :title="getTypeLabel(type as string)">
+              <div class="text-xl font-bold text-foreground">{{ count }}</div>
+              <div class="text-sm text-muted-foreground truncate" :title="getTypeLabel(type as string)">
                 {{ getTypeLabel(type as string) }}
               </div>
             </div>
           </div>
-        </template>
+        </CardContent>
       </Card>
 
       <!-- Charts row -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <Card>
-          <template #title>
-            <div class="flex items-center gap-2">
-              <i class="pi pi-chart-pie text-blue-500" />
+          <CardHeader class="pb-2">
+            <CardTitle class="text-sm font-semibold flex items-center gap-2">
+              <PieChart class="h-4 w-4 text-blue-500" />
               <span>Por Tipo</span>
-            </div>
-          </template>
-          <template #content>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             <div class="h-64">
               <Doughnut
                 v-if="documentsByTypeData"
@@ -270,17 +272,17 @@ onMounted(() => {
                 :options="doughnutOptions"
               />
             </div>
-          </template>
+          </CardContent>
         </Card>
 
         <Card>
-          <template #title>
-            <div class="flex items-center gap-2">
-              <i class="pi pi-chart-pie text-green-500" />
+          <CardHeader class="pb-2">
+            <CardTitle class="text-sm font-semibold flex items-center gap-2">
+              <PieChart class="h-4 w-4 text-green-500" />
               <span>Estado</span>
-            </div>
-          </template>
-          <template #content>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             <div class="h-64">
               <Doughnut
                 v-if="statusData"
@@ -288,17 +290,17 @@ onMounted(() => {
                 :options="doughnutOptions"
               />
             </div>
-          </template>
+          </CardContent>
         </Card>
 
         <Card>
-          <template #title>
-            <div class="flex items-center gap-2">
-              <i class="pi pi-chart-pie text-amber-500" />
+          <CardHeader class="pb-2">
+            <CardTitle class="text-sm font-semibold flex items-center gap-2">
+              <PieChart class="h-4 w-4 text-amber-500" />
               <span>Embeddings</span>
-            </div>
-          </template>
-          <template #content>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             <div class="h-64">
               <Doughnut
                 v-if="embeddingData"
@@ -306,19 +308,19 @@ onMounted(() => {
                 :options="doughnutOptions"
               />
             </div>
-          </template>
+          </CardContent>
         </Card>
       </div>
 
       <!-- Type distribution bar chart -->
       <Card>
-        <template #title>
-          <div class="flex items-center gap-2">
-            <i class="pi pi-chart-bar text-purple-500" />
+        <CardHeader class="pb-2">
+          <CardTitle class="text-sm font-semibold flex items-center gap-2">
+            <BarChart3 class="h-4 w-4 text-purple-500" />
             <span>Distribucion por Tipo (Top 8)</span>
-          </div>
-        </template>
-        <template #content>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
           <div class="h-80">
             <Bar
               v-if="typeDistributionData"
@@ -326,14 +328,8 @@ onMounted(() => {
               :options="barOptions"
             />
           </div>
-        </template>
+        </CardContent>
       </Card>
     </template>
   </div>
 </template>
-
-<style scoped>
-.statistics-page :deep(.p-card-content) {
-  padding: 0.75rem;
-}
-</style>

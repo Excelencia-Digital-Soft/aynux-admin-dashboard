@@ -1,80 +1,95 @@
 <template>
   <Card class="mb-4">
-    <template #title>
-      <i class="pi pi-filter"></i>
-      Filtros
-    </template>
-    <template #content>
+    <CardContent class="p-4">
+      <div class="flex items-center gap-2 mb-4">
+        <Filter class="h-4 w-4" />
+        <span class="font-semibold text-sm">Filtros</span>
+      </div>
+
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="field">
-          <label for="domain" class="block text-sm font-medium mb-2">Dominio</label>
+        <div>
+          <label class="block text-sm font-medium text-foreground mb-1">Dominio</label>
           <Select
-            id="domain"
-            v-model="filters.domain"
-            :options="domainOptions"
-            optionLabel="label"
-            optionValue="value"
-            placeholder="Todos los dominios"
-            class="w-full"
-            showClear
-          />
+            :model-value="filters.domain ?? '__all__'"
+            @update:model-value="(v: string) => { filters.domain = v === '__all__' ? null : v }"
+          >
+            <SelectTrigger class="w-full">
+              <SelectValue placeholder="Todos los dominios" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos los dominios</SelectItem>
+              <SelectItem
+                v-for="opt in domainOptions"
+                :key="opt.value"
+                :value="opt.value"
+              >
+                {{ opt.label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
-        <div class="field">
-          <label for="source" class="block text-sm font-medium mb-2">Origen</label>
+        <div>
+          <label class="block text-sm font-medium text-foreground mb-1">Origen</label>
           <Select
-            id="source"
-            v-model="filters.source"
-            :options="sourceOptions"
-            optionLabel="label"
-            optionValue="value"
-            placeholder="Todos los orígenes"
-            class="w-full"
-            showClear
-          />
+            :model-value="filters.source ?? '__all__'"
+            @update:model-value="(v: string) => { filters.source = v === '__all__' ? null : v as 'file' | 'database' }"
+          >
+            <SelectTrigger class="w-full">
+              <SelectValue placeholder="Todos los origenes" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos los origenes</SelectItem>
+              <SelectItem value="file">Archivo</SelectItem>
+              <SelectItem value="database">Base de Datos</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
-        <div class="field">
-          <label for="active" class="block text-sm font-medium mb-2">Estado</label>
+        <div>
+          <label class="block text-sm font-medium text-foreground mb-1">Estado</label>
           <Select
-            id="active"
-            v-model="filters.active"
-            :options="statusOptions"
-            optionLabel="label"
-            optionValue="value"
-            placeholder="Todos los estados"
-            class="w-full"
-            showClear
-          />
+            :model-value="filters.active === null ? '__all__' : String(filters.active)"
+            @update:model-value="(v: string) => { filters.active = v === '__all__' ? null : v === 'true' }"
+          >
+            <SelectTrigger class="w-full">
+              <SelectValue placeholder="Todos los estados" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos los estados</SelectItem>
+              <SelectItem value="true">Activo</SelectItem>
+              <SelectItem value="false">Inactivo</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        
-        <div class="field">
-          <label for="search" class="block text-sm font-medium mb-2">Buscar</label>
-          <IconField class="w-full">
-            <InputIcon class="pi pi-search" />
-            <InputText
-              id="search"
+
+        <div>
+          <label class="block text-sm font-medium text-foreground mb-1">Buscar</label>
+          <div class="relative">
+            <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
               v-model="filters.search"
-              placeholder="Buscar por nombre, key o descripción..."
-              class="w-full"
+              placeholder="Buscar por nombre, key..."
+              class="pl-9 w-full"
             />
-          </IconField>
+          </div>
         </div>
       </div>
-      
+
       <div class="flex justify-between items-center mt-4">
-        <span class="text-sm text-muted">
+        <span class="text-sm text-muted-foreground">
           Mostrando {{ currentItemsCount }} de {{ totalCount }} {{ typeLabel }}
         </span>
         <Button
+          variant="secondary"
+          size="sm"
           @click="clearFilters"
-          icon="pi pi-times"
-          label="Limpiar Filtros"
-          severity="secondary"
-          size="small"
-        />
+        >
+          <X class="mr-2 h-3.5 w-3.5" />
+          Limpiar Filtros
+        </Button>
       </div>
-    </template>
+    </CardContent>
   </Card>
 </template>
 
@@ -82,18 +97,22 @@
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useYamlStore } from '@/stores/yaml.store'
-import Card from 'primevue/card'
-import Select from 'primevue/select'
-import InputText from 'primevue/inputtext'
-import Button from 'primevue/button'
-import IconField from 'primevue/iconfield'
-import InputIcon from 'primevue/inputicon'
+import { Filter, Search, X } from 'lucide-vue-next'
+
+import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
+} from '@/components/ui/select'
 
 const yamlStore = useYamlStore()
 const { filters, pagination, templateType, currentItems } = storeToRefs(yamlStore)
 
-// Helper for domains options (needs to be computed based on current type's domains)
-// We need to access the correct domains list from the store based on type
 const currentDomains = computed(() => {
   if (templateType.value === 'formatter') return yamlStore.formatterDomains
   if (templateType.value === 'task') return yamlStore.taskDomains
@@ -106,16 +125,6 @@ const domainOptions = computed(() => [
     label: getDomainDisplayName(domain)
   }))
 ])
-
-const sourceOptions = [
-  { value: 'file', label: 'Archivo' },
-  { value: 'database', label: 'Base de Datos' }
-]
-
-const statusOptions = [
-  { value: true, label: 'Activo' },
-  { value: false, label: 'Inactivo' }
-]
 
 const currentItemsCount = computed(() => currentItems.value.length)
 const totalCount = computed(() => pagination.value.total)
@@ -146,14 +155,3 @@ function getDomainDisplayName(domain: string): string {
   return nameMap[domain] || domain
 }
 </script>
-
-<style scoped>
-.field label {
-  color: var(--text-color);
-  font-weight: 500;
-}
-
-.text-muted {
-  color: var(--text-color-secondary);
-}
-</style>

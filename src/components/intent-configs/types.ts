@@ -51,11 +51,15 @@ export interface TopologyNodeData {
   routingConfigCount: number
   awaitingTypeConfigCount: number
   subgraph?: string
+  responseKeys: string[]
   // Enriched by layout
   routingIntents?: string[]
   awaitingTypeNames?: string[]
   // Computed by composable
   isSelected: boolean
+  // Validation issues (from useConfigValidation)
+  validationCritical?: number
+  validationWarning?: number
 }
 
 // =============================================================================
@@ -82,6 +86,8 @@ export interface TopologyFlowEdge {
   data?: {
     edgeType: 'direct' | 'conditional'
     condition?: string | null
+    /** Dominant routing config_type for this edge (e.g. button_mapping, global_keyword) */
+    configType?: string | null
   }
 }
 

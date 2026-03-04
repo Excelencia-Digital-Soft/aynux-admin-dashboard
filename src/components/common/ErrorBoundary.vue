@@ -11,8 +11,9 @@
  *   </ErrorBoundary>
  */
 import { ref, onErrorCaptured } from 'vue'
-import Message from 'primevue/message'
-import Button from 'primevue/button'
+import { AlertTriangle, RefreshCw } from 'lucide-vue-next'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 
 interface Props {
   /** Name for identifying the boundary in logs */
@@ -70,48 +71,35 @@ function retry() {
 </script>
 
 <template>
-  <div class="error-boundary">
+  <div class="h-full w-full">
     <!-- Error State -->
-    <div v-if="hasError" class="error-fallback p-4">
-      <Message severity="error" :closable="false">
-        <template #icon>
-          <i class="pi pi-exclamation-triangle text-xl"></i>
-        </template>
-        <div class="flex flex-col gap-2">
-          <span class="font-medium">
-            {{ fallbackMessage || `Error en ${name}` }}
-          </span>
-          <span class="text-sm opacity-80">
-            {{ errorMessage }}
-          </span>
-          <Button
-            v-if="showRetry"
-            @click="retry"
-            label="Reintentar"
-            icon="pi pi-refresh"
-            severity="secondary"
-            size="small"
-            class="mt-2 w-fit"
-          />
-        </div>
-      </Message>
+    <div v-if="hasError" class="flex items-center justify-center min-h-[100px] p-4">
+      <Alert variant="destructive" class="max-w-lg">
+        <AlertTriangle class="h-4 w-4" />
+        <AlertDescription>
+          <div class="flex flex-col gap-2">
+            <span class="font-medium">
+              {{ fallbackMessage || `Error en ${name}` }}
+            </span>
+            <span class="text-sm opacity-80">
+              {{ errorMessage }}
+            </span>
+            <Button
+              v-if="showRetry"
+              variant="outline"
+              size="sm"
+              class="mt-2 w-fit"
+              @click="retry"
+            >
+              <RefreshCw class="mr-2 h-3 w-3" />
+              Reintentar
+            </Button>
+          </div>
+        </AlertDescription>
+      </Alert>
     </div>
 
     <!-- Normal Content -->
     <slot v-else />
   </div>
 </template>
-
-<style scoped>
-.error-boundary {
-  width: 100%;
-  height: 100%;
-}
-
-.error-fallback {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100px;
-}
-</style>

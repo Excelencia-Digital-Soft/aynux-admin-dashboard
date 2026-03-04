@@ -25,6 +25,21 @@
         />
         <Label class="text-sm text-muted-foreground cursor-pointer">Solo criticas</Label>
       </div>
+      <Select
+        v-if="nodeFilterOptions?.length"
+        :model-value="nodeFilter ?? '__all__'"
+        @update:model-value="$emit('update:nodeFilter', $event === '__all__' ? null : $event)"
+      >
+        <SelectTrigger class="w-[180px] h-8 bg-white/10 dark:bg-white/5 border-white/20 dark:border-white/10">
+          <SelectValue placeholder="Filtrar por nodo" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__all__">Todos los nodos</SelectItem>
+          <SelectItem v-for="opt in nodeFilterOptions" :key="opt.id" :value="opt.id">
+            {{ opt.label }}
+          </SelectItem>
+        </SelectContent>
+      </Select>
     </div>
   </div>
 
@@ -63,6 +78,7 @@
                 <SortIcon field="intent_key" :sort-field="sortField" :sort-order="sortOrder" />
               </div>
             </TableHead>
+            <TableHead v-if="nodeMap" class="min-w-[120px]">Nodo</TableHead>
             <TableHead
               class="min-w-[180px] cursor-pointer select-none hover:text-foreground transition-colors"
               @click="$emit('sort', 'display_name')"
@@ -92,6 +108,7 @@
             </TableHead>
             <TableHead class="min-w-[250px]">Tarea</TableHead>
             <TableHead class="min-w-[150px]">Template</TableHead>
+            <TableHead class="w-[80px]">Botones</TableHead>
             <TableHead
               class="w-[100px] cursor-pointer select-none hover:text-foreground transition-colors"
               @click="$emit('sort', 'priority')"
@@ -135,6 +152,12 @@
                   {{ config.intent_key }}
                 </code>
               </TableCell>
+              <TableCell v-if="nodeMap">
+                <Badge v-if="nodeMap[config.intent_key]" variant="outline" class="text-xs">
+                  {{ nodeMap[config.intent_key].nodeDisplayName }}
+                </Badge>
+                <span v-else class="text-muted-foreground text-xs">&mdash;</span>
+              </TableCell>
               <TableCell class="text-foreground">
                 {{ config.display_name || '-' }}
               </TableCell>
@@ -166,6 +189,16 @@
                 <code class="text-sm font-mono bg-muted/50 dark:bg-white/10 px-2 py-0.5 rounded">
                   {{ config.fallback_template_key }}
                 </code>
+              </TableCell>
+              <TableCell>
+                <Badge
+                  v-if="config.buttons && config.buttons.length > 0"
+                  variant="outline"
+                  class="bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                >
+                  {{ config.buttons.length }}
+                </Badge>
+                <span v-else class="text-muted-foreground text-xs">&mdash;</span>
               </TableCell>
               <TableCell>
                 <span class="inline-block px-2 py-0.5 bg-muted/50 dark:bg-white/10 rounded text-sm font-medium text-foreground">
@@ -215,7 +248,7 @@
 
             <!-- Expanded Row -->
             <TableRow v-if="expandedRows.has(config.id)">
-              <TableCell :colspan="10" class="p-0">
+              <TableCell :colspan="totalColumnCount" class="p-0">
                 <div class="bg-muted/30 dark:bg-white/5 p-4 border-t border-border/50">
                   <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <!-- Task Description Section -->
@@ -263,6 +296,23 @@
                         <div class="flex gap-2">
                           <span class="text-muted-foreground min-w-[120px]">Actualizado:</span>
                           <span class="text-foreground">{{ formatDate(config.updated_at) }}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Buttons Section -->
+                    <div v-if="config.buttons && config.buttons.length > 0" class="glass-card p-4">
+                      <h4 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+                        Botones WhatsApp ({{ config.buttons.length }})
+                      </h4>
+                      <div class="flex flex-wrap gap-2">
+                        <div
+                          v-for="btn in config.buttons"
+                          :key="btn.id"
+                          class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5"
+                        >
+                          <code class="text-xs font-mono text-muted-foreground">{{ btn.id }}</code>
+                          <span class="text-xs text-emerald-400 font-medium">{{ btn.title }}</span>
                         </div>
                       </div>
                     </div>
@@ -372,6 +422,7 @@
 </template>
 
 <script setup lang="ts">
+import { h, computed, defineComponent } from 'vue'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
@@ -383,7 +434,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 import type { ResponseConfig } from '@/types/responseConfigs.types'
 
-defineProps<{
+const props = defineProps<{
   configs: ResponseConfig[]
   loading: boolean
   filteredCount: number
@@ -398,6 +449,9 @@ defineProps<{
   paginationStart: number
   paginationEnd: number
   expandedRows: Set<string>
+  nodeMap?: Record<string, { nodeId: string; nodeDisplayName: string }>
+  nodeFilter?: string | null
+  nodeFilterOptions?: { id: string; label: string }[]
 }>()
 
 defineEmits<{
@@ -405,6 +459,7 @@ defineEmits<{
   (e: 'update:showOnlyEnabled', value: boolean): void
   (e: 'update:showOnlyCritical', value: boolean): void
   (e: 'update:currentPage', value: number): void
+  (e: 'update:nodeFilter', value: string | null): void
   (e: 'sort', field: string): void
   (e: 'toggleRow', id: string): void
   (e: 'edit', config: ResponseConfig): void
@@ -416,21 +471,25 @@ defineEmits<{
 }>()
 
 // --- Sort Icon inline component ---
-const SortIcon = {
+const SortIcon = defineComponent({
   props: {
     field: { type: String, required: true },
     sortField: { type: String, required: true },
     sortOrder: { type: Number, required: true }
   },
-  template: `
-    <i
-      v-if="field === sortField"
-      class="pi text-xs ml-0.5"
-      :class="sortOrder === 1 ? 'pi-sort-amount-up-alt' : 'pi-sort-amount-down'"
-    />
-    <i v-else class="pi pi-sort-alt text-xs ml-0.5 opacity-30" />
-  `
-}
+  setup(props) {
+    return () => {
+      if (props.field === props.sortField) {
+        return h('i', {
+          class: `pi text-xs ml-0.5 ${props.sortOrder === 1 ? 'pi-sort-amount-up-alt' : 'pi-sort-amount-down'}`
+        })
+      }
+      return h('i', { class: 'pi pi-sort-alt text-xs ml-0.5 opacity-30' })
+    }
+  }
+})
+
+const totalColumnCount = computed(() => 11 + (props.nodeMap ? 1 : 0))
 
 function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text

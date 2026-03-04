@@ -6,6 +6,12 @@
  * Shows a summary bar + per-intent IntentPatternBlock components.
  */
 import { toRef } from 'vue'
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider
+} from '@/components/ui/tooltip'
 import IntentPatternBlock from './IntentPatternBlock.vue'
 import { useNodeDetectionPatterns } from '../composables/useNodeDetectionPatterns'
 import type { RoutingConfigSummary } from '../types'
@@ -43,30 +49,51 @@ function handleAddConfirmation(intentId: string, value: string, matchType: Match
 </script>
 
 <template>
+  <TooltipProvider>
   <div class="detection-section">
     <div class="section-header">
       <i class="pi pi-search" />
-      <h4>PATRONES DE DETECCION</h4>
+      <h4>CÓMO EL BOT ENTIENDE MENSAJES</h4>
     </div>
 
     <!-- Summary bar -->
     <div v-if="matchedIntents.length > 0" class="summary-bar">
-      <div class="summary-item">
-        <span class="summary-value">{{ summary.lemmas }}</span>
-        <span class="summary-label">lemmas</span>
-      </div>
-      <div class="summary-item">
-        <span class="summary-value">{{ summary.keywords }}</span>
-        <span class="summary-label">keywords</span>
-      </div>
-      <div class="summary-item">
-        <span class="summary-value">{{ summary.phrases }}</span>
-        <span class="summary-label">frases</span>
-      </div>
-      <div class="summary-item">
-        <span class="summary-value">{{ summary.confirmations }}</span>
-        <span class="summary-label">confirm.</span>
-      </div>
+      <Tooltip>
+        <TooltipTrigger as-child>
+          <div class="summary-item">
+            <span class="summary-value">{{ summary.lemmas }}</span>
+            <span class="summary-label">raíces</span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="top">Variaciones de una misma palabra (ej: pagar, pago, pagos)</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger as-child>
+          <div class="summary-item">
+            <span class="summary-value">{{ summary.keywords }}</span>
+            <span class="summary-label">palabras clave</span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="top">Palabras individuales importantes</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger as-child>
+          <div class="summary-item">
+            <span class="summary-value">{{ summary.phrases }}</span>
+            <span class="summary-label">frases</span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="top">Oraciones completas que el bot reconoce</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger as-child>
+          <div class="summary-item">
+            <span class="summary-value">{{ summary.confirmations }}</span>
+            <span class="summary-label">sí/no</span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="top">Formas de confirmar o rechazar (sí, no, dale, etc.)</TooltipContent>
+      </Tooltip>
     </div>
 
     <!-- Loading -->
@@ -96,9 +123,10 @@ function handleAddConfirmation(intentId: string, value: string, matchType: Match
     <!-- Empty state -->
     <div v-else-if="!isLoading" class="empty-state">
       <i class="pi pi-info-circle" />
-      <span>No hay intents vinculados a este nodo</span>
+      <span>No hay patrones configurados para este paso</span>
     </div>
   </div>
+  </TooltipProvider>
 </template>
 
 <style scoped>

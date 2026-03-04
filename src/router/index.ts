@@ -304,6 +304,18 @@ const router = createRouter({
           }
         },
 
+        // Intent Mappings (Page 24) - CRUD for core.intent_agent_mappings
+        {
+          path: 'intent-mappings',
+          name: 'IntentMappings',
+          component: () => import('@/pages/admin/IntentMappingsPage.vue'),
+          meta: {
+            title: 'Mapeo de Intents',
+            icon: 'pi-link',
+            requiresAdmin: true
+          }
+        },
+
         // Pharmacy Intent Patterns - REDIRECT to Graph Topology
         {
           path: 'pharmacy-intents',

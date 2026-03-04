@@ -12,6 +12,7 @@ export interface GraphNode {
   color: string
   accepts_awaiting_types: string[]
   has_conditional_output: boolean
+  response_keys: string[]
   routing_config_count: number
   awaiting_type_config_count: number
   subgraph?: string

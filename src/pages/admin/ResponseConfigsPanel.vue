@@ -37,10 +37,14 @@
       :pagination-start="paginationStart"
       :pagination-end="paginationEnd"
       :expanded-rows="expandedRows"
+      :node-map="nodeMap"
+      :node-filter="nodeFilter"
+      :node-filter-options="nodeFilterOptions"
       @update:search-query="searchQuery = $event"
       @update:show-only-enabled="showOnlyEnabled = $event"
       @update:show-only-critical="showOnlyCritical = $event"
       @update:current-page="currentPage = $event"
+      @update:node-filter="nodeFilter = $event"
       @sort="toggleSort"
       @toggle-row="toggleRow"
       @edit="openEditDialog"
@@ -57,12 +61,14 @@
       :saving="saving"
       :form-data="formData"
       :available-params="availableParams"
+      :save-warnings="saveWarnings"
       :is-editing="isEditing()"
       :dialog-title="dialogTitle()"
       :submit-label="submitLabel()"
       @update:open="showDialog = $event"
       @save="saveConfig"
       @cancel="closeDialog"
+      @dismiss-warnings="closeDialog"
     />
 
     <ResponseConfigSeedDialog
@@ -120,6 +126,9 @@ import { AVAILABLE_DOMAINS } from '@/types/domainIntents.types'
 // Props
 const props = defineProps<{
   domain: DomainKey | null
+  nodeMap?: Record<string, { nodeId: string; nodeDisplayName: string }>
+  nodeFilterOptions?: { id: string; label: string }[]
+  selectedNodeId?: string | null
 }>()
 
 // Emits
@@ -171,6 +180,7 @@ const {
   saving,
   formData,
   availableParams,
+  saveWarnings,
   isEditing,
   dialogTitle,
   submitLabel,
@@ -180,8 +190,29 @@ const {
   saveConfig
 } = useResponseConfigDialog(selectedDomain, organizationId, loadConfigs)
 
+// Node filtering
+const nodeFilter = ref<string | null>(null)
+
+watch(() => props.selectedNodeId, (id) => {
+  if (id && props.nodeFilterOptions?.some(n => n.id === id)) {
+    nodeFilter.value = id
+  }
+})
+
+// Reset node filter on domain change
+watch(() => props.domain, () => {
+  nodeFilter.value = null
+})
+
+const nodeFilteredConfigs = computed(() => {
+  if (!nodeFilter.value || !props.nodeMap) return filteredConfigs.value
+  return filteredConfigs.value.filter(
+    rc => props.nodeMap![rc.intent_key]?.nodeId === nodeFilter.value
+  )
+})
+
 // Sorting
-const { sortField, sortOrder, toggleSort, sortedData } = useTableSort<ResponseConfig>(filteredConfigs)
+const { sortField, sortOrder, toggleSort, sortedData } = useTableSort<ResponseConfig>(nodeFilteredConfigs)
 
 // Pagination
 const currentPage = ref(1)

@@ -3,8 +3,15 @@
  * ActionNodePanel - Config panel for action nodes
  * Shows node details, awaiting types, and routing configs targeting this node
  */
+import { toRef } from 'vue'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent
+} from '@/components/ui/accordion'
 import {
   Tooltip,
   TooltipTrigger,
@@ -13,6 +20,14 @@ import {
 } from '@/components/ui/tooltip'
 import DetectionPatternsSection from './DetectionPatternsSection.vue'
 import type { TopologyNodeData, RoutingConfigSummary, AwaitingTypeConfigSummary } from '../types'
+import { useGroupedRoutingConfigs } from '@/composables/useGroupedRoutingConfigs'
+import {
+  humanizeAwaitingType,
+  humanizeResponseIntent,
+  humanizeTargetIntent,
+  getConfigTypeLabel,
+  getPriorityDisplay
+} from '../utils/labelHumanizer'
 
 interface Props {
   data: TopologyNodeData
@@ -29,6 +44,7 @@ const emit = defineEmits<{
   (e: 'updateRoutingConfig', configId: string, updates: Record<string, unknown>): void
   (e: 'addConfig'): void
   (e: 'deleteRoutingConfig', configId: string): void
+  (e: 'highlightDependency', routingConfigId: string | null): void
 }>()
 
 function handleToggleRouting(config: RoutingConfigSummary) {
@@ -50,6 +66,11 @@ function handleToggleEscapeIntent(config: RoutingConfigSummary) {
 function handleDeleteRouting(configId: string) {
   emit('deleteRoutingConfig', configId)
 }
+
+// Group routing configs by config_type using shared composable
+const { groupedConfigs, defaultOpenGroups } = useGroupedRoutingConfigs(
+  toRef(props, 'routingConfigs')
+)
 </script>
 
 <template>
@@ -66,7 +87,7 @@ function handleDeleteRouting(configId: string) {
       <div v-if="awaitingTypeConfigs.length > 0" class="section">
         <h4 class="section-title">
           <i class="pi pi-clock" />
-          Awaiting Types
+          Datos que espera el bot
         </h4>
         <div class="config-list">
           <div
@@ -76,7 +97,7 @@ function handleDeleteRouting(configId: string) {
             :class="{ disabled: !config.is_enabled }"
           >
             <div class="config-row">
-              <code class="awaiting-type">{{ config.awaiting_type }}</code>
+              <code class="awaiting-type">{{ humanizeAwaitingType(config.awaiting_type) }}</code>
               <div class="scale-75 flex-shrink-0">
                 <Switch
                   :checked="config.is_enabled"
@@ -85,14 +106,14 @@ function handleDeleteRouting(configId: string) {
               </div>
             </div>
             <div v-if="config.valid_response_intents.length > 0" class="response-intents">
-              <span class="label">Intents validos:</span>
+              <span class="label">Respuestas aceptadas:</span>
               <Badge
                 v-for="intent in config.valid_response_intents"
                 :key="intent"
                 variant="info"
                 class="text-[0.6rem] px-1.5 py-0"
               >
-                {{ intent }}
+                {{ humanizeResponseIntent(intent) }}
               </Badge>
             </div>
             <div v-if="config.display_name" class="config-name">
@@ -106,7 +127,7 @@ function handleDeleteRouting(configId: string) {
       <div v-if="data.acceptsAwaitingTypes.length > 0" class="section">
         <h4 class="section-title">
           <i class="pi pi-check-circle" />
-          Acepta tipos
+          Tipos de datos que procesa
         </h4>
         <div class="tags-row">
           <Badge
@@ -114,100 +135,120 @@ function handleDeleteRouting(configId: string) {
             :key="at"
             variant="secondary"
           >
-            {{ at }}
+            {{ humanizeAwaitingType(at) }}
           </Badge>
         </div>
       </div>
 
-      <!-- Routing Configs Targeting This Node -->
+      <!-- Routing Configs Targeting This Node (accordion) -->
       <div v-if="routingConfigs.length > 0" class="section">
         <div class="section-header-row">
           <h4 class="section-title">
             <i class="pi pi-directions" />
-            Routing Configs ({{ routingConfigs.length }})
+            Reglas de enrutamiento ({{ routingConfigs.length }})
           </h4>
-          <button class="add-rule-btn" @click="emit('addConfig')">
+          <button class="add-rule-btn" @click.stop="emit('addConfig')">
             <i class="pi pi-plus" />
           </button>
         </div>
-        <div class="config-list">
-          <div
-            v-for="config in routingConfigs"
-            :key="config.id"
-            class="config-item"
-            :class="{ disabled: !config.is_enabled }"
+        <Accordion
+          type="multiple"
+          :default-value="defaultOpenGroups"
+          class="routing-accordion"
+        >
+          <AccordionItem
+            v-for="(configs, type) in groupedConfigs"
+            :key="type"
+            :value="type as string"
+            class="accordion-group"
           >
-            <div class="config-row">
-              <div class="config-info">
-                <Badge variant="secondary" class="text-[0.6rem] px-1.5 py-0">{{ config.config_type }}</Badge>
-                <code>{{ config.trigger_value }}</code>
-              </div>
-              <div class="config-actions">
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <div class="scale-75 flex-shrink-0">
-                      <Switch
-                        :checked="config.is_enabled"
-                        @update:checked="() => handleToggleRouting(config)"
-                      />
+            <AccordionTrigger class="group-header">
+              <Badge variant="secondary" class="text-[0.65rem]">{{ getConfigTypeLabel(type as string) }}</Badge>
+              <span class="group-count">{{ configs.length }}</span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div class="config-list">
+                <div
+                  v-for="config in configs"
+                  :key="config.id"
+                  class="config-item"
+                  :class="{ disabled: !config.is_enabled }"
+                  @mouseenter="emit('highlightDependency', config.id)"
+                  @mouseleave="emit('highlightDependency', null)"
+                >
+                  <div class="config-row">
+                    <div class="config-info">
+                      <code>{{ config.trigger_value }}</code>
                     </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="left">
-                    Activa o desactiva esta regla. Si esta desactivada, el trigger no sera procesado por el router.
-                  </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <button class="delete-btn" @click="handleDeleteRouting(config.id)">
-                      <i class="pi pi-trash" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="left">Eliminar esta regla</TooltipContent>
-                </Tooltip>
+                    <div class="config-actions">
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <div class="scale-75 flex-shrink-0">
+                            <Switch
+                              :checked="config.is_enabled"
+                              @update:checked="() => handleToggleRouting(config)"
+                            />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="left">
+                          Si está desactivada, esta regla no se usará.
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <button class="delete-btn" @click.stop="handleDeleteRouting(config.id)">
+                            <i class="pi pi-trash" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="left">Eliminar esta regla</TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </div>
+                  <div class="config-target-line">
+                    <i class="pi pi-arrow-right" />
+                    <span>{{ humanizeTargetIntent(config.target_intent) }}</span>
+                  </div>
+                  <div class="config-flags">
+                    <label class="flag-toggle" @click.stop>
+                      <div class="scale-[0.6]">
+                        <Switch
+                          :checked="config.clears_context"
+                          @update:checked="() => handleToggleClearsContext(config)"
+                        />
+                      </div>
+                      <span>Reiniciar</span>
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <i class="pi pi-question-circle help-icon" />
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          Al activar esta regla, el bot olvida lo que estaba preguntando y empieza de nuevo. Útil para palabras como "cancelar" o "menú".
+                        </TooltipContent>
+                      </Tooltip>
+                    </label>
+                    <label v-if="config.config_type === 'global_keyword'" class="flag-toggle" @click.stop>
+                      <div class="scale-[0.6]">
+                        <Switch
+                          :checked="config.is_escape_intent"
+                          @update:checked="() => handleToggleEscapeIntent(config)"
+                        />
+                      </div>
+                      <span>Interrumpir</span>
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <i class="pi pi-question-circle help-icon" />
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          Permite que esta palabra funcione incluso cuando el bot está esperando una respuesta del usuario. Sin esto, solo funciona cuando el bot no está esperando nada.
+                        </TooltipContent>
+                      </Tooltip>
+                    </label>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div class="config-target-line">
-              <i class="pi pi-arrow-right" />
-              <span>{{ config.target_intent }}</span>
-            </div>
-            <div class="config-flags">
-              <label class="flag-toggle">
-                <div class="scale-[0.6]">
-                  <Switch
-                    :checked="config.clears_context"
-                    @update:checked="() => handleToggleClearsContext(config)"
-                  />
-                </div>
-                <span>Clear ctx</span>
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <i class="pi pi-question-circle help-icon" />
-                  </TooltipTrigger>
-                  <TooltipContent side="top">
-                    Limpia el contexto pendiente (awaiting_input) al activar esta ruta. Util para keywords como cancelar o hola que reinician el flujo.
-                  </TooltipContent>
-                </Tooltip>
-              </label>
-              <label v-if="config.config_type === 'global_keyword'" class="flag-toggle">
-                <div class="scale-[0.6]">
-                  <Switch
-                    :checked="config.is_escape_intent"
-                    @update:checked="() => handleToggleEscapeIntent(config)"
-                  />
-                </div>
-                <span>Escape</span>
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <i class="pi pi-question-circle help-icon" />
-                  </TooltipTrigger>
-                  <TooltipContent side="top">
-                    Permite interrumpir un flujo en espera (awaiting_input) para ejecutar esta accion. Sin esto, el keyword solo funciona fuera de flujos activos.
-                  </TooltipContent>
-                </Tooltip>
-              </label>
-            </div>
-          </div>
-        </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       </div>
 
       <!-- Detection Patterns -->
@@ -220,7 +261,7 @@ function handleDeleteRouting(configId: string) {
       <!-- Empty State -->
       <div v-if="routingConfigs.length === 0 && awaitingTypeConfigs.length === 0" class="empty-configs">
         <i class="pi pi-info-circle" />
-        <p>No hay configuraciones para este nodo</p>
+        <p>Este paso no tiene reglas configuradas todavía</p>
         <button class="add-rule-btn" @click="emit('addConfig')">
           <i class="pi pi-plus" />
           Agregar regla
@@ -453,6 +494,50 @@ function handleDeleteRouting(configId: string) {
 
 .help-icon:hover {
   opacity: 1;
+}
+
+.routing-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.accordion-group {
+  border: 1px solid var(--surface-border);
+  border-radius: 0.375rem;
+  overflow: hidden;
+}
+
+.routing-accordion :deep(.group-header) {
+  padding: 0.375rem 0.5rem;
+  background: var(--surface-ground);
+  text-decoration: none;
+  font-size: 0.8rem;
+}
+
+.routing-accordion :deep(.group-header:hover) {
+  text-decoration: none;
+}
+
+.routing-accordion :deep(.group-header > svg) {
+  color: var(--text-color-secondary);
+  opacity: 0.5;
+  width: 12px;
+  height: 12px;
+}
+
+.routing-accordion :deep([data-radix-accordion-content]) {
+  transition-duration: 200ms;
+}
+
+.routing-accordion :deep([data-radix-accordion-content] > div) {
+  padding: 0;
+}
+
+.group-count {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-color-secondary);
 }
 
 .empty-configs {

@@ -8,6 +8,76 @@
       :total-patterns="totalPatterns"
     />
 
+    <!-- NLU Test Input (Phase 4) -->
+    <div v-if="domain && domain === 'turnos_medicos'" class="nlu-test-section glass-panel mt-3 mb-3 p-3">
+      <div class="flex items-center gap-2 mb-2">
+        <i class="pi pi-search text-sm text-muted-foreground" />
+        <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Probar NLU</span>
+      </div>
+      <div class="flex gap-2 items-start">
+        <input
+          v-model="nluTestText"
+          type="text"
+          class="flex-1 h-8 rounded-md border border-input bg-background px-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          placeholder="Escribi una frase... ej: quiero cambiar mi turno"
+          @keydown.enter="handleNluTest"
+        />
+        <button
+          class="inline-flex items-center justify-center h-8 px-3 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:pointer-events-none"
+          :disabled="!nluTestText.trim() || nluTestLoading"
+          @click="handleNluTest"
+        >
+          <i v-if="nluTestLoading" class="pi pi-spin pi-spinner mr-1 text-xs" />
+          Analizar
+        </button>
+      </div>
+      <!-- NLU Test Result -->
+      <div v-if="nluTestResult" class="mt-2 rounded-md border border-border bg-muted/50 p-3">
+        <div class="flex items-center gap-2 mb-1.5">
+          <span class="text-sm font-semibold text-foreground">{{ nluTestResult.intent }}</span>
+          <span
+            class="text-[0.65rem] font-medium px-1.5 py-0.5 rounded-full"
+            :class="nluTestResult.confidence >= 0.6
+              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+              : nluTestResult.confidence >= 0.3
+                ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'"
+          >
+            {{ (nluTestResult.confidence * 100).toFixed(0) }}%
+          </span>
+          <span class="text-[0.6rem] text-muted-foreground ml-auto">{{ nluTestResult.method }}</span>
+        </div>
+        <!-- Matched Lemmas -->
+        <div v-if="nluTestResult.matched_lemmas.length > 0" class="flex flex-wrap gap-1 mb-1.5">
+          <span
+            v-for="lemma in nluTestResult.matched_lemmas"
+            :key="lemma"
+            class="text-[0.6rem] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+          >
+            {{ lemma }}
+          </span>
+        </div>
+        <!-- All Scores (top 5) -->
+        <div v-if="sortedNluScores.length > 0" class="space-y-1">
+          <div
+            v-for="score in sortedNluScores"
+            :key="score.intent"
+            class="flex items-center gap-2"
+          >
+            <span class="text-[0.65rem] text-muted-foreground w-[120px] truncate">{{ score.intent }}</span>
+            <div class="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                class="h-full rounded-full transition-all"
+                :class="score.intent === nluTestResult!.intent ? 'bg-primary' : 'bg-muted-foreground/30'"
+                :style="{ width: `${Math.max(score.score * 100, 2)}%` }"
+              />
+            </div>
+            <span class="text-[0.6rem] text-muted-foreground w-[36px] text-right">{{ (score.score * 100).toFixed(0) }}%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- No Domain Selected -->
     <div
       v-if="!domain"
@@ -122,6 +192,8 @@ import { useDomainIntentsPanel } from '@/composables/useDomainIntentsPanel'
 import { useIntentPatterns } from '@/composables/useIntentPatterns'
 import { useIntentDialog } from '@/composables/useIntentDialog'
 import { useTableSort } from '@/composables/useTableSort'
+import { intentAnalysisApi, type IntentAnalysisResponse } from '@/api/intentAnalysis.api'
+import { useAuthStore } from '@/stores/auth.store'
 import type { DomainIntent, DomainKey, MatchType } from '@/types/domainIntents.types'
 import { AVAILABLE_DOMAINS } from '@/types/domainIntents.types'
 
@@ -131,6 +203,36 @@ const props = defineProps<{
 }>()
 
 const selectedDomain = toRef(props, 'domain')
+
+// NLU Test (Phase 4)
+const authStore = useAuthStore()
+const nluTestText = ref('')
+const nluTestLoading = ref(false)
+const nluTestResult = ref<IntentAnalysisResponse | null>(null)
+
+const sortedNluScores = computed(() => {
+  if (!nluTestResult.value?.all_scores) return []
+  return Object.entries(nluTestResult.value.all_scores)
+    .map(([intent, score]) => ({ intent, score }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5)
+})
+
+async function handleNluTest() {
+  if (!nluTestText.value.trim() || !props.domain || !authStore.currentOrgId) return
+  nluTestLoading.value = true
+  try {
+    nluTestResult.value = await intentAnalysisApi.analyze(props.domain, {
+      text: nluTestText.value,
+      organization_id: authStore.currentOrgId,
+    })
+  } catch (err) {
+    console.error('NLU test failed:', err)
+    nluTestResult.value = null
+  } finally {
+    nluTestLoading.value = false
+  }
+}
 
 // Domain name for display
 const domainName = computed(() => {

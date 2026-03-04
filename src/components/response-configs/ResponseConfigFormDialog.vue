@@ -8,6 +8,28 @@
         </DialogDescription>
       </DialogHeader>
 
+      <!-- Save Validation Warnings -->
+      <div
+        v-if="saveWarnings && saveWarnings.length > 0"
+        class="mx-0 mt-2 rounded-lg border p-3 text-sm"
+        :class="saveWarnings.some(w => w.severity === 'critical')
+          ? 'border-red-500/30 bg-red-500/10 text-red-300'
+          : 'border-amber-500/30 bg-amber-500/10 text-amber-300'"
+      >
+        <div class="flex items-center gap-2 font-medium mb-1.5">
+          <i class="pi pi-exclamation-triangle text-xs" />
+          <span>{{ saveWarnings.some(w => w.severity === 'critical') ? 'Errores' : 'Avisos' }} de validacion</span>
+        </div>
+        <ul class="space-y-1 pl-4 text-xs">
+          <li v-for="(warn, idx) in saveWarnings" :key="idx" class="list-disc">
+            <span :class="warn.severity === 'critical' ? 'text-red-400' : 'text-amber-400'">
+              {{ warn.detail }}
+            </span>
+            <span v-if="warn.fix_hint" class="text-muted-foreground ml-1">— {{ warn.fix_hint }}</span>
+          </li>
+        </ul>
+      </div>
+
       <div class="flex flex-col gap-4 py-4 max-h-[70vh] overflow-y-auto pr-1">
         <!-- Intent Key -->
         <div class="flex flex-col gap-1.5">
@@ -99,7 +121,7 @@
                 : 'Texto con {parametros} para sustitucion directa' }}
             </p>
             <span class="text-xs text-muted-foreground">
-              {{ formData.template_text.length }} / 5000
+              {{ (formData.template_text ?? '').length }} / 5000
             </span>
           </div>
 
@@ -127,6 +149,46 @@
               </TooltipProvider>
             </div>
           </div>
+
+          <!-- Unknown Variables Warning -->
+          <div v-if="unknownVars.length > 0" class="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-300">
+            <i class="pi pi-exclamation-triangle text-xs mt-0.5 shrink-0" />
+            <span>Variables no reconocidas: <code v-for="v in unknownVars" :key="v" class="mx-0.5 font-mono">{{'{'}}{{ v }}{{'}'}}</code></span>
+          </div>
+
+          <!-- Preview Toggle -->
+          <button
+            v-if="formData.template_text && formData.response_type === 'fixed'"
+            type="button"
+            class="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors self-start"
+            @click="showPreview = !showPreview"
+          >
+            <i :class="showPreview ? 'pi pi-eye-slash' : 'pi pi-eye'" class="text-xs" />
+            {{ showPreview ? 'Ocultar vista previa' : 'Vista previa WhatsApp' }}
+          </button>
+
+          <!-- WhatsApp Preview -->
+          <div v-if="showPreview && formData.template_text" class="rounded-lg border border-white/10 bg-[#0b141a] p-3">
+            <div class="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
+              <i class="pi pi-whatsapp text-green-500" />
+              <span>Vista previa (datos de ejemplo)</span>
+            </div>
+            <div class="bg-[#005c4b] text-white text-sm rounded-lg rounded-tr-none px-3 py-2 max-w-[85%] ml-auto whitespace-pre-wrap">
+              {{ previewText }}
+            </div>
+            <div
+              v-if="formData.buttons && formData.buttons.length > 0"
+              class="flex flex-col gap-1 mt-2 max-w-[85%] ml-auto"
+            >
+              <div
+                v-for="(btn, i) in formData.buttons"
+                :key="i"
+                class="text-center text-sm text-[#53bdeb] bg-[#1f2c34] rounded-lg py-1.5 border border-white/5"
+              >
+                {{ btn.title || '(sin titulo)' }}
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Task Description (visible for prompt type or when no template_text) -->
@@ -152,6 +214,57 @@
             class="bg-white/10 dark:bg-white/5 border-white/20 dark:border-white/10"
           />
           <p class="text-xs text-muted-foreground">Clave del template YAML (respaldo legacy)</p>
+        </div>
+
+        <!-- WhatsApp Buttons -->
+        <div class="flex flex-col gap-1.5">
+          <div class="flex items-center justify-between">
+            <Label>Botones WhatsApp</Label>
+            <span class="text-xs text-muted-foreground">{{ (formData.buttons ?? []).length }} / 3</span>
+          </div>
+
+          <div v-if="formData.buttons?.length > 0" class="flex flex-col gap-2">
+            <div
+              v-for="(button, index) in formData.buttons"
+              :key="index"
+              class="flex items-center gap-2"
+            >
+              <Input
+                v-model="button.id"
+                placeholder="ID (ej: nuevo_turno)"
+                class="flex-1 bg-white/10 dark:bg-white/5 border-white/20 dark:border-white/10 text-xs font-mono"
+              />
+              <Input
+                v-model="button.title"
+                placeholder="Titulo (max 20)"
+                :maxlength="20"
+                class="flex-1 bg-white/10 dark:bg-white/5 border-white/20 dark:border-white/10 text-xs"
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-500/10 shrink-0"
+                @click="removeButton(index)"
+              >
+                <i class="pi pi-times text-xs" />
+              </Button>
+            </div>
+          </div>
+
+          <Button
+            v-if="(formData.buttons ?? []).length < 3"
+            variant="outline"
+            size="sm"
+            class="w-full border-dashed border-white/20 dark:border-white/10 text-muted-foreground hover:text-foreground"
+            @click="addButton"
+          >
+            <i class="pi pi-plus text-xs mr-1.5" />
+            Agregar Boton
+          </Button>
+
+          <p class="text-xs text-muted-foreground">
+            Botones interactivos de WhatsApp. Maximo 3, titulo maximo 20 caracteres.
+          </p>
         </div>
 
         <!-- Description -->
@@ -206,10 +319,17 @@
 
       <DialogFooter class="gap-2">
         <Button variant="ghost" @click="$emit('cancel')">Cancelar</Button>
+        <Button
+          v-if="saveWarnings && saveWarnings.length > 0"
+          variant="outline"
+          @click="$emit('dismiss-warnings')"
+        >
+          Cerrar con avisos
+        </Button>
         <Button @click="$emit('save')" :disabled="saving">
           <i v-if="saving" class="pi pi-spin pi-spinner mr-2" />
           <i v-else class="pi pi-check mr-2" />
-          {{ submitLabel }}
+          {{ saveWarnings && saveWarnings.length > 0 ? 'Guardar de nuevo' : submitLabel }}
         </Button>
       </DialogFooter>
     </DialogContent>
@@ -217,7 +337,7 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from '@/components/ui/dialog'
@@ -227,7 +347,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
-import type { ResponseConfigFormData, ResponseParam } from '@/types/responseConfigs.types'
+import type { ResponseConfigFormData, ResponseParam, ValidationWarning } from '@/types/responseConfigs.types'
 
 const props = defineProps<{
   open: boolean
@@ -237,12 +357,14 @@ const props = defineProps<{
   isEditing: boolean
   dialogTitle: string
   submitLabel: string
+  saveWarnings?: ValidationWarning[]
 }>()
 
 defineEmits<{
   (e: 'update:open', value: boolean): void
   (e: 'save'): void
   (e: 'cancel'): void
+  (e: 'dismiss-warnings'): void
 }>()
 
 function insertParam(key: string) {
@@ -268,4 +390,54 @@ function onCriticalChange(value: boolean) {
     props.formData.response_type = 'fixed'
   }
 }
+
+function addButton() {
+  if (!props.formData.buttons) {
+    props.formData.buttons = []
+  }
+  if (props.formData.buttons.length < 3) {
+    props.formData.buttons.push({ id: '', title: '' })
+  }
+}
+
+function removeButton(index: number) {
+  props.formData.buttons.splice(index, 1)
+}
+
+// --- Template Preview ---
+const showPreview = ref(false)
+
+const SAMPLE_VALUES: Record<string, string> = {
+  customer_name: 'Juan Perez',
+  institution_name: 'Clinica San Martin',
+  specialty_name: 'Cardiologia',
+  doctor_name: 'Dra. Lopez',
+  appointment_date: '15/03/2026',
+  appointment_time: '10:30',
+  appointment_day: 'Lunes',
+  phone_number: '+54 11 1234-5678',
+  account_number: '00012345',
+  available_times: '09:00, 10:30, 14:00',
+  available_specialties: 'Cardiologia, Dermatologia, Pediatria'
+}
+
+const previewText = computed(() => {
+  if (!props.formData.template_text) return ''
+  return props.formData.template_text.replace(/\{(\w+)\}/g, (_match, key: string) => {
+    if (SAMPLE_VALUES[key]) return SAMPLE_VALUES[key]
+    const param = props.availableParams.find(p => p.key === key)
+    return param ? `[${param.label}]` : `{${key}}`
+  })
+})
+
+const unknownVars = computed(() => {
+  if (!props.formData.template_text || props.availableParams.length === 0) return []
+  const knownKeys = new Set(props.availableParams.map(p => p.key))
+  const matches = props.formData.template_text.matchAll(/\{(\w+)\}/g)
+  const unknown: string[] = []
+  for (const m of matches) {
+    if (!knownKeys.has(m[1]) && !unknown.includes(m[1])) unknown.push(m[1])
+  }
+  return unknown
+})
 </script>
