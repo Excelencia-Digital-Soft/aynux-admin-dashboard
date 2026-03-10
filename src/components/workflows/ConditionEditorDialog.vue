@@ -10,7 +10,7 @@
  * - expression: Custom expression
  */
 import { ref, watch, computed } from 'vue'
-import type { TransitionCondition } from '@/types/workflow.types'
+import type { TransitionCondition } from '@/types/workflow-graph.types'
 
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'

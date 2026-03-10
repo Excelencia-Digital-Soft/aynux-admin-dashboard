@@ -7,39 +7,12 @@
  */
 
 import apiClient from './index'
-import type {
-  WorkflowDefinition,
-  WorkflowCreate,
-  WorkflowUpdate,
-  WorkflowListResponse,
-  WorkflowPublishResponse,
-  WorkflowCopyRequest,
-  WorkflowCopyResponse,
-  NodeDefinition,
-  NodeDefinitionCreate,
-  NodeDefinitionUpdate,
-  NodeDefinitionListResponse,
-  NodeInstance,
-  NodeInstanceCreate,
-  NodeInstanceUpdate,
-  WorkflowTransition,
-  TransitionCreate,
-  TransitionUpdate,
-  RoutingRule,
-  RoutingRuleCreate,
-  RoutingRuleUpdate,
-  RoutingRuleListResponse,
-  ReminderSchedule,
-  ReminderScheduleCreate,
-  ReminderScheduleUpdate,
-  ReminderScheduleListResponse,
-  MessageTemplate,
-  MessageTemplateCreate,
-  MessageTemplateUpdate,
-  MessageTemplateListResponse,
-  VueFlowExport,
-  VueFlowImportRequest
-} from '@/types/workflow.types'
+import type { NodeDefinition, NodeDefinitionCreate, NodeDefinitionUpdate, NodeDefinitionListResponse, NodeInstance, NodeInstanceCreate, NodeInstanceUpdate } from '@/types/workflow-node.types'
+import type { WorkflowDefinition, WorkflowCreate, WorkflowUpdate, WorkflowListResponse, WorkflowPublishResponse, WorkflowCopyRequest, WorkflowCopyResponse } from '@/types/workflow-definition.types'
+import type { WorkflowTransition, TransitionCreate, TransitionUpdate, VueFlowExport, VueFlowImportRequest } from '@/types/workflow-graph.types'
+import type { RoutingRule, RoutingRuleCreate, RoutingRuleUpdate, RoutingRuleListResponse } from '@/types/workflow-routing.types'
+import type { ReminderSchedule, ReminderScheduleCreate, ReminderScheduleUpdate, ReminderScheduleListResponse, MessageTemplate, MessageTemplateCreate, MessageTemplateUpdate, MessageTemplateListResponse, ScheduleType, TriggerSchedule, TriggerScheduleCreate, TriggerScheduleUpdate, TriggerTestResponse, TriggerNextRuns } from '@/types/workflow-messaging.types'
+import type { ManualExecutionRequest, ManualExecutionStartResponse, ManualExecutionResultResponse, PaginatedExecutionLogs, ExecutionLogDetail, ExecutionStats, ExecutionLogFilters, PinnedDataRequest, PinnedDataResponse, WorkflowPinnedDataResponse, ReplayRequest, ReplayResponse, ResponsePreviewRequest, ResponsePreviewResponse, ResponseValidateRequest, ResponseValidateResponse, ResponseVariablesResponse } from '@/types/workflow-execution.types'
 
 const BASE_URL = '/admin/workflows'
 const REMINDER_URL = '/admin/reminder-schedules'
@@ -490,6 +463,181 @@ export const workflowApi = {
    */
   async deleteMessageTemplate(templateId: string): Promise<void> {
     await apiClient.delete(`${TEMPLATE_URL}/${templateId}`)
+  },
+
+  // ===========================================================================
+  // MANUAL EXECUTION (Phase 1)
+  // ===========================================================================
+
+  async startExecution(request: ManualExecutionRequest): Promise<ManualExecutionStartResponse> {
+    const { data } = await apiClient.post<ManualExecutionStartResponse>(
+      `${BASE_URL}/execute`,
+      request
+    )
+    return data
+  },
+
+  getExecutionStreamUrl(executionId: string): string {
+    const baseUrl = apiClient.defaults.baseURL || ''
+    return `${baseUrl}${BASE_URL}/execute/${executionId}/stream`
+  },
+
+  async getExecutionResult(executionId: string): Promise<ManualExecutionResultResponse> {
+    const { data } = await apiClient.get<ManualExecutionResultResponse>(
+      `${BASE_URL}/execute/${executionId}/result`
+    )
+    return data
+  },
+
+  // ===========================================================================
+  // EXECUTION LOGS (Phase 2)
+  // ===========================================================================
+
+  async listExecutionLogs(
+    filters?: ExecutionLogFilters,
+    page?: number,
+    size?: number
+  ): Promise<PaginatedExecutionLogs> {
+    const params = new URLSearchParams()
+    if (filters?.institution_config_id) params.append('institution_config_id', filters.institution_config_id)
+    if (filters?.domain_key) params.append('domain_key', filters.domain_key)
+    if (filters?.is_error !== undefined) params.append('is_error', String(filters.is_error))
+    if (filters?.conversation_id) params.append('conversation_id', filters.conversation_id)
+    if (filters?.date_from) params.append('date_from', filters.date_from)
+    if (filters?.date_to) params.append('date_to', filters.date_to)
+    if (page) params.append('page', String(page))
+    if (size) params.append('size', String(size))
+
+    const url = params.toString() ? `${BASE_URL}/executions?${params}` : `${BASE_URL}/executions`
+    const { data } = await apiClient.get<PaginatedExecutionLogs>(url)
+    return data
+  },
+
+  async getExecutionLog(logId: string): Promise<ExecutionLogDetail> {
+    const { data } = await apiClient.get<ExecutionLogDetail>(`${BASE_URL}/executions/${logId}`)
+    return data
+  },
+
+  async getExecutionStats(filters?: ExecutionLogFilters): Promise<ExecutionStats> {
+    const params = new URLSearchParams()
+    if (filters?.institution_config_id) params.append('institution_config_id', filters.institution_config_id)
+    if (filters?.domain_key) params.append('domain_key', filters.domain_key)
+    if (filters?.date_from) params.append('date_from', filters.date_from)
+    if (filters?.date_to) params.append('date_to', filters.date_to)
+
+    const url = params.toString() ? `${BASE_URL}/executions/stats?${params}` : `${BASE_URL}/executions/stats`
+    const { data } = await apiClient.get<ExecutionStats>(url)
+    return data
+  },
+
+  // ===========================================================================
+  // PINNED DATA (Phase 3)
+  // ===========================================================================
+
+  async setPinnedData(nodeInstanceId: string, request: PinnedDataRequest): Promise<PinnedDataResponse> {
+    const { data } = await apiClient.put<PinnedDataResponse>(
+      `${BASE_URL}/nodes/${nodeInstanceId}/pinned-data`,
+      request
+    )
+    return data
+  },
+
+  async clearPinnedData(nodeInstanceId: string): Promise<PinnedDataResponse> {
+    const { data } = await apiClient.delete<PinnedDataResponse>(
+      `${BASE_URL}/nodes/${nodeInstanceId}/pinned-data`
+    )
+    return data
+  },
+
+  async getWorkflowPinnedData(workflowId: string): Promise<WorkflowPinnedDataResponse> {
+    const { data } = await apiClient.get<WorkflowPinnedDataResponse>(
+      `${BASE_URL}/${workflowId}/pinned-data`
+    )
+    return data
+  },
+
+  async replayFromNode(logId: string, request: ReplayRequest): Promise<ReplayResponse> {
+    const { data } = await apiClient.post<ReplayResponse>(
+      `${BASE_URL}/executions/${logId}/replay`,
+      request
+    )
+    return data
+  },
+
+  // ===========================================================================
+  // RESPONSE PREVIEW (Phase 5)
+  // ===========================================================================
+
+  async previewResponse(request: ResponsePreviewRequest): Promise<ResponsePreviewResponse> {
+    const { data } = await apiClient.post<ResponsePreviewResponse>(
+      `${BASE_URL}/response-preview`,
+      request
+    )
+    return data
+  },
+
+  async validateResponse(request: ResponseValidateRequest): Promise<ResponseValidateResponse> {
+    const { data } = await apiClient.post<ResponseValidateResponse>(
+      `${BASE_URL}/response-validate`,
+      request
+    )
+    return data
+  },
+
+  async getResponseVariables(domainKey: string, nodeId: string): Promise<ResponseVariablesResponse> {
+    const { data } = await apiClient.get<ResponseVariablesResponse>(
+      `${BASE_URL}/response-variables/${domainKey}/${nodeId}`
+    )
+    return data
+  },
+
+  // ===========================================================================
+  // TRIGGERS (Phase 6)
+  // ===========================================================================
+
+  async listTriggerTypes(): Promise<ScheduleType[]> {
+    const { data } = await apiClient.get<ScheduleType[]>(`${BASE_URL}/trigger-types`)
+    return data
+  },
+
+  async listTriggers(workflowId: string): Promise<TriggerSchedule[]> {
+    const { data } = await apiClient.get<TriggerSchedule[]>(`${BASE_URL}/${workflowId}/triggers`)
+    return data
+  },
+
+  async createTrigger(workflowId: string, trigger: TriggerScheduleCreate): Promise<TriggerSchedule> {
+    const { data } = await apiClient.post<TriggerSchedule>(
+      `${BASE_URL}/${workflowId}/triggers`,
+      trigger
+    )
+    return data
+  },
+
+  async updateTrigger(scheduleId: string, trigger: TriggerScheduleUpdate): Promise<TriggerSchedule> {
+    const { data } = await apiClient.put<TriggerSchedule>(
+      `${BASE_URL}/triggers/${scheduleId}`,
+      trigger
+    )
+    return data
+  },
+
+  async deleteTrigger(scheduleId: string): Promise<void> {
+    await apiClient.delete(`${BASE_URL}/triggers/${scheduleId}`)
+  },
+
+  async testTrigger(scheduleId: string): Promise<TriggerTestResponse> {
+    const { data } = await apiClient.post<TriggerTestResponse>(
+      `${BASE_URL}/triggers/${scheduleId}/test`
+    )
+    return data
+  },
+
+  async getTriggerNextRuns(scheduleId: string, count?: number): Promise<TriggerNextRuns> {
+    const params = count ? `?count=${count}` : ''
+    const { data } = await apiClient.get<TriggerNextRuns>(
+      `${BASE_URL}/triggers/${scheduleId}/next-runs${params}`
+    )
+    return data
   }
 }
 

@@ -29,19 +29,27 @@ import {
   TabsTrigger
 } from '@/components/ui/tabs'
 import NodeConfigForm from '@/components/workflows/NodeConfigForm.vue'
-import type { NodeInstance, NodeDefinition, NodeInstanceUpdate } from '@/types/workflow.types'
+import NodeErrorHandlingForm from '@/components/workflows/editor/NodeErrorHandlingForm.vue'
+import NodeDataInspector from '@/components/workflows/editor/NodeDataInspector.vue'
+import NodePinnedDataEditor from '@/components/workflows/editor/NodePinnedDataEditor.vue'
+import type { NodeInstance, NodeDefinition, NodeInstanceUpdate, NodeErrorConfig } from '@/types/workflow-node.types'
+import type { NodeExecutionState } from '@/types/workflow-execution.types'
 
 const props = defineProps<{
   visible: boolean
   node: NodeInstance | null
   getNodeDefinition: (id: string) => NodeDefinition | undefined
   nodeInstances?: NodeInstance[]
+  executionNodeStates?: Record<string, NodeExecutionState>
+  pinnedNodes?: string[]
 }>()
 
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
   (e: 'updateNode', nodeId: string, updates: NodeInstanceUpdate): void
   (e: 'deleteNode', node: NodeInstance): void
+  (e: 'pinData', nodeId: string, data: Record<string, unknown>): void
+  (e: 'unpinData', nodeId: string): void
 }>()
 
 const activeTab = ref('settings')
@@ -59,6 +67,17 @@ const availableNodes = computed(() => {
 const nodeDefinition = computed(() => {
   if (!props.node) return undefined
   return props.getNodeDefinition(props.node.node_definition_id)
+})
+
+// Execution state for this node
+const currentNodeExecState = computed(() => {
+  if (!props.node || !props.executionNodeStates) return null
+  return props.executionNodeStates[props.node.id] || null
+})
+
+const isNodePinned = computed(() => {
+  if (!props.node || !props.pinnedNodes) return false
+  return props.pinnedNodes.includes(props.node.id)
 })
 
 // Local state for node properties
@@ -259,30 +278,39 @@ function handleDelete() {
                 <i class="pi pi-info-circle text-2xl opacity-50" />
                 <span class="text-sm">No hay configuracion disponible</span>
               </div>
+
+              <!-- Error Handling (Phase 4) -->
+              <NodeErrorHandlingForm
+                :model-value="(localConfig.error_handling as NodeErrorConfig | undefined)"
+                :available-nodes="availableNodes"
+                @update:model-value="(v: NodeErrorConfig) => { localConfig.error_handling = v; hasUnsavedChanges = true }"
+              />
             </div>
           </div>
         </TabsContent>
 
         <!-- Input Tab -->
         <TabsContent value="input" class="wf-tab-content">
-          <div class="wf-io-placeholder">
-            <i class="pi pi-sign-in text-4xl opacity-30" />
-            <h3 class="text-lg font-semibold">Datos de Entrada</h3>
-            <p class="text-sm text-muted-foreground max-w-md text-center">
-              Los datos de entrada se mostraran aqui durante la ejecucion del workflow.
-            </p>
-          </div>
+          <NodeDataInspector
+            :data="currentNodeExecState?.inputData"
+            title="Datos de Entrada"
+          />
         </TabsContent>
 
         <!-- Output Tab -->
         <TabsContent value="output" class="wf-tab-content">
-          <div class="wf-io-placeholder">
-            <i class="pi pi-sign-out text-4xl opacity-30" />
-            <h3 class="text-lg font-semibold">Datos de Salida</h3>
-            <p class="text-sm text-muted-foreground max-w-md text-center">
-              Los datos de salida se mostraran aqui despues de ejecutar el nodo.
-            </p>
+          <div v-if="currentNodeExecState?.outputData" class="wf-output-section">
+            <NodeDataInspector
+              :data="currentNodeExecState.outputData"
+              title="Datos de Salida"
+            />
           </div>
+          <NodePinnedDataEditor
+            :pinned-data="isNodePinned ? (node?.config?.pinned_data as Record<string, unknown>) : null"
+            :is-pinned="isNodePinned"
+            @pin="(data) => node && emit('pinData', node.id, data)"
+            @unpin="() => node && emit('unpinData', node.id)"
+          />
         </TabsContent>
       </Tabs>
 

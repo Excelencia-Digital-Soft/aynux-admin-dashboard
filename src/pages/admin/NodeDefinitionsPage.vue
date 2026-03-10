@@ -15,7 +15,7 @@ import type {
   NodeDefinition,
   NodeDefinitionCreate,
   NodeDefinitionUpdate
-} from '@/types/workflow.types'
+} from '@/types/workflow-node.types'
 import IconPicker from '@/components/workflows/IconPicker.vue'
 import ConfirmDialogComponent from '@/components/shared/ConfirmDialog.vue'
 

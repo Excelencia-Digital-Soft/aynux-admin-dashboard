@@ -16,7 +16,7 @@ import {
   SheetTitle
 } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
-import type { NodeDefinition } from '@/types/workflow.types'
+import type { NodeDefinition } from '@/types/workflow-node.types'
 
 const props = defineProps<{
   visible: boolean

@@ -13,6 +13,9 @@ import type {
   BypassRuleType
 } from '@/types/bypassRules.types'
 
+// Domains that don't require institution selection
+const DOMAINS_WITHOUT_INSTITUTION = ['pharmacy', 'enav']
+
 export function useBypassRuleForm() {
   const store = useBypassRulesStore()
   const { createRule, updateRule, isLoading, closeRuleDialog } = useBypassRules()
@@ -44,7 +47,9 @@ export function useBypassRuleForm() {
     institution_id: undefined as string | undefined,
     priority: 100,
     enabled: true,
-    isolated_history: false
+    isolated_history: false,
+    whitelist_only: false,
+    whitelist_numbers: [] as string[]
   })
 
   // For phone number list input
@@ -63,9 +68,9 @@ export function useBypassRuleForm() {
   // Show pharmacy selector
   const showPharmacySelector = computed(() => formData.value.target_domain === 'pharmacy')
 
-  // Show institution selector (not needed for pharmacy or enav domains)
+  // Show institution selector (not needed for domains without institution)
   const showInstitutionSelector = computed(() =>
-    formData.value.target_domain !== 'pharmacy' && formData.value.target_domain !== 'enav'
+    !DOMAINS_WITHOUT_INSTITUTION.includes(formData.value.target_domain ?? '')
   )
 
   const isEditing = computed(() => store.editingRule !== null)
@@ -83,10 +88,9 @@ export function useBypassRuleForm() {
       return false
     }
 
-    // Institution validation (not required for pharmacy or enav)
+    // Institution validation (not required for domains without institution)
     if (
-      formData.value.target_domain !== 'pharmacy' &&
-      formData.value.target_domain !== 'enav' &&
+      !DOMAINS_WITHOUT_INSTITUTION.includes(formData.value.target_domain ?? '') &&
       !formData.value.institution_id
     ) {
       return false
@@ -123,7 +127,9 @@ export function useBypassRuleForm() {
           institution_id: rule.institution_id || undefined,
           priority: rule.priority,
           enabled: rule.enabled,
-          isolated_history: rule.isolated_history ?? false
+          isolated_history: rule.isolated_history ?? false,
+          whitelist_only: rule.whitelist_only ?? false,
+          whitelist_numbers: rule.whitelist_numbers ? [...rule.whitelist_numbers] : []
         }
       } else {
         resetForm()
@@ -139,7 +145,7 @@ export function useBypassRuleForm() {
       if (newDomain !== 'pharmacy') {
         formData.value.pharmacy_id = undefined
       }
-      if (newDomain === 'pharmacy' || newDomain === 'enav') {
+      if (DOMAINS_WITHOUT_INSTITUTION.includes(newDomain ?? '')) {
         formData.value.institution_id = undefined
       }
     }
@@ -159,7 +165,9 @@ export function useBypassRuleForm() {
       institution_id: undefined,
       priority: 100,
       enabled: true,
-      isolated_history: false
+      isolated_history: false,
+      whitelist_only: false,
+      whitelist_numbers: []
     }
   }
 
@@ -223,22 +231,23 @@ export function useBypassRuleForm() {
     const pharmacyId =
       formData.value.target_domain === 'pharmacy' ? formData.value.pharmacy_id : null
 
-    const institutionId =
-      formData.value.target_domain !== 'pharmacy' && formData.value.target_domain !== 'enav'
-        ? formData.value.institution_id
-        : null
+    const institutionId = DOMAINS_WITHOUT_INSTITUTION.includes(formData.value.target_domain ?? '')
+      ? null
+      : formData.value.institution_id
 
     const baseData = {
       rule_name: formData.value.rule_name,
       description: formData.value.description || undefined,
       rule_type: formData.value.rule_type,
       target_agent: formData.value.target_agent,
-      target_domain: formData.value.target_domain,
+      target_domain: formData.value.target_domain === '_none' ? undefined : formData.value.target_domain,
       pharmacy_id: pharmacyId,
       institution_id: institutionId,
       priority: formData.value.priority,
       enabled: formData.value.enabled,
-      isolated_history: formData.value.isolated_history
+      isolated_history: formData.value.isolated_history,
+      whitelist_only: formData.value.whitelist_only,
+      whitelist_numbers: formData.value.whitelist_only ? formData.value.whitelist_numbers : null
     }
 
     let typeFields = {}

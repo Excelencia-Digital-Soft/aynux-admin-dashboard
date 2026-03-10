@@ -1,5 +1,6 @@
 import { onMounted, onUnmounted, type Ref } from 'vue'
-import type { NodeInstance, WorkflowEdge } from '@/types/workflow.types'
+import type { NodeInstance } from '@/types/workflow-node.types'
+import type { WorkflowEdge } from '@/types/workflow-graph.types'
 
 export interface KeyboardShortcutHandlers {
   // Selection

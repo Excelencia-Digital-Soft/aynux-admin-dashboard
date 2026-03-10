@@ -7,12 +7,9 @@
 import { ref, computed } from 'vue'
 import { useWorkflowStore } from '@/stores/workflow.store'
 import { useToast } from '@/composables/useToast'
-import type {
-  NodeInstance,
-  WorkflowTransition,
-  CanvasState,
-  TransitionCondition
-} from '@/types/workflow.types'
+import type { NodeInstance } from '@/types/workflow-node.types'
+import type { WorkflowTransition, TransitionCondition } from '@/types/workflow-graph.types'
+import type { CanvasState } from '@/types/workflow-definition.types'
 
 export interface WorkflowExportData {
   version: string

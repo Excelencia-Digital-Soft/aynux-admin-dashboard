@@ -24,7 +24,7 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@/components/ui/tooltip'
-import type { WorkflowDefinition } from '@/types/workflow.types'
+import type { WorkflowDefinition } from '@/types/workflow-definition.types'
 
 const props = defineProps<{
   workflow: WorkflowDefinition | null
@@ -43,6 +43,7 @@ const emit = defineEmits<{
   (e: 'duplicate'): void
   (e: 'export'): void
   (e: 'delete'): void
+  (e: 'triggers'): void
   (e: 'back'): void
 }>()
 
@@ -168,6 +169,10 @@ const workflowStatus = computed(() => {
             <DropdownMenuItem @click="emit('export')">
               <i class="pi pi-download mr-2" />
               Exportar
+            </DropdownMenuItem>
+            <DropdownMenuItem @click="emit('triggers')">
+              <i class="pi pi-clock mr-2" />
+              Triggers
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem class="text-destructive" @click="emit('delete')">

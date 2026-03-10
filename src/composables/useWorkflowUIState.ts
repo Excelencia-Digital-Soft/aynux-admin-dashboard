@@ -1,5 +1,6 @@
 import { ref, watch, type Ref } from 'vue'
-import type { NodeInstance, WorkflowEdge } from '@/types/workflow.types'
+import type { NodeInstance } from '@/types/workflow-node.types'
+import type { WorkflowEdge } from '@/types/workflow-graph.types'
 
 /**
  * useWorkflowUIState - Manages UI panels and dialogs visibility
@@ -26,6 +27,8 @@ export function useWorkflowUIState(options?: {
   const showNodeDefinitionsDialog = ref(false)
   const showInstitutionInfoDialog = ref(false)
   const showCopyWorkflowDialog = ref(false)
+  const showExecuteDialog = ref(false)
+  const showTriggersPanel = ref(false)
 
   // Node Edit Modal (fullscreen, opens on double-click)
   const showNodeEditModal = ref(false)
@@ -197,6 +200,8 @@ export function useWorkflowUIState(options?: {
     showNodeDefinitionsDialog,
     showInstitutionInfoDialog,
     showCopyWorkflowDialog,
+    showExecuteDialog,
+    showTriggersPanel,
 
     // Node Edit Modal
     showNodeEditModal,

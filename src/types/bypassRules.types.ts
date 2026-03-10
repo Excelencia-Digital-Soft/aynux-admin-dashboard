@@ -41,6 +41,8 @@ export interface BypassRule {
   priority: number
   enabled: boolean
   isolated_history?: boolean | null
+  whitelist_only?: boolean
+  whitelist_numbers?: string[] | null
   created_at: string
   updated_at: string
 }
@@ -68,6 +70,8 @@ export interface BypassRuleCreateRequest {
   priority?: number
   enabled?: boolean
   isolated_history?: boolean
+  whitelist_only?: boolean
+  whitelist_numbers?: string[]
 }
 
 /**
@@ -87,6 +91,8 @@ export interface BypassRuleUpdateRequest {
   priority?: number
   enabled?: boolean
   isolated_history?: boolean
+  whitelist_only?: boolean
+  whitelist_numbers?: string[]
 }
 
 /**

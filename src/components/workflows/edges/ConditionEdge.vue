@@ -11,7 +11,7 @@
  */
 import { computed } from 'vue'
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps } from '@vue-flow/core'
-import type { TransitionCondition } from '@/types/workflow.types'
+import type { TransitionCondition } from '@/types/workflow-graph.types'
 
 const props = defineProps<EdgeProps>()
 

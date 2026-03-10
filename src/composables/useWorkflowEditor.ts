@@ -9,15 +9,9 @@ import { useWorkflowStore } from '@/stores/workflow.store'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth.store'
 import { tenantInstitutionConfigApi } from '@/api/tenantInstitutionConfig.api'
-import type {
-  NodeDefinition,
-  NodeInstance,
-  NodeInstanceCreate,
-  NodeInstanceUpdate,
-  TransitionCreate,
-  TransitionUpdate,
-  WorkflowCreate
-} from '@/types/workflow.types'
+import type { NodeDefinition, NodeInstance, NodeInstanceCreate, NodeInstanceUpdate } from '@/types/workflow-node.types'
+import type { TransitionCreate, TransitionUpdate } from '@/types/workflow-graph.types'
+import type { WorkflowCreate } from '@/types/workflow-definition.types'
 import { extractErrorMessage } from '@/utils/typeGuards'
 import type { TenantInstitutionConfig } from '@/types/tenantInstitutionConfig.types'
 

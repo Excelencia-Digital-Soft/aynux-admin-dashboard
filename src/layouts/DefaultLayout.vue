@@ -109,6 +109,7 @@ const menuItems = computed<MenuItem[]>(() => [
       { label: 'Whisper Testing', icon: 'pi pi-microphone', route: '/whisper-testing' },
       { label: 'Chat Visualizer', icon: 'pi pi-comments', route: '/chat-visualizer' },
       { label: 'ENAV Testing', icon: 'pi pi-file-pdf', route: '/enav-testing' },
+      { label: 'Healthcare', icon: 'pi pi-heart', route: '/healthcare-testing' },
     ],
   },
 ])
@@ -125,7 +126,7 @@ function initExpandedState() {
   if (route.path.startsWith('/bypass') || route.path.startsWith('/yaml') || route.path.startsWith('/chattigo') || route.path.startsWith('/ai-models') || route.path.startsWith('/agent-catalog') || route.path.startsWith('/domains') || route.path.startsWith('/graph-topology') || route.path.startsWith('/workflow-editor')) {
     expandedSections.value['config'] = true
   }
-  if (route.path.startsWith('/pharmacy-testing') || route.path.startsWith('/turnos-medicos-testing') || route.path.startsWith('/whisper-testing') || route.path.startsWith('/chat-visualizer') || route.path.startsWith('/enav-testing')) {
+  if (route.path.startsWith('/pharmacy-testing') || route.path.startsWith('/turnos-medicos-testing') || route.path.startsWith('/whisper-testing') || route.path.startsWith('/chat-visualizer') || route.path.startsWith('/enav-testing') || route.path.startsWith('/healthcare-testing')) {
     expandedSections.value['testing'] = true
   }
 }

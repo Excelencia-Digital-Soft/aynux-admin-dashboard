@@ -36,8 +36,9 @@ export function useChatVisualizer(options: UseChatVisualizerOptions = {}) {
 
   /**
    * Send a message with appropriate mode (webhook, streaming, or standard).
+   * @param interactiveChoiceId - Optional interactive button/list reply ID
    */
-  async function sendMessage(message: string): Promise<void> {
+  async function sendMessage(message: string, interactiveChoiceId?: string): Promise<void> {
     if (!message.trim()) return
 
     store.clearExecutionState()
@@ -62,7 +63,7 @@ export function useChatVisualizer(options: UseChatVisualizerOptions = {}) {
       store.addMessage(userMessage)
 
       if (store.webhookSimulation.enabled) {
-        await sendWebhookMessage(message, threadId)
+        await sendWebhookMessage(message, threadId, interactiveChoiceId)
       } else if (useStreaming.value) {
         await sendStreamingMessage(message, threadId)
       } else {
@@ -79,7 +80,7 @@ export function useChatVisualizer(options: UseChatVisualizerOptions = {}) {
   /**
    * Send message via webhook simulation.
    */
-  async function sendWebhookMessage(message: string, threadId: string): Promise<void> {
+  async function sendWebhookMessage(message: string, threadId: string, interactiveChoiceId?: string): Promise<void> {
     const result = await chatApi.testWebhookSimulation({
       message,
       phone_number: store.webhookSimulation.phoneNumber,
@@ -90,7 +91,8 @@ export function useChatVisualizer(options: UseChatVisualizerOptions = {}) {
       did: store.webhookSimulation.did,
       simulate_bypass: store.webhookSimulation.simulateBypass,
       organization_id: store.webhookSimulation.organizationId,
-      pharmacy_id: store.webhookSimulation.pharmacyId
+      pharmacy_id: store.webhookSimulation.pharmacyId,
+      interactive_choice_id: interactiveChoiceId
     })
 
     const assistantMessage: ConversationMessage = {
@@ -221,22 +223,12 @@ export function useChatVisualizer(options: UseChatVisualizerOptions = {}) {
    * Send an interactive response (button click or list selection).
    */
   async function sendInteractiveResponse(
-    type: 'button_reply' | 'list_reply',
+    _type: 'button_reply' | 'list_reply',
     id: string,
     title: string
   ): Promise<void> {
-    // Create a user message showing the selection
-    const userMessage: ConversationMessage = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: title,
-      timestamp: new Date().toISOString(),
-      interactiveResponse: { type, id, title }
-    }
-    store.addMessage(userMessage)
-
-    // Send the message to continue the conversation
-    await sendMessage(title)
+    // sendMessage adds the user message and passes the choice ID to the webhook
+    await sendMessage(title, id)
   }
 
   /**

@@ -21,7 +21,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { nodeTypeIcons } from '@/composables/useWorkflowEditor'
-import type { NodeDefinition, NodeInstanceCreate } from '@/types/workflow.types'
+import type { NodeDefinition, NodeInstanceCreate } from '@/types/workflow-node.types'
 
 const props = defineProps<{
   visible: boolean

@@ -3,19 +3,9 @@ import { ref, computed } from "vue";
 import { workflowApi } from "@/api/workflow.api";
 import { useWorkflowCoreStore } from "./core.store";
 import { useWorkflowCatalogStore } from "./catalog.store";
-import type {
-  NodeInstance,
-  NodeInstanceCreate,
-  NodeInstanceUpdate,
-  WorkflowTransition,
-  TransitionCreate,
-  TransitionUpdate,
-  WorkflowNode,
-  WorkflowEdge,
-  WorkflowAnnotation,
-  CanvasState,
-  VueFlowImportRequest,
-} from "@/types/workflow.types";
+import type { NodeInstance, NodeInstanceCreate, NodeInstanceUpdate } from "@/types/workflow-node.types";
+import type { WorkflowTransition, TransitionCreate, TransitionUpdate, WorkflowNode, WorkflowEdge, VueFlowImportRequest } from "@/types/workflow-graph.types";
+import type { WorkflowAnnotation, CanvasState } from "@/types/workflow-definition.types";
 
 export const useWorkflowEditorStore = defineStore("workflow-editor", () => {
   const coreStore = useWorkflowCoreStore();

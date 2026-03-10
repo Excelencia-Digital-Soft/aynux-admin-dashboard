@@ -62,7 +62,7 @@ export function useDomains() {
 
     if (includeNull) {
       options.unshift({
-        value: null,
+        value: '_none',
         label: 'Sin dominio especifico',
         color: 'secondary',
         icon: 'pi-globe'

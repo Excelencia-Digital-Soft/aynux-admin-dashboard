@@ -14,7 +14,7 @@ import { computed } from "vue";
 import { useWorkflowCoreStore } from "./workflow/core.store";
 import { useWorkflowCatalogStore } from "./workflow/catalog.store";
 import { useWorkflowEditorStore } from "./workflow/editor.store";
-import type { VueFlowImportRequest } from "@/types/workflow.types";
+import type { VueFlowImportRequest } from "@/types/workflow-graph.types";
 
 export const useWorkflowStore = defineStore("workflow", () => {
   const coreStore = useWorkflowCoreStore();

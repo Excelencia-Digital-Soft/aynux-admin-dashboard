@@ -326,19 +326,31 @@ onMounted(async () => {
               </div>
             </TableCell>
 
-            <!-- Isolated History -->
+            <!-- Isolated History / Whitelist -->
             <TableCell>
-              <TooltipProvider v-if="rule.isolated_history">
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <i class="pi pi-history text-blue-500" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Historial aislado activo</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <span v-else class="text-gray-300 dark:text-gray-600">-</span>
+              <div class="flex items-center gap-1.5">
+                <TooltipProvider v-if="rule.isolated_history">
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <i class="pi pi-history text-blue-500" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Historial aislado activo</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider v-if="rule.whitelist_only">
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <i class="pi pi-shield text-amber-500" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Lista blanca activa</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <span v-if="!rule.isolated_history && !rule.whitelist_only" class="text-gray-300 dark:text-gray-600">-</span>
+              </div>
             </TableCell>
 
             <!-- Status Toggle -->

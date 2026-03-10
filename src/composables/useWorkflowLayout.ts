@@ -9,7 +9,7 @@ import dagre from 'dagre'
 import { useVueFlow } from '@vue-flow/core'
 import { useWorkflowStore } from '@/stores/workflow.store'
 import { useToast } from '@/composables/useToast'
-import type { WorkflowNode, WorkflowEdge } from '@/types/workflow.types'
+import type { WorkflowNode, WorkflowEdge } from '@/types/workflow-graph.types'
 
 export type LayoutDirection = 'TB' | 'LR' | 'BT' | 'RL'
 

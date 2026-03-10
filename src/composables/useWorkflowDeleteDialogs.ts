@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import type { NodeInstance } from '@/types/workflow.types'
+import type { NodeInstance } from '@/types/workflow-node.types'
 
 /**
  * useWorkflowDeleteDialogs - Manages delete confirmation dialogs

@@ -7,7 +7,7 @@
 import { ref, computed, watch } from 'vue'
 import { useVueFlow } from '@vue-flow/core'
 import { useWorkflowStore } from '@/stores/workflow.store'
-import type { NodeInstance } from '@/types/workflow.types'
+import type { NodeInstance } from '@/types/workflow-node.types'
 
 export interface SearchResult {
   id: string

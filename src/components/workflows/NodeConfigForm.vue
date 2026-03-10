@@ -6,7 +6,7 @@
  * Falls back to JSON editor if no schema is defined.
  */
 import { ref, computed, watch } from 'vue'
-import type { NodeDefinition, NodeResponseConfig } from '@/types/workflow.types'
+import type { NodeDefinition, NodeResponseConfig } from '@/types/workflow-node.types'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { isValidConfigSchema, type ConfigSchema } from '@/utils/typeGuards'
 import ResponseConfigForm from './ResponseConfigForm.vue'

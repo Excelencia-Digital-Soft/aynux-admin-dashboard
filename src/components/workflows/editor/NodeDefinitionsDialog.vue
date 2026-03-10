@@ -49,7 +49,7 @@ import { Pagination } from '@/components/ui/pagination'
 import IconPicker from '@/components/workflows/IconPicker.vue'
 import { useToast } from '@/composables/useToast'
 import { useWorkflowCatalogStore } from '@/stores/workflow/catalog.store'
-import type { NodeDefinition, NodeDefinitionCreate, NodeDefinitionUpdate } from '@/types/workflow.types'
+import type { NodeDefinition, NodeDefinitionCreate, NodeDefinitionUpdate } from '@/types/workflow-node.types'
 
 interface Props {
   visible: boolean

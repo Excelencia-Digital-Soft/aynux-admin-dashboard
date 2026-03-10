@@ -1,20 +1,9 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { workflowApi } from "@/api/workflow.api";
-import type {
-  NodeDefinition,
-  NodeDefinitionCreate,
-  NodeDefinitionUpdate,
-  RoutingRule,
-  RoutingRuleCreate,
-  RoutingRuleUpdate,
-  ReminderSchedule,
-  ReminderScheduleCreate,
-  ReminderScheduleUpdate,
-  MessageTemplate,
-  MessageTemplateCreate,
-  MessageTemplateUpdate,
-} from "@/types/workflow.types";
+import type { NodeDefinition, NodeDefinitionCreate, NodeDefinitionUpdate } from "@/types/workflow-node.types";
+import type { RoutingRule, RoutingRuleCreate, RoutingRuleUpdate } from "@/types/workflow-routing.types";
+import type { ReminderSchedule, ReminderScheduleCreate, ReminderScheduleUpdate, MessageTemplate, MessageTemplateCreate, MessageTemplateUpdate } from "@/types/workflow-messaging.types";
 
 export const useWorkflowCatalogStore = defineStore("workflow-catalog", () => {
   // State

@@ -14,9 +14,10 @@ import type {
   WhatsAppListSection,
   WhatsAppListRow,
   ListConfig
-} from '@/types/workflow.types'
-import { WHATSAPP_CONSTRAINTS } from '@/types/workflow.types'
+} from '@/types/workflow-node.types'
+import { WHATSAPP_CONSTRAINTS } from '@/types/workflow-node.types'
 
+import ResponsePreviewPanel from '@/components/workflows/editor/ResponsePreviewPanel.vue'
 import SelectButton from 'primevue/selectbutton'
 import Textarea from 'primevue/textarea'
 import InputText from 'primevue/inputtext'
@@ -35,6 +36,8 @@ interface AvailableNode {
 interface Props {
   modelValue?: NodeResponseConfig
   availableNodes?: AvailableNode[]
+  domainKey?: string
+  nodeId?: string
 }
 
 const props = defineProps<Props>()
@@ -42,6 +45,8 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:modelValue', value: NodeResponseConfig): void
 }>()
+
+const showPreview = ref(false)
 
 // Computed for node dropdown options
 const nodeOptions = computed(() => {
@@ -638,6 +643,26 @@ const totalListRows = computed(() => {
         />
       </div>
     </Panel>
+
+    <!-- Preview Button -->
+    <div v-if="domainKey && nodeId" class="field">
+      <Button
+        :label="showPreview ? 'Ocultar Vista Previa' : 'Vista Previa'"
+        :icon="showPreview ? 'pi pi-eye-slash' : 'pi pi-eye'"
+        size="small"
+        severity="secondary"
+        @click="showPreview = !showPreview"
+      />
+    </div>
+
+    <!-- Response Preview Panel -->
+    <ResponsePreviewPanel
+      v-if="showPreview && domainKey && nodeId"
+      :domain-key="domainKey"
+      :node-id="nodeId"
+      :template-text="localConfig.template_text || localConfig.task_description || ''"
+      @close="showPreview = false"
+    />
 
     <!-- Header/Footer (for buttons and list) -->
     <div

@@ -8,7 +8,8 @@ import { ref, computed, watch, onUnmounted } from 'vue'
 import { useVueFlow } from '@vue-flow/core'
 import { useWorkflowStore } from '@/stores/workflow.store'
 import { useToast } from '@/composables/useToast'
-import type { NodeInstance, WorkflowTransition, TransitionCondition } from '@/types/workflow.types'
+import type { NodeInstance } from '@/types/workflow-node.types'
+import type { WorkflowTransition, TransitionCondition } from '@/types/workflow-graph.types'
 
 export type SimulationStatus = 'idle' | 'running' | 'paused' | 'completed' | 'error'
 

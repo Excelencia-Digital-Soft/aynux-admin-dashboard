@@ -9,7 +9,7 @@ import {
   CollapsibleTrigger
 } from '@/components/ui/collapsible'
 import { nodeTypeColors, nodeTypeIcons } from '@/composables/useWorkflowEditor'
-import type { NodeDefinition } from '@/types/workflow.types'
+import type { NodeDefinition } from '@/types/workflow-node.types'
 
 const props = defineProps<{
   isLoading: boolean

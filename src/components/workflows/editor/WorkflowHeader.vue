@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button'
-import type { WorkflowDefinition } from '@/types/workflow.types'
+import type { WorkflowDefinition } from '@/types/workflow-definition.types'
 
 defineProps<{
   currentWorkflow: WorkflowDefinition | null

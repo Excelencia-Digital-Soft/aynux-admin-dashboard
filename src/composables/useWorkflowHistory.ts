@@ -8,7 +8,8 @@ import { ref, computed, watch, onUnmounted } from 'vue'
 import { useManualRefHistory } from '@vueuse/core'
 import { useWorkflowStore } from '@/stores/workflow.store'
 import { useToast } from '@/composables/useToast'
-import type { NodeInstance, WorkflowTransition } from '@/types/workflow.types'
+import type { NodeInstance } from '@/types/workflow-node.types'
+import type { WorkflowTransition } from '@/types/workflow-graph.types'
 
 export interface WorkflowSnapshot {
   nodeInstances: NodeInstance[]

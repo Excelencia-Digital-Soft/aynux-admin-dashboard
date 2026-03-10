@@ -70,7 +70,7 @@ export interface DomainListResponse {
  * Domain option for Select component
  */
 export interface DomainOption {
-  value: string | null
+  value: string
   label: string
   color?: string
   icon?: string

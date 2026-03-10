@@ -23,7 +23,7 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@/components/ui/tooltip'
-import type { WorkflowDefinition } from '@/types/workflow.types'
+import type { WorkflowDefinition } from '@/types/workflow-definition.types'
 
 defineProps<{
   workflows: WorkflowDefinition[]

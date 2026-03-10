@@ -191,6 +191,7 @@ export interface WebhookSimulationRequest {
   simulate_bypass?: boolean
   organization_id?: string | null
   pharmacy_id?: string | null
+  interactive_choice_id?: string | null
 }
 
 export interface WebhookSimulationResponse {

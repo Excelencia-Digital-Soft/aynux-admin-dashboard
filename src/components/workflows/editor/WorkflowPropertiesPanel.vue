@@ -22,7 +22,8 @@ import {
 } from '@/components/ui/tooltip'
 import NodeConfigForm from '@/components/workflows/NodeConfigForm.vue'
 import ConditionEditorDialog from '@/components/workflows/ConditionEditorDialog.vue'
-import type { NodeInstance, WorkflowTransition, NodeDefinition, NodeInstanceUpdate, TransitionUpdate, TransitionCondition } from '@/types/workflow.types'
+import type { NodeInstance, NodeDefinition, NodeInstanceUpdate } from '@/types/workflow-node.types'
+import type { WorkflowTransition, TransitionUpdate, TransitionCondition } from '@/types/workflow-graph.types'
 
 const props = defineProps<{
   visible: boolean

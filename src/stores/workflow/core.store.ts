@@ -7,7 +7,7 @@ import type {
   WorkflowUpdate,
   WorkflowCopyRequest,
   WorkflowCopyResponse,
-} from "@/types/workflow.types";
+} from "@/types/workflow-definition.types";
 
 export const useWorkflowCoreStore = defineStore("workflow-core", () => {
   // State

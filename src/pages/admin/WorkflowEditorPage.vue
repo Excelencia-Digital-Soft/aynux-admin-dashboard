@@ -10,6 +10,7 @@
  * - useWorkflowDeleteDialogs: Delete confirmation flows
  * - useWorkflowKeyboardShortcuts: Keyboard shortcuts
  * - useWorkflowExecutionLogs: Execution and logging
+ * - useWorkflowNodeInteractions: Node context menu, toolbar, execution
  */
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -30,6 +31,8 @@ import { useWorkflowUIState } from '@/composables/useWorkflowUIState'
 import { useWorkflowDeleteDialogs } from '@/composables/useWorkflowDeleteDialogs'
 import { useWorkflowKeyboardShortcuts } from '@/composables/useWorkflowKeyboardShortcuts'
 import { useWorkflowExecutionLogs } from '@/composables/useWorkflowExecutionLogs'
+import { useWorkflowExecution } from '@/composables/useWorkflowExecution'
+import { useWorkflowNodeInteractions } from '@/composables/useWorkflowNodeInteractions'
 
 // Layout components
 import WorkflowTopBar from '@/components/workflows/editor/WorkflowTopBar.vue'
@@ -41,29 +44,23 @@ import WorkflowExecuteButton from '@/components/workflows/editor/WorkflowExecute
 import WorkflowLogsPanel from '@/components/workflows/editor/WorkflowLogsPanel.vue'
 import WorkflowPropertiesPanel from '@/components/workflows/editor/WorkflowPropertiesPanel.vue'
 import WorkflowSelector from '@/components/workflows/editor/WorkflowSelector.vue'
-
-// Dialogs
 import WorkflowDeleteDialogs from '@/components/workflows/editor/WorkflowDeleteDialogs.vue'
-import WorkflowNodePaletteDialog from '@/components/workflows/editor/WorkflowNodePaletteDialog.vue'
-import NewWorkflowDialog from '@/components/workflows/editor/NewWorkflowDialog.vue'
-import AddNodeDialog from '@/components/workflows/editor/AddNodeDialog.vue'
-import WorkflowSimulationContext from '@/components/workflows/WorkflowSimulationContext.vue'
-import NodeDefinitionsDialog from '@/components/workflows/editor/NodeDefinitionsDialog.vue'
-import InstitutionInfoDialog from '@/components/workflows/editor/InstitutionInfoDialog.vue'
-import CopyWorkflowDialog from '@/components/workflows/editor/CopyWorkflowDialog.vue'
+import WorkflowExecutionsTab from '@/components/workflows/editor/WorkflowExecutionsTab.vue'
+import WorkflowTriggersPanel from '@/components/workflows/editor/WorkflowTriggersPanel.vue'
 
 // n8n-style components
 import WorkflowNodeContextMenu from '@/components/workflows/editor/WorkflowNodeContextMenu.vue'
 import WorkflowNodeToolbar from '@/components/workflows/editor/WorkflowNodeToolbar.vue'
 import WorkflowNodeEditModal from '@/components/workflows/editor/WorkflowNodeEditModal.vue'
 
+// Dialog container
+import WorkflowEditorDialogs from '@/components/workflows/editor/WorkflowEditorDialogs.vue'
+
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
 import '@vue-flow/minimap/dist/style.css'
 
-// ============================================================================
 // Core workflow editor
-// ============================================================================
 const {
   institutions,
   selectedInstitutionId,
@@ -110,9 +107,7 @@ const {
 const workflowStore = useWorkflowStore()
 const router = useRouter()
 
-// ============================================================================
 // Specialized composables
-// ============================================================================
 const { copy, paste, cut, duplicate } = useWorkflowClipboard()
 const { exportToFile, importFromFile } = useWorkflowExportImport()
 const { openSearch: openNodeSearch } = useWorkflowNodeSearch()
@@ -135,17 +130,13 @@ const {
   updateContext: updateSimulationContext
 } = useWorkflowSimulation()
 
-// ============================================================================
-// UI State (SRP)
-// ============================================================================
+// UI State
 const uiState = useWorkflowUIState({
   selectedNode,
   selectedEdge
 })
 
-// ============================================================================
-// Delete dialogs (SRP)
-// ============================================================================
+// Delete dialogs
 const localSelectedWorkflowId = ref<string | null>(null)
 
 const deleteDialogs = useWorkflowDeleteDialogs({
@@ -157,22 +148,34 @@ const deleteDialogs = useWorkflowDeleteDialogs({
   }
 })
 
-// ============================================================================
-// Execution and logs (SRP)
-// ============================================================================
+// Real execution
+const execution = useWorkflowExecution()
+
+// Execution logs
 const executionLogs = useWorkflowExecutionLogs({
   startSimulation
 })
 
-// ============================================================================
+// Node interactions (context menu, toolbar, execution orchestration)
+const nodeInteractions = useWorkflowNodeInteractions({
+  selectedNode,
+  currentWorkflow,
+  uiState,
+  deleteDialogs,
+  execution,
+  executionLogs,
+  workflowStore,
+  onNodeClick,
+  onPaneClick,
+  updateNode,
+  autoLayout
+})
+
 // Computed
-// ============================================================================
 const hasWorkflow = computed(() => currentWorkflow.value !== null)
 const hasNodes = computed(() => nodes.value.length > 0)
 
-// ============================================================================
-// Keyboard shortcuts (SRP)
-// ============================================================================
+// Keyboard shortcuts
 useWorkflowKeyboardShortcuts({
   selectedNode,
   selectedEdge,
@@ -182,7 +185,7 @@ useWorkflowKeyboardShortcuts({
   onDeleteNode: deleteDialogs.confirmDeleteNode,
   onDeleteTransition: deleteDialogs.confirmDeleteTransition,
   onSave: saveWorkflow,
-  onExecute: executionLogs.executeWorkflow,
+  onExecute: () => { uiState.showExecuteDialog.value = true },
   onCopy: copy,
   onPaste: paste,
   onCut: cut,
@@ -194,9 +197,7 @@ useWorkflowKeyboardShortcuts({
   onCloseDialogs: uiState.closeAllDialogs
 })
 
-// ============================================================================
 // Workflow selection
-// ============================================================================
 watch(localSelectedWorkflowId, async (newId) => {
   if (newId) {
     await loadWorkflow(newId)
@@ -211,26 +212,23 @@ async function onInstitutionSelect() {
 
 async function handleBackToSelector() {
   localSelectedWorkflowId.value = null
+  workflowStore.currentWorkflow = null
   await loadAllWorkflows()
 }
 
 async function openNewWorkflowDialog() {
   showWorkflowDialog.value = true
-  // Lazy-load institutions when dialog opens
   if (institutions.value.length === 0) {
     await loadInstitutions()
   }
 }
 
-// ============================================================================
 // Navigation
-// ============================================================================
 function handleLeftNavigation(item: string) {
   const routes: Record<string, string> = {
     home: '/admin',
     agents: '/admin/agents'
   }
-
   if (routes[item]) {
     router.push(routes[item])
   } else if (item === 'search') {
@@ -238,9 +236,7 @@ function handleLeftNavigation(item: string) {
   }
 }
 
-// ============================================================================
 // Import/Export
-// ============================================================================
 const importFileInput = ref<HTMLInputElement | null>(null)
 
 function triggerImport() {
@@ -256,121 +252,10 @@ async function handleImportFile(event: Event) {
   }
 }
 
-// ============================================================================
-// Workflow copy
-// ============================================================================
+// Workflow copy callback
 async function onWorkflowCopied(result: { newWorkflowId: string }) {
   await loadAllWorkflows()
   localSelectedWorkflowId.value = result.newWorkflowId
-}
-
-// ============================================================================
-// Node definitions
-// ============================================================================
-async function onDefinitionsUpdated() {
-  await workflowStore.loadNodeDefinitions()
-}
-
-// ============================================================================
-// Context Menu and Toolbar handlers (n8n-style)
-// ============================================================================
-function handleNodeContextMenu(payload: { event: MouseEvent; nodeId: string }) {
-  // Select the node first
-  onNodeClick(payload.nodeId)
-  // Open context menu at cursor position
-  uiState.openContextMenu(payload.event, payload.nodeId)
-}
-
-function handleNodeDoubleClick(nodeId: string) {
-  // First select the node so the modal has data
-  onNodeClick(nodeId)
-  // Open fullscreen edit modal
-  uiState.openNodeEditModal(nodeId)
-}
-
-// Context menu action handlers
-function handleContextMenuOpen() {
-  if (uiState.contextMenuNodeId.value) {
-    uiState.openNodeEditModal(uiState.contextMenuNodeId.value)
-  }
-}
-
-function handleContextMenuExecute() {
-  // Execute only this node (start simulation from this node)
-  executionLogs.executeWorkflow()
-}
-
-function handleContextMenuRename() {
-  // Open edit modal focused on name field
-  if (uiState.contextMenuNodeId.value) {
-    uiState.openNodeEditModal(uiState.contextMenuNodeId.value)
-  }
-}
-
-function handleContextMenuToggleActive() {
-  if (selectedNode.value) {
-    const newActiveState = !(selectedNode.value.is_active !== false)
-    updateNode(selectedNode.value.id, { is_active: newActiveState })
-  }
-}
-
-function handleContextMenuPin() {
-  // Pin data functionality (placeholder for future implementation)
-  console.log('Pin data for node:', uiState.contextMenuNodeId.value)
-}
-
-function handleContextMenuTidyUp() {
-  autoLayout()
-}
-
-function handleContextMenuSelectAll() {
-  // Select all nodes (placeholder)
-  console.log('Select all nodes')
-}
-
-function handleContextMenuClearSelection() {
-  onPaneClick()
-}
-
-function handleContextMenuDelete() {
-  if (selectedNode.value) {
-    deleteDialogs.confirmDeleteNode(selectedNode.value)
-  }
-}
-
-// Toolbar action handlers
-function handleToolbarExecute() {
-  executionLogs.executeWorkflow()
-}
-
-function handleToolbarToggleActive() {
-  if (selectedNode.value) {
-    const newActiveState = !(selectedNode.value.is_active !== false)
-    updateNode(selectedNode.value.id, { is_active: newActiveState })
-  }
-}
-
-function handleToolbarDelete() {
-  if (selectedNode.value) {
-    deleteDialogs.confirmDeleteNode(selectedNode.value)
-  }
-}
-
-function handleToolbarMore(event: MouseEvent) {
-  if (selectedNode.value) {
-    uiState.openContextMenu(event, selectedNode.value.id)
-  }
-}
-
-// Handle node selection with screen coordinates for toolbar
-function handleNodeSelected(payload: { nodeId: string; screenPosition: { x: number; y: number } }) {
-  uiState.updateToolbarScreenPosition(payload.nodeId, payload.screenPosition)
-}
-
-// Clear toolbar when pane is clicked
-function handlePaneClick() {
-  uiState.clearToolbar()
-  onPaneClick()
 }
 </script>
 
@@ -432,6 +317,7 @@ function handlePaneClick() {
         @settings="uiState.openNodeDefinitions"
         @duplicate="uiState.openCopyWorkflow"
         @export="exportToFile"
+        @triggers="uiState.showTriggersPanel.value = true"
         @delete="() => currentWorkflow && deleteDialogs.confirmDeleteWorkflow(currentWorkflow)"
         @back="handleBackToSelector"
       />
@@ -444,8 +330,15 @@ function handlePaneClick() {
           @navigate="handleLeftNavigation"
         />
 
-        <!-- Canvas Area -->
-        <div class="canvas-wrapper">
+        <!-- Executions Tab (Phase 2) -->
+        <div v-if="uiState.activeTab.value === 'executions'" class="canvas-wrapper">
+          <WorkflowExecutionsTab
+            :institution-config-id="currentWorkflow?.institution_config_id"
+          />
+        </div>
+
+        <!-- Canvas Area (Editor tab) -->
+        <div v-else class="canvas-wrapper">
           <WorkflowCanvas
             :currentWorkflow="currentWorkflow"
             :nodes="nodes"
@@ -453,18 +346,20 @@ function handlePaneClick() {
             :isValidConnection="isValidConnection"
             :showSimulationPanel="uiState.showSimulationPanel.value"
             :simulationState="simulationState"
+            :nodeExecutionStates="execution.nodeStates"
+            :pinnedNodeIds="nodeInteractions.pinnedNodeIds.value"
             v-model:simulationStepDelay="simulationStepDelay"
             :canStepForward="canStepForward"
             :canStepBackward="canStepBackward"
             @addNodeRequest="openAddNodeDialog"
             @nodeClick="onNodeClick"
-            @nodeSelected="handleNodeSelected"
+            @nodeSelected="nodeInteractions.handleNodeSelected"
             @edgeClick="onEdgeClick"
-            @paneClick="handlePaneClick"
+            @paneClick="nodeInteractions.handlePaneClick"
             @connect="onConnect"
             @nodeDragStop="(p) => onNodeDragStop(p.id, p.position)"
-            @nodeContextMenu="handleNodeContextMenu"
-            @nodeDoubleClick="handleNodeDoubleClick"
+            @nodeContextMenu="nodeInteractions.handleNodeContextMenu"
+            @nodeDoubleClick="nodeInteractions.handleNodeDoubleClick"
             @startSimulation="startSimulation"
             @pauseSimulation="pauseSimulation"
             @resumeSimulation="resumeSimulation"
@@ -474,15 +369,15 @@ function handlePaneClick() {
             @openSimulationContext="uiState.openSimulationContext"
           />
 
-          <!-- n8n-style Node Toolbar (uses screen coordinates, hidden when modal is open) -->
+          <!-- n8n-style Node Toolbar (hidden when modal is open) -->
           <WorkflowNodeToolbar
             :position="uiState.showNodeEditModal.value ? null : uiState.toolbarScreenPosition.value"
             :is-active="selectedNode?.is_active !== false"
             :node-id="selectedNode?.id ?? null"
-            @execute="handleToolbarExecute"
-            @toggle-active="handleToolbarToggleActive"
-            @delete="handleToolbarDelete"
-            @more="handleToolbarMore"
+            @execute="nodeInteractions.handleToolbarExecute"
+            @toggle-active="nodeInteractions.handleToolbarToggleActive"
+            @delete="nodeInteractions.handleToolbarDelete"
+            @more="nodeInteractions.handleToolbarMore"
           />
 
           <!-- Bottom Controls -->
@@ -498,16 +393,16 @@ function handlePaneClick() {
 
           <!-- Execute Button -->
           <WorkflowExecuteButton
-            :is-executing="isSimulating"
+            :is-executing="execution.isExecuting.value || isSimulating"
             :has-nodes="hasNodes"
-            @execute="executionLogs.executeWorkflow"
+            @execute="uiState.showExecuteDialog.value = true"
           />
 
           <!-- Logs Panel -->
           <WorkflowLogsPanel
             :logs="executionLogs.logs.value"
             v-model:is-expanded="executionLogs.isLogsExpanded.value"
-            :is-executing="isSimulating"
+            :is-executing="execution.isExecuting.value || isSimulating"
             @clear="executionLogs.clearLogs"
           />
         </div>
@@ -543,8 +438,12 @@ function handlePaneClick() {
       :node="selectedNode"
       :getNodeDefinition="workflowStore.getNodeDefinitionById"
       :nodeInstances="workflowStore.nodeInstances"
+      :executionNodeStates="execution.nodeStates"
+      :pinnedNodes="nodeInteractions.pinnedNodeIds.value"
       @updateNode="updateNode"
       @deleteNode="deleteDialogs.confirmDeleteNode"
+      @pinData="nodeInteractions.togglePinNode"
+      @unpinData="nodeInteractions.unpinNode"
     />
 
     <!-- n8n-style Context Menu (right-click) -->
@@ -554,66 +453,71 @@ function handlePaneClick() {
       :node-id="uiState.contextMenuNodeId.value"
       :node-name="selectedNode?.display_label || 'Nodo'"
       :is-active="selectedNode?.is_active !== false"
-      @open="handleContextMenuOpen"
-      @execute="handleContextMenuExecute"
-      @rename="handleContextMenuRename"
-      @toggle-active="handleContextMenuToggleActive"
-      @pin="handleContextMenuPin"
+      @open="nodeInteractions.handleContextMenuOpen"
+      @execute="nodeInteractions.handleContextMenuExecute"
+      @rename="nodeInteractions.handleContextMenuRename"
+      @toggle-active="nodeInteractions.handleContextMenuToggleActive"
+      @pin="nodeInteractions.handleContextMenuPin"
       @copy="copy"
       @duplicate="duplicate"
-      @tidy-up="handleContextMenuTidyUp"
-      @select-all="handleContextMenuSelectAll"
-      @clear-selection="handleContextMenuClearSelection"
-      @delete="handleContextMenuDelete"
+      @tidy-up="nodeInteractions.handleContextMenuTidyUp"
+      @select-all="nodeInteractions.handleContextMenuSelectAll"
+      @clear-selection="nodeInteractions.handleContextMenuClearSelection"
+      @delete="nodeInteractions.handleContextMenuDelete"
     />
 
-    <!-- Node Palette Dialog -->
-    <WorkflowNodePaletteDialog
-      v-model:visible="uiState.showNodePaletteDialog.value"
+    <!-- Triggers Panel (Phase 6) -->
+    <WorkflowTriggersPanel
+      v-if="currentWorkflow"
+      :visible="uiState.showTriggersPanel.value"
+      :workflow-id="currentWorkflow.id"
+      @update:visible="uiState.showTriggersPanel.value = $event"
+    />
+
+    <!-- Data Dialogs (grouped) -->
+    <WorkflowEditorDialogs
+      :showNodePaletteDialog="uiState.showNodePaletteDialog.value"
+      @update:showNodePaletteDialog="uiState.showNodePaletteDialog.value = $event"
       :nodeDefinitionsByCategory="nodeDefinitionsByCategory"
-      @addNode="openAddNodeDialog"
-    />
+      @addNodeFromPalette="openAddNodeDialog"
 
-    <!-- Other Dialogs -->
-    <NewWorkflowDialog
-      v-model:visible="showWorkflowDialog"
-      :loading="false"
-      :workflow="newWorkflow"
+      :showWorkflowDialog="showWorkflowDialog"
+      @update:showWorkflowDialog="showWorkflowDialog = $event"
+      :newWorkflow="newWorkflow"
       :institutions="institutions"
       :isLoadingInstitutions="isLoadingInstitutions"
-      @save="createWorkflow"
-      @cancel="showWorkflowDialog = false; resetWorkflowForm()"
-    />
+      @createWorkflow="createWorkflow"
+      @cancelWorkflow="() => { showWorkflowDialog = false; resetWorkflowForm() }"
 
-    <AddNodeDialog
-      v-model:visible="showNodeDialog"
-      :definition="selectedDefinition"
+      :showNodeDialog="showNodeDialog"
+      @update:showNodeDialog="showNodeDialog = $event"
+      :selectedDefinition="selectedDefinition"
       :newNode="newNode"
-      @add="addNode"
-      @cancel="showNodeDialog = false"
-    />
+      @addNode="addNode"
+      @cancelAddNode="showNodeDialog = false"
 
-    <WorkflowSimulationContext
-      :visible="uiState.showSimulationContextDialog.value"
-      :context="simulationState.context"
-      @update:visible="uiState.showSimulationContextDialog.value = $event"
-      @update:context="updateSimulationContext"
-    />
+      :showSimulationContextDialog="uiState.showSimulationContextDialog.value"
+      @update:showSimulationContextDialog="uiState.showSimulationContextDialog.value = $event"
+      :simulationContext="simulationState.context"
+      @updateSimulationContext="updateSimulationContext"
 
-    <NodeDefinitionsDialog
-      v-model:visible="uiState.showNodeDefinitionsDialog.value"
-      @definitionsUpdated="onDefinitionsUpdated"
-    />
+      :showNodeDefinitionsDialog="uiState.showNodeDefinitionsDialog.value"
+      @update:showNodeDefinitionsDialog="uiState.showNodeDefinitionsDialog.value = $event"
 
-    <InstitutionInfoDialog
-      v-model:visible="uiState.showInstitutionInfoDialog.value"
-      :institution="selectedInstitution"
-    />
+      :showInstitutionInfoDialog="uiState.showInstitutionInfoDialog.value"
+      @update:showInstitutionInfoDialog="uiState.showInstitutionInfoDialog.value = $event"
+      :selectedInstitution="selectedInstitution"
 
-    <CopyWorkflowDialog
-      v-model:visible="uiState.showCopyWorkflowDialog.value"
-      :currentInstitutionId="selectedInstitutionId"
+      :showCopyWorkflowDialog="uiState.showCopyWorkflowDialog.value"
+      @update:showCopyWorkflowDialog="uiState.showCopyWorkflowDialog.value = $event"
+      :selectedInstitutionId="selectedInstitutionId"
       @copied="onWorkflowCopied"
+
+      :showExecuteDialog="uiState.showExecuteDialog.value"
+      @update:showExecuteDialog="uiState.showExecuteDialog.value = $event"
+      :isExecuting="execution.isExecuting.value"
+      :institutionConfigId="currentWorkflow?.institution_config_id"
+      @execute="nodeInteractions.handleRealExecution"
     />
   </div>
 </template>

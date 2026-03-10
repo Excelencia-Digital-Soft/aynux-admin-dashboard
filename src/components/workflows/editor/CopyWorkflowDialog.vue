@@ -29,7 +29,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import { tenantInstitutionConfigApi } from '@/api/tenantInstitutionConfig.api'
 import { workflowApi } from '@/api/workflow.api'
 import type { TenantInstitutionConfig } from '@/types/tenantInstitutionConfig.types'
-import type { WorkflowDefinition, WorkflowCopyRequest } from '@/types/workflow.types'
+import type { WorkflowDefinition, WorkflowCopyRequest } from '@/types/workflow-definition.types'
 
 const props = defineProps<{
   visible: boolean

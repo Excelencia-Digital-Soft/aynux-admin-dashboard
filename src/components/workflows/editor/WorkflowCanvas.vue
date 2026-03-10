@@ -10,7 +10,7 @@
  * - Circular handles on left/right
  * - Node labels below the node
  */
-import { computed, markRaw } from 'vue'
+import { computed, markRaw, watch } from 'vue'
 import { VueFlow, Handle, Position } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { MiniMap } from '@vue-flow/minimap'
@@ -22,7 +22,10 @@ import WorkflowNodeSearch from '@/components/workflows/WorkflowNodeSearch.vue'
 import WorkflowSimulationPanel from '@/components/workflows/WorkflowSimulationPanel.vue'
 import { nodeTypeColors } from '@/composables/useWorkflowEditor'
 import { useToast } from '@/composables/useToast'
-import type { NodeDefinition, WorkflowDefinition, WorkflowNode, WorkflowEdge } from '@/types/workflow.types'
+import type { NodeDefinition } from '@/types/workflow-node.types'
+import type { WorkflowDefinition } from '@/types/workflow-definition.types'
+import type { WorkflowNode, WorkflowEdge } from '@/types/workflow-graph.types'
+import type { NodeExecutionState } from '@/types/workflow-execution.types'
 
 const toast = useToast()
 
@@ -37,6 +40,8 @@ const props = defineProps<{
   simulationStepDelay: number
   canStepForward: boolean
   canStepBackward: boolean
+  nodeExecutionStates?: Record<string, NodeExecutionState>
+  pinnedNodeIds?: string[]
 }>()
 
 const emit = defineEmits<{
@@ -74,8 +79,32 @@ const edgeTypes = {
   condition: markRaw(ConditionEdge)
 }
 
-// Computed nodes/edges - simple pass-through like AgentFlowGraph
-const flowNodes = computed(() => props.nodes)
+// Computed nodes/edges - apply execution state classes
+const flowNodes = computed(() => {
+  if (!props.nodeExecutionStates || Object.keys(props.nodeExecutionStates).length === 0) {
+    // Apply pinned class only
+    if (props.pinnedNodeIds && props.pinnedNodeIds.length > 0) {
+      return props.nodes.map(node => {
+        const isPinned = props.pinnedNodeIds!.includes(node.id)
+        return isPinned ? { ...node, class: [node.class, 'node-pinned'].filter(Boolean).join(' ') } : node
+      })
+    }
+    return props.nodes
+  }
+  return props.nodes.map(node => {
+    const execState = props.nodeExecutionStates![node.id]
+    const isPinned = props.pinnedNodeIds?.includes(node.id)
+    const classes: string[] = []
+    if (node.class) classes.push(node.class)
+    if (isPinned) classes.push('node-pinned')
+    if (execState) {
+      if (execState.status === 'running') classes.push('exec-running')
+      else if (execState.status === 'completed') classes.push('exec-completed')
+      else if (execState.status === 'error') classes.push('exec-error')
+    }
+    return classes.length > 0 ? { ...node, class: classes.join(' ') } : node
+  })
+})
 const flowEdges = computed(() => props.edges)
 
 // Handle init event
@@ -675,5 +704,83 @@ function onNodeDoubleClick(nodeId: string) {
 :deep(.vue-flow__edge-path) {
   stroke: #64748b;
   stroke-width: 2;
+}
+
+/* ========================================
+   Execution State Styles
+   ======================================== */
+:deep(.vue-flow__node.exec-running) .n8n-node-body {
+  animation: exec-pulse 1.2s ease-in-out infinite;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 0 0 4px rgba(59, 130, 246, 0.6);
+}
+
+:deep(.vue-flow__node.exec-completed) .n8n-node-body {
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 0 0 3px rgba(16, 185, 129, 0.7);
+}
+
+:deep(.vue-flow__node.exec-completed) .n8n-node-body::after {
+  content: '\2713';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 22px;
+  height: 22px;
+  background: #10b981;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: white;
+  font-weight: bold;
+  border: 2px solid #0c1d3d;
+}
+
+:deep(.vue-flow__node.exec-error) .n8n-node-body {
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 0 0 3px rgba(239, 68, 68, 0.7);
+}
+
+:deep(.vue-flow__node.exec-error) .n8n-node-body::after {
+  content: '\2717';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 22px;
+  height: 22px;
+  background: #ef4444;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: white;
+  font-weight: bold;
+  border: 2px solid #0c1d3d;
+}
+
+@keyframes exec-pulse {
+  0%, 100% {
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.3),
+      0 0 0 4px rgba(59, 130, 246, 0.6);
+  }
+  50% {
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.3),
+      0 0 0 8px rgba(59, 130, 246, 0.2);
+  }
+}
+
+/* Pinned node indicator */
+:deep(.vue-flow__node.node-pinned) .n8n-node-label::after {
+  content: '\1F4CC';
+  margin-left: 4px;
+  font-size: 10px;
 }
 </style>

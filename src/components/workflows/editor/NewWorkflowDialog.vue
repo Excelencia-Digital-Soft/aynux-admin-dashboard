@@ -26,7 +26,7 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { workflowTypeOptions } from '@/composables/useWorkflowEditor'
-import type { WorkflowCreate } from '@/types/workflow.types'
+import type { WorkflowCreate } from '@/types/workflow-definition.types'
 import type { TenantInstitutionConfig } from '@/types/tenantInstitutionConfig.types'
 
 const props = defineProps<{

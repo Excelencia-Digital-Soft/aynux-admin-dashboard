@@ -7,7 +7,7 @@
 import { ref, computed } from 'vue'
 import { useWorkflowStore } from '@/stores/workflow.store'
 import { useToast } from '@/composables/useToast'
-import type { NodeInstance } from '@/types/workflow.types'
+import type { NodeInstance } from '@/types/workflow-node.types'
 
 export interface ClipboardNode {
   node_definition_id: string

@@ -144,6 +144,14 @@ const router = createRouter({
           meta: { title: 'Pruebas ENAV', icon: 'pi-file-pdf' }
         },
 
+        // Healthcare Testing (ZISMED - camas, turnos, internaciones)
+        {
+          path: 'healthcare-testing',
+          name: 'HealthcareTesting',
+          component: () => import('@/pages/testing/HealthcareTestingPage.vue'),
+          meta: { title: 'Pruebas Healthcare', icon: 'pi-heart-pulse' }
+        },
+
         // Pharmacy Config (Page 12b) - Admin CRUD
         {
           path: 'pharmacy',
