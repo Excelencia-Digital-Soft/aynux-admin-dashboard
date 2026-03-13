@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useOrganizationStore } from '@/stores/organization.store'
 import { useOrganization } from '@/composables/useOrganization'
 import { getRoleLabel, getRoleSeverity } from '@/types/organization.types'
 import type { OrganizationUser, UserRole, UserCreateRequest, UserUpdateRequest } from '@/types/organization.types'
+import type { Role } from '@/types/roles.types'
+import { rolesApi } from '@/api/roles.api'
+import { organizationApi } from '@/api/organization.api'
 
 import {
   Table,
@@ -70,26 +73,45 @@ const editingUser = ref<OrganizationUser | null>(null)
 const confirmDeleteId = ref<string | null>(null)
 const roleFilterValue = ref('all')
 
+// Roles from API
+const roles = ref<Role[]>([])
+const tempPassword = ref<string | null>(null)
+const showTempPasswordDialog = ref(false)
+
+async function loadRoles() {
+  try {
+    const data = await rolesApi.list(props.organizationId)
+    roles.value = data.roles
+  } catch (e) {
+    console.error('Failed to load roles:', e)
+  }
+}
+
+// Role options for dropdowns (exclude owner for creation)
+const roleOptions = computed(() =>
+  roles.value
+    .filter((r) => r.slug !== 'owner')
+    .map((r) => ({ label: r.name, value: r.id }))
+)
+
+// All role options (including owner, for filter/display)
+const allRoleOptions = computed(() =>
+  roles.value.map((r) => ({ label: r.name, value: r.slug }))
+)
+
 // User form
 const userForm = ref({
   email: '',
   full_name: '',
-  role: 'viewer' as UserRole,
+  role_id: '',
   password: ''
 })
 
 // Invite form
 const inviteForm = ref({
   email: '',
-  role: 'viewer' as UserRole
+  role: 'member' as UserRole
 })
-
-const roleOptions = [
-  { label: 'Propietario', value: 'owner' },
-  { label: 'Administrador', value: 'admin' },
-  { label: 'Editor', value: 'editor' },
-  { label: 'Visor', value: 'viewer' }
-]
 
 const isEditing = computed(() => editingUser.value !== null)
 
@@ -121,17 +143,21 @@ function formatDate(dateStr?: string): string {
 function openUserDialog(user: OrganizationUser | null = null) {
   editingUser.value = user
   if (user) {
+    // Find role_id from user's role slug
+    const matchedRole = roles.value.find((r) => r.slug === user.role)
     userForm.value = {
       email: user.email,
       full_name: user.full_name,
-      role: user.role,
+      role_id: matchedRole?.id || '',
       password: ''
     }
   } else {
+    // Default to the is_default role (member)
+    const defaultRole = roles.value.find((r) => r.is_default) || roles.value.find((r) => r.slug === 'member')
     userForm.value = {
       email: '',
       full_name: '',
-      role: 'viewer',
+      role_id: defaultRole?.id || '',
       password: ''
     }
   }
@@ -145,19 +171,31 @@ function closeUserDialog() {
 
 async function handleSaveUser() {
   if (isEditing.value && editingUser.value) {
+    const selectedRole = roles.value.find((r) => r.id === userForm.value.role_id)
     const updateData: UserUpdateRequest = {
       full_name: userForm.value.full_name,
-      role: userForm.value.role
+      role: selectedRole?.slug
     }
     await updateUser(editingUser.value.id, updateData, props.organizationId)
   } else {
     const createData: UserCreateRequest = {
       email: userForm.value.email,
       full_name: userForm.value.full_name,
-      role: userForm.value.role,
+      role_id: userForm.value.role_id,
       password: userForm.value.password || undefined
     }
-    await createUser(createData, props.organizationId)
+    try {
+      const response = await organizationApi.createUser(props.organizationId, createData)
+      // Check if temp_password was returned
+      const resp = response as unknown as { temp_password?: string }
+      if (resp.temp_password) {
+        tempPassword.value = resp.temp_password
+        showTempPasswordDialog.value = true
+      }
+      await fetchUsers(props.organizationId)
+    } catch (e) {
+      console.error('Failed to create user:', e)
+    }
   }
   closeUserDialog()
 }
@@ -179,7 +217,7 @@ async function handleDeleteUser(userId: string) {
 async function handleSendInvite() {
   await sendInvite(inviteForm.value.email, inviteForm.value.role, props.organizationId)
   showInviteDialog.value = false
-  inviteForm.value = { email: '', role: 'viewer' }
+  inviteForm.value = { email: '', role: 'member' }
 }
 
 function handleSearch(event: Event) {
@@ -200,8 +238,11 @@ function onPageChange(page: number) {
 }
 
 watch(() => props.organizationId, () => {
-  fetchUsers(props.organizationId)
-  fetchInvites(props.organizationId)
+  Promise.all([
+    fetchUsers(props.organizationId),
+    fetchInvites(props.organizationId),
+    loadRoles()
+  ])
 }, { immediate: true })
 </script>
 
@@ -242,7 +283,7 @@ watch(() => props.organizationId, () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
-                <SelectItem v-for="opt in roleOptions" :key="opt.value" :value="opt.value">
+                <SelectItem v-for="opt in allRoleOptions" :key="opt.value" :value="opt.value">
                   {{ opt.label }}
                 </SelectItem>
               </SelectContent>
@@ -446,7 +487,7 @@ watch(() => props.organizationId, () => {
 
           <div>
             <label class="block text-sm font-medium text-foreground mb-1">Rol</label>
-            <Select v-model="userForm.role">
+            <Select v-model="userForm.role_id">
               <SelectTrigger>
                 <SelectValue placeholder="Seleccionar rol" />
               </SelectTrigger>
@@ -504,7 +545,7 @@ watch(() => props.organizationId, () => {
                 <SelectValue placeholder="Seleccionar rol" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem v-for="opt in roleOptions" :key="opt.value" :value="opt.value">
+                <SelectItem v-for="opt in allRoleOptions" :key="opt.value" :value="opt.value">
                   {{ opt.label }}
                 </SelectItem>
               </SelectContent>
@@ -519,6 +560,38 @@ watch(() => props.organizationId, () => {
             <i v-else class="pi pi-send mr-2" />
             Enviar
           </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Temp Password Dialog -->
+    <Dialog v-model:open="showTempPasswordDialog">
+      <DialogContent class="sm:max-w-[400px] glass-dialog">
+        <DialogHeader>
+          <DialogTitle>Usuario Creado</DialogTitle>
+          <DialogDescription>
+            El usuario fue creado exitosamente. Guarda la password temporal.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div class="py-4">
+          <Alert>
+            <AlertDescription>
+              <div class="space-y-2">
+                <p class="text-sm font-medium">Password temporal:</p>
+                <code class="block p-3 bg-muted rounded-md text-lg font-mono select-all">
+                  {{ tempPassword }}
+                </code>
+                <p class="text-xs text-muted-foreground">
+                  Esta password solo se muestra una vez. El usuario debe cambiarla en su primer inicio de sesion.
+                </p>
+              </div>
+            </AlertDescription>
+          </Alert>
+        </div>
+
+        <DialogFooter>
+          <Button @click="showTempPasswordDialog = false">Cerrar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

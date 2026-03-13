@@ -165,7 +165,7 @@ export interface StreamChunk {
 }
 
 // Webhook simulation types
-export type BusinessDomain = 'excelencia' | 'ecommerce' | 'healthcare' | 'credit' | 'pharmacy' | 'enav' | 'turnos_medicos'
+export type BusinessDomain = 'excelencia' | 'ecommerce' | 'healthcare' | 'credit' | 'pharmacy' | 'enav' | 'turnos_medicos' | 'eventos'
 
 export interface WebhookSimulationConfig {
   enabled: boolean

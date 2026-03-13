@@ -96,6 +96,14 @@ const router = createRouter({
           meta: { title: 'Usuarios', icon: 'pi-users', requiresOrg: true }
         },
 
+        // Roles
+        {
+          path: 'organizations/:orgId/roles',
+          name: 'Roles',
+          component: () => import('@/pages/organizations/RolesPage.vue'),
+          meta: { title: 'Roles', icon: 'pi-shield', requiresOrg: true }
+        },
+
         // Tenant Config (Page 10)
         {
           path: 'tenant-config',
@@ -144,6 +152,14 @@ const router = createRouter({
           meta: { title: 'Pruebas ENAV', icon: 'pi-file-pdf' }
         },
 
+        // Eventos Testing (eventos y egresados)
+        {
+          path: 'eventos-testing',
+          name: 'EventosTesting',
+          component: () => import('@/pages/testing/EventosTestingPage.vue'),
+          meta: { title: 'Pruebas Eventos', icon: 'pi-calendar' }
+        },
+
         // Healthcare Testing (ZISMED - camas, turnos, internaciones)
         {
           path: 'healthcare-testing',
@@ -166,6 +182,26 @@ const router = createRouter({
           name: 'PharmacyDetail',
           component: () => import('@/pages/pharmacy/PharmacyDetailPage.vue'),
           meta: { title: 'Detalle Farmacia', icon: 'pi-shop', hideFromMenu: true }
+        },
+
+        // Eventos Config
+        {
+          path: 'eventos-config',
+          name: 'EventosConfig',
+          component: () => import('@/pages/eventos/EventosConfigPage.vue'),
+          meta: { title: 'Configuracion Eventos', icon: 'pi-calendar', requiresOrg: true }
+        },
+
+        // Eventos Message History (reuses InstitutionConfigDetailPage without requiresAdmin)
+        {
+          path: 'eventos-config/history/:orgId/:configId',
+          name: 'EventosMessageHistory',
+          component: () => import('@/pages/institution/InstitutionConfigDetailPage.vue'),
+          meta: {
+            title: 'Historial de Mensajes - Eventos',
+            hideFromMenu: true,
+            requiresOrg: true
+          }
         },
 
         // RAG Dashboard (Page 13)

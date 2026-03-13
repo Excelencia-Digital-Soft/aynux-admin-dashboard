@@ -49,19 +49,18 @@ export interface OrganizationUser {
   updated_at: string
 }
 
-export type UserRole = 'owner' | 'admin' | 'editor' | 'viewer'
+export type UserRole = 'owner' | 'admin' | 'member' | string
 
 export interface UserCreateRequest {
   email: string
   full_name: string
-  role: UserRole
+  role_id: string
   password?: string
-  send_invite?: boolean
 }
 
 export interface UserUpdateRequest {
   full_name?: string
-  role?: UserRole
+  role?: string
   status?: 'active' | 'inactive'
 }
 
@@ -186,35 +185,27 @@ export interface TenantDocumentStats {
   total_categories: number
 }
 
-// Role permissions
-export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
-  owner: ['*'],
-  admin: ['users.manage', 'documents.manage', 'config.manage', 'analytics.view'],
-  editor: ['documents.manage', 'analytics.view'],
-  viewer: ['documents.view', 'analytics.view']
+// Role label/severity helpers (support dynamic roles gracefully)
+const KNOWN_LABELS: Record<string, string> = {
+  owner: 'Propietario',
+  admin: 'Administrador',
+  member: 'Miembro',
+  editor: 'Editor',
+  viewer: 'Visor'
 }
 
-export function hasPermission(role: UserRole, permission: string): boolean {
-  const permissions = ROLE_PERMISSIONS[role]
-  return permissions.includes('*') || permissions.includes(permission)
+const KNOWN_SEVERITIES: Record<string, 'danger' | 'warn' | 'info' | 'secondary'> = {
+  owner: 'danger',
+  admin: 'warn',
+  member: 'secondary',
+  editor: 'info',
+  viewer: 'secondary'
 }
 
-export function getRoleLabel(role: UserRole): string {
-  const labels: Record<UserRole, string> = {
-    owner: 'Propietario',
-    admin: 'Administrador',
-    editor: 'Editor',
-    viewer: 'Visor'
-  }
-  return labels[role] || role
+export function getRoleLabel(role: string): string {
+  return KNOWN_LABELS[role] || role.charAt(0).toUpperCase() + role.slice(1)
 }
 
-export function getRoleSeverity(role: UserRole): 'danger' | 'warn' | 'info' | 'secondary' {
-  const severities: Record<UserRole, 'danger' | 'warn' | 'info' | 'secondary'> = {
-    owner: 'danger',
-    admin: 'warn',
-    editor: 'info',
-    viewer: 'secondary'
-  }
-  return severities[role] || 'secondary'
+export function getRoleSeverity(role: string): 'danger' | 'warn' | 'info' | 'secondary' {
+  return KNOWN_SEVERITIES[role] || 'info'
 }

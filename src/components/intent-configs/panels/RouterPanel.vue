@@ -3,7 +3,7 @@
  * RouterPanel - Config panel for the Router Supervisor node
  * Shows all routing configs grouped by config_type
  */
-import { toRef } from 'vue'
+import { ref, toRef } from 'vue'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import {
@@ -12,6 +12,13 @@ import {
   AccordionTrigger,
   AccordionContent
 } from '@/components/ui/accordion'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import {
   Tooltip,
   TooltipTrigger,
@@ -29,12 +36,20 @@ import {
   getConfigTypeTooltip
 } from '../utils/labelHumanizer'
 
+interface AvailableNode {
+  id: string
+  displayName: string
+}
+
 interface Props {
   routingConfigs: RoutingConfigSummary[]
   domainKey: string
+  availableNodes?: AvailableNode[]
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  availableNodes: () => []
+})
 
 const emit = defineEmits<{
   (e: 'toggleConfig', configId: string, enabled: boolean): void
@@ -43,6 +58,9 @@ const emit = defineEmits<{
   (e: 'deleteConfig', configId: string): void
   (e: 'highlightDependency', routingConfigId: string | null): void
 }>()
+
+// Inline edit state for target_node
+const editingNodeConfigId = ref<string | null>(null)
 
 function handleToggleEnabled(config: RoutingConfigSummary) {
   emit('toggleConfig', config.id, !config.is_enabled)
@@ -58,6 +76,17 @@ function handleToggleEscapeIntent(config: RoutingConfigSummary) {
 
 function handleDelete(configId: string) {
   emit('deleteConfig', configId)
+}
+
+function startEditNode(configId: string) {
+  if (props.availableNodes.length > 0) {
+    editingNodeConfigId.value = configId
+  }
+}
+
+function handleNodeChange(configId: string, newNode: string) {
+  editingNodeConfigId.value = null
+  emit('updateConfig', configId, { target_node: newNode })
 }
 
 // Group by config_type using shared composable
@@ -180,9 +209,38 @@ function getTypeVariant(type: string): 'destructive' | 'info' | 'warning' | 'sec
                 <div class="config-target">
                   <i class="pi pi-arrow-right" />
                   <span>{{ humanizeTargetIntent(config.target_intent) }}</span>
-                  <span v-if="config.target_node" class="target-node">
-                    ({{ humanizeNodeId(config.target_node) }})
-                  </span>
+                  <!-- Inline edit mode for target_node -->
+                  <template v-if="editingNodeConfigId === config.id && availableNodes.length > 0">
+                    <Select
+                      :model-value="config.target_node || ''"
+                      @update:model-value="(val: string) => handleNodeChange(config.id, val)"
+                    >
+                      <SelectTrigger class="inline-node-select" @click.stop>
+                        <SelectValue placeholder="Nodo..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem
+                          v-for="node in availableNodes"
+                          :key="node.id"
+                          :value="node.id"
+                        >
+                          {{ node.displayName }}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </template>
+                  <!-- Display mode -->
+                  <Tooltip v-else-if="config.target_node">
+                    <TooltipTrigger as-child>
+                      <button
+                        class="target-node-btn"
+                        @click.stop="startEditNode(config.id)"
+                      >
+                        {{ humanizeNodeId(config.target_node) }}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">Click para cambiar el paso destino</TooltipContent>
+                  </Tooltip>
                 </div>
                 <div class="config-flags">
                   <label class="flag-toggle" @click.stop>
@@ -465,9 +523,33 @@ function getTypeVariant(type: string): 'destructive' | 'info' | 'warning' | 'sec
   font-size: 0.6rem;
 }
 
-.target-node {
+.target-node-btn {
   color: #8b5cf6;
   font-size: 0.7rem;
+  background: none;
+  border: 1px dashed transparent;
+  border-radius: 3px;
+  padding: 0 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.target-node-btn:hover {
+  border-color: rgba(139, 92, 246, 0.4);
+  background: rgba(139, 92, 246, 0.06);
+}
+
+.inline-node-select {
+  height: 24px;
+  min-width: 140px;
+  max-width: 180px;
+  font-size: 0.7rem;
+  padding: 0 6px;
+  border-color: rgba(139, 92, 246, 0.4);
+}
+
+.inline-node-select:focus {
+  border-color: #8b5cf6;
 }
 
 .config-flags {

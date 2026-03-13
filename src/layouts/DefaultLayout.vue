@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { RouterView, RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import { useDarkMode } from '@/composables/useDarkMode'
+import { useMenuStore } from '@/stores/menu.store'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -39,6 +40,7 @@ const route = useRoute()
 const router = useRouter()
 const { currentUser, currentOrganization, organizations, logout, switchOrganization, username, isAdminOrOwner } = useAuth()
 const { isDark, toggleDarkMode } = useDarkMode()
+const menuStore = useMenuStore()
 
 const sidebarCollapsed = ref(false)
 
@@ -49,70 +51,47 @@ interface MenuItem {
   items?: { label: string; icon: string; route: string; disabled?: boolean }[]
 }
 
-const menuItems = computed<MenuItem[]>(() => [
-  {
-    key: 'knowledge',
-    label: 'Knowledge & RAG',
-    icon: 'pi pi-database',
-    items: [
-      { label: 'Knowledge Base', icon: 'pi pi-book', route: '/knowledge-base' },
-      { label: 'Upload Documents', icon: 'pi pi-upload', route: '/upload-documents' },
-      { label: 'Embeddings', icon: 'pi pi-th-large', route: '/embeddings' },
-      { label: 'RAG Dashboard', icon: 'pi pi-chart-line', route: '/rag-dashboard' },
-      { label: 'Excelencia', icon: 'pi pi-star', route: '/excelencia' },
-    ],
-  },
-  {
-    key: 'multitenant',
-    label: 'Multi-Tenant',
-    icon: 'pi pi-sitemap',
-    items: [
-      { label: 'Organizations', icon: 'pi pi-building', route: '/organizations' },
-      {
-        label: 'Users',
-        icon: 'pi pi-users',
-        route: currentOrganization.value ? `/organizations/${currentOrganization.value.id}/users` : '',
-        disabled: !currentOrganization.value,
-      },
-      { label: 'Tenant Config', icon: 'pi pi-cog', route: '/tenant-config', disabled: !currentOrganization.value },
-      { label: 'Instituciones', icon: 'pi pi-building-columns', route: '/institution-configs', disabled: !currentOrganization.value },
-      { label: 'Farmacias', icon: 'pi pi-shop', route: '/pharmacy', disabled: !currentOrganization.value },
-    ],
-  },
-  {
-    key: 'config',
-    label: 'Configuracion',
-    icon: 'pi pi-cog',
-    items: [
-      { label: 'Reglas de Bypass', icon: 'pi pi-directions', route: '/bypass-rules' },
-      { label: 'Gestion YAML', icon: 'pi pi-code', route: '/yaml-management' },
-      { label: 'Chattigo', icon: 'pi pi-whatsapp', route: '/chattigo-credentials' },
-      ...(isAdminOrOwner.value
-        ? [
-            { label: 'Modelos AI', icon: 'pi pi-microchip-ai', route: '/ai-models' },
-            { label: 'Catalogo Agentes', icon: 'pi pi-box', route: '/agent-catalog' },
-            { label: 'Dominios', icon: 'pi pi-globe', route: '/domains' },
-            { label: 'Mapeo Intents', icon: 'pi pi-link', route: '/intent-mappings' },
-            { label: 'LangGraph Topologia', icon: 'pi pi-share-alt', route: '/graph-topology' },
-            { label: 'Editor Workflows', icon: 'pi pi-sitemap', route: '/workflow-editor' },
-          ]
-        : []),
-    ],
-  },
-  {
-    key: 'testing',
-    label: 'Pruebas',
-    icon: 'pi pi-flask',
-    items: [
-      { label: 'Pharmacy Testing', icon: 'pi pi-heart', route: '/pharmacy-testing' },
-      { label: 'Turnos Medicos', icon: 'pi pi-calendar-clock', route: '/turnos-medicos-testing' },
-      { label: 'Whisper Testing', icon: 'pi pi-microphone', route: '/whisper-testing' },
-      { label: 'Chat Visualizer', icon: 'pi pi-comments', route: '/chat-visualizer' },
-      { label: 'ENAV Testing', icon: 'pi pi-file-pdf', route: '/enav-testing' },
-      { label: 'Healthcare', icon: 'pi pi-heart', route: '/healthcare-testing' },
-    ],
-  },
-])
+// Dynamic menus from DB, with :orgId replacement and requires_org handling
+const menuItems = computed<MenuItem[]>(() => {
+  const orgId = currentOrganization.value?.id
+  const dbMenus = menuStore.menuItems
+
+  if (!dbMenus.length) return []
+
+  const result: MenuItem[] = []
+  for (const group of dbMenus) {
+    if (group.is_group && group.items?.length) {
+      result.push({
+        key: group.key,
+        label: group.label,
+        icon: group.icon || '',
+        items: group.items.map((child) => {
+          const resolvedRoute = child.route?.replace(':orgId', orgId || '') || ''
+          const disabled = child.requires_org && !orgId
+          return {
+            label: child.label,
+            icon: child.icon || '',
+            route: disabled ? '' : resolvedRoute,
+            disabled,
+          }
+        }),
+      })
+    }
+    // standalone items (like Statistics) handled separately below
+  }
+  return result
+})
+
+// Standalone items (not groups, like Statistics)
+const standaloneItems = computed(() => {
+  return menuStore.menuItems.filter((m) => !m.is_group && m.route)
+})
+
+// Fetch menus on mount and when org changes
+async function loadMenus() {
+  await menuStore.fetchMyMenus(currentOrganization.value?.id)
+}
+onMounted(loadMenus)
 
 const expandedSections = ref<Record<string, boolean>>({})
 
@@ -120,7 +99,7 @@ function initExpandedState() {
   if (route.path.startsWith('/knowledge-base') || route.path.startsWith('/upload-documents') || route.path.startsWith('/embeddings') || route.path.startsWith('/rag-dashboard') || route.path.startsWith('/excelencia')) {
     expandedSections.value['knowledge'] = true
   }
-  if (route.path.startsWith('/organizations') || route.path.startsWith('/tenant') || route.path.startsWith('/institution') || route.path.startsWith('/pharmacy')) {
+  if (route.path.startsWith('/organizations') || route.path.startsWith('/tenant') || route.path.startsWith('/institution') || route.path.startsWith('/pharmacy') || route.path.startsWith('/eventos-config')) {
     expandedSections.value['multitenant'] = true
   }
   if (route.path.startsWith('/bypass') || route.path.startsWith('/yaml') || route.path.startsWith('/chattigo') || route.path.startsWith('/ai-models') || route.path.startsWith('/agent-catalog') || route.path.startsWith('/domains') || route.path.startsWith('/graph-topology') || route.path.startsWith('/workflow-editor')) {
@@ -149,6 +128,7 @@ function isGroupActive(item: MenuItem): boolean {
 
 function handleOrgChange(orgId: string) {
   switchOrganization(orgId)
+  menuStore.fetchMyMenus(orgId)
 }
 
 function navigateTo(path: string) {
@@ -319,21 +299,27 @@ function getFirstRoute(item: MenuItem): string {
               </CollapsibleContent>
             </Collapsible>
 
-            <Separator class="my-3 bg-white/10 dark:bg-white/5" />
+            <Separator v-if="standaloneItems.length" class="my-3 bg-white/10 dark:bg-white/5" />
 
-            <RouterLink to="/statistics" v-slot="{ href, navigate }" custom>
+            <RouterLink
+              v-for="sa in standaloneItems"
+              :key="sa.key"
+              :to="sa.route || '/'"
+              v-slot="{ href, navigate }"
+              custom
+            >
               <a
                 :href="href"
                 @click="navigate"
                 :class="[
                   'flex items-center gap-3 py-2.5 px-3 rounded-lg transition-all duration-200',
-                  isActive('/statistics')
+                  isActive(sa.route || '')
                     ? 'bg-primary/20 dark:bg-primary/30 text-primary-700 dark:text-primary-300 font-medium'
                     : 'text-surface-600 dark:text-surface-300 hover:bg-white/15 dark:hover:bg-white/5',
                 ]"
               >
-                <i :class="['pi pi-chart-bar text-lg', isActive('/statistics') ? 'text-primary-600' : '']" />
-                <span>Statistics</span>
+                <i :class="[sa.icon || 'pi pi-circle', 'text-lg', isActive(sa.route || '') ? 'text-primary-600' : '']" />
+                <span>{{ sa.label }}</span>
               </a>
             </RouterLink>
           </div>
@@ -361,27 +347,27 @@ function getFirstRoute(item: MenuItem): string {
               </TooltipContent>
             </Tooltip>
 
-            <Separator class="my-2 bg-white/10 dark:bg-white/5" />
+            <Separator v-if="standaloneItems.length" class="my-2 bg-white/10 dark:bg-white/5" />
 
-            <Tooltip>
+            <Tooltip v-for="sa in standaloneItems" :key="sa.key">
               <TooltipTrigger as-child>
-                <RouterLink to="/statistics" v-slot="{ href, navigate }" custom>
+                <RouterLink :to="sa.route || '/'" v-slot="{ href, navigate }" custom>
                   <a
                     :href="href"
                     @click="navigate"
                     :class="[
                       'flex items-center justify-center w-full h-11 rounded-lg transition-all duration-200',
-                      isActive('/statistics')
+                      isActive(sa.route || '')
                         ? 'bg-primary/20 dark:bg-primary/30 text-primary-600 dark:text-primary-400'
                         : 'text-surface-500 dark:text-surface-400 hover:bg-white/15 dark:hover:bg-white/5',
                     ]"
                   >
-                    <i class="pi pi-chart-bar text-xl" />
+                    <i :class="[sa.icon || 'pi pi-circle', 'text-xl']" />
                   </a>
                 </RouterLink>
               </TooltipTrigger>
               <TooltipContent side="right">
-                Statistics
+                {{ sa.label }}
               </TooltipContent>
             </Tooltip>
           </div>

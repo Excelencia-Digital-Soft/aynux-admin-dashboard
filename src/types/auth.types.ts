@@ -17,6 +17,8 @@ export interface Organization {
   mode: 'generic' | 'multi_tenant'
   status: 'active' | 'suspended' | 'trial'
   role: string
+  role_id?: string
+  role_name?: string
   is_admin: boolean
 }
 
